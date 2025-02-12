@@ -31,11 +31,11 @@ const DrawerComponent = props => {
               </View>
             </View>
           </TouchableRipple>
-          <Drawer.Item
+          {/* <Drawer.Item
             label="Notes"
             icon="file-document"
             onPress={() => navigate('Notes')}
-          />
+          /> */}
           <Drawer.Item
             label="Report Issue or Bug"
             icon="bug"

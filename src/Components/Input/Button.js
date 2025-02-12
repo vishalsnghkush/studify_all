@@ -10,7 +10,7 @@ const InputButton = ({
   return (
     <Button
       mode={mode}
-      style={{marginBottom: 10, ...style, borderRadius: 5}}
+      style={{marginBottom: 10, ...style, borderRadius: 50}}
       contentStyle={{padding: 7}}
       labelStyle={{
         fontSize: 20,

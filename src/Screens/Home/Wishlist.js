@@ -1,42 +1,34 @@
-import {Text} from '../../Components/Input';
-import {Screen, Swiper} from '../../Components/Screen';
-import {useQuery} from '@tanstack/react-query';
-import useApi from '../../Components/Api/Api';
-import {FlatList, Image} from 'react-native';
-import {ActivityIndicator} from 'react-native-paper';
-import {useFocusEffect} from '@react-navigation/native';
+import {Text, TextInput, Button} from '../../Components/Input';
+import {useState} from 'react';
+import {Screen} from '../../Components/Screen';
+import {Image, View} from 'react-native';
 const Wishlist = () => {
-  const {data, isLoading, refetch} = useQuery({
-    queryKey: ['favoutites_course'],
-    queryFn: () => useApi().get('/course/favourite'),
-  });
-
-  useFocusEffect(() => {
-    refetch();
-  });
+  const [room, setRoom] = useState('');
+  const updateFormValue = ({name, value}) => {
+    setRoom(value);
+  };
+  // https://freeipapi.com/api/json/103.69.14.110
+  const handleSubmit = () => {};
   return (
     <Screen NoHeader list>
-      {isLoading ? (
-        <ActivityIndicator size={40} style={{marginTop: 50}} />
-      ) : data?.data.length == 0 ? (
-        <Image
-          source={require('../../Assets/Images/nodata.png')}
-          style={{width: 320, height: 320, alignSelf: 'center', marginTop: 100}}
+      <Image
+        source={require('../../Assets/Images/meet.png')}
+        style={{
+          width: 300,
+          height: 300,
+          marginTop: 100,
+          alignSelf: 'center',
+          objectFit: 'contain',
+        }}
+      />
+      <View style={{flex: 0.6, justifyContent: 'center'}}>
+        <TextInput
+          label="Room Name"
+          name="room"
+          updateFormValue={updateFormValue}
         />
-      ) : (
-        <FlatList
-          showsVerticalScrollIndicator={false}
-          data={data?.data}
-          keyExtractor={item => item.course_id}
-          ListHeaderComponent={
-            <Text size="large" style={{marginVertical: 10}}>
-              Wishlist
-            </Text>
-          }
-          renderItem={({item}) => <Swiper data={item} />}
-          style={{marginBottom: 15}}
-        />
-      )}
+        <Button name="Join" onPress={handleSubmit} />
+      </View>
     </Screen>
   );
 };

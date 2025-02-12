@@ -96,7 +96,6 @@ const BottomSheet = () => {
 const styles = StyleSheet.create({
   bottomSheet: {
     position: 'absolute',
-    marginHorizontal: 10,
     bottom: 0,
     left: 0,
     right: 0,

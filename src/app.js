@@ -32,6 +32,16 @@ const App = () => {
     shallowEqual,
   );
   const theme = isDark ? DarkMode : LightMode;
+
+  const linking = {
+    prefixes: ['https://studifysuccess.com/app'],
+    config: {
+      screens: {
+        Meet: 'meet/:search',
+      },
+    },
+  };
+
   return (
     <PaperProvider theme={theme}>
       <CheckAuth />
@@ -40,7 +50,7 @@ const App = () => {
         backgroundColor="transparent"
         translucent={true}
       />
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <QueryClientProvider client={queryClient}>
           {isUserLoggedIn ? <AppNavigation /> : <AuthNavigation />}
         </QueryClientProvider>

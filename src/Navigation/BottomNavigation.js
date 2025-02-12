@@ -1,5 +1,6 @@
 import {createMaterialBottomTabNavigator} from 'react-native-paper/react-navigation';
-import {Wishlist, Profile, MyCourse} from '../Screens/Home';
+import {Wishlist, Profile} from '../Screens/Home';
+import Notes from '../Screens/Home/Notes/Notes';
 import Main from '../Screens/Home/Main';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
@@ -37,10 +38,9 @@ export default function BottomNavigation() {
           }}
         />
         <Tab.Screen
-          name="MyCourse"
-          component={MyCourse}
+          name="Notes"
+          component={Notes}
           options={{
-            title: 'My Course',
             tabBarIcon: ({focused}) => (
               <Micon
                 name={focused ? 'book-open-variant' : 'book-open-blank-variant'}
@@ -56,10 +56,11 @@ export default function BottomNavigation() {
           name="Wishlist"
           component={Wishlist}
           options={{
+            title: 'Meet',
             tabBarIcon: ({focused}) => (
               <Micon
-                name={focused ? 'heart' : 'heart-outline'}
-                size={24}
+                name={focused ? 'video' : 'video-outline'}
+                size={27}
                 color={
                   focused ? theme.colors.primary : theme.colors.onSurfaceVariant
                 }

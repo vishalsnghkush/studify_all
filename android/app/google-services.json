@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "754353284004",
+    "project_id": "studifysuccess-c7ad5",
+    "storage_bucket": "studifysuccess-c7ad5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754353284004:android:47ec1c8237be4ac0bb9731",
+        "android_client_info": {
+          "package_name": "com.studifysuccess.courses"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0GPBDp4VojTm6hbj0TWN1NcaZ9bXoVwc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

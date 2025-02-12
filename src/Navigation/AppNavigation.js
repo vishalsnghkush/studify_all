@@ -15,14 +15,11 @@ import {
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
-import {Lessons} from '../Screens/Home/CourseDetails';
-import {VideoPlayer} from '../Screens/Home/MyCourse';
 import {CustomerService} from '../Screens/Home/HelpCenter';
 import {AppBar} from '../Components/Navigation';
-import CompletedCourse from '../Screens/Home/MyCourse/Completed/CompletedCourse';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
-import Notes from '../Screens/Home/Notes/Notes';
+import FreeNotes from '../Screens/Home/Notes/FreeNotes';
 import Pdf from '../Screens/Home/Notes/Pdf';
 
 const AppNavigation = () => {
@@ -48,18 +45,6 @@ const AppNavigation = () => {
       />
       <Stack.Screen name="Notifications" component={Notifications} />
       <Stack.Screen
-        name="CourseDetails"
-        component={CourseDetails}
-        options={({route}) => ({
-          title: route.params.data.course_name,
-          cardStyleInterpolator:
-            CardStyleInterpolators.forFadeFromBottomAndroid,
-        })}
-        sharedElements={(route, otherRoute, showing) => {
-          return [`item.${route.params.data.course_id}.image`];
-        }}
-      />
-      <Stack.Screen
         name="HelpCenter"
         component={HelpCenter}
         options={{
@@ -83,13 +68,6 @@ const AppNavigation = () => {
         }}
       />
       <Stack.Screen
-        name="Lessons"
-        component={Lessons}
-        options={({route}) => ({
-          title: route.params.title,
-        })}
-      />
-      <Stack.Screen
         name="WebView"
         component={WebView}
         options={{
@@ -97,23 +75,11 @@ const AppNavigation = () => {
         }}
       />
       <Stack.Screen
-        name="VideoPlayer"
-        component={VideoPlayer}
-        options={{headerShown: false}}
-      />
-      <Stack.Screen
         name="ChangePassword"
         component={ChangePassword}
         options={{
           title: 'Change Password',
         }}
-      />
-      <Stack.Screen
-        name="CompletedCourse"
-        component={CompletedCourse}
-        options={({route}) => ({
-          title: route.params.title,
-        })}
       />
       <Stack.Screen
         name="Search"
@@ -141,7 +107,7 @@ const AppNavigation = () => {
         component={Meet}
         options={{headerShown: false}}
       />
-      <Stack.Screen name="Notes" component={Notes} />
+      <Stack.Screen name="FreeNotes" component={FreeNotes} />
       <Stack.Screen name="Pdf" component={Pdf} options={{headerShown: false}} />
       <Stack.Screen
         name="Appreport"

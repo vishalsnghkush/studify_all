@@ -43,7 +43,7 @@ const HomeHeader = () => {
       </View>
       <Searchbar
         placeholder="Search"
-        onPressIn={() => navigation.navigate('Search')}
+        // onPressIn={() => navigation.navigate('Search')}
       />
     </View>
   );

@@ -6,6 +6,8 @@ import {Avatar} from 'react-native-paper';
 import {useDispatch, useSelector} from 'react-redux';
 import {setUserLogout, setTheme} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
+import InAppReview from '../../../Components/Screen/InAppReview';
+
 const Profile = ({navigation}) => {
   const dispatch = useDispatch();
   const {isDark, user} = useSelector(state => state.initial);
@@ -16,6 +18,7 @@ const Profile = ({navigation}) => {
   };
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>
+      <InAppReview />
       <View style={{alignItems: 'center'}}>
         <Avatar.Text size={100} label={user?.fname[0] + user?.lname[0]} />
         <Text size="medium" style={{marginTop: 10, fontWeight: 'bold'}}>
