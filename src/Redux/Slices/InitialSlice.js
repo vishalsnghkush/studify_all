@@ -7,6 +7,11 @@ const initialSlice = createSlice({
     isUserLoggedIn: false,
     user: {},
     token: '',
+    FcmToken: null,
+    contactPermission: false,
+    notificationPermission: false,
+    audioPremisson: false,
+    videoPermission: false,
   },
   reducers: {
     setTheme(state) {
@@ -26,9 +31,20 @@ const initialSlice = createSlice({
       state.user.fname = action.payload.fname;
       state.user.lname = action.payload.lname;
     },
+    setPermission(state, action) {
+      state[action.payload.permission] = action.payload.value;
+      if (action.payload.permission == 'notificationPermission') {
+        state.FcmToken = action.payload.FcmToken;
+      }
+    },
   },
 });
 
-export const {setTheme, setUserLogin, setUserLogout, updateUserName} =
-  initialSlice.actions;
+export const {
+  setTheme,
+  setUserLogin,
+  setUserLogout,
+  updateUserName,
+  setPermission,
+} = initialSlice.actions;
 export default initialSlice.reducer;

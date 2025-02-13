@@ -1,6 +1,6 @@
 import {PermissionsAndroid, Platform, Linking, Alert} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
-
+import {getApp} from '@react-native-firebase/app';
 export const requestNotificationPermission = async () => {
   try {
     if (Platform.OS == 'android' && Platform.Version >= 33) {
@@ -54,7 +54,8 @@ const showPermissionSettingsAlert = () => {
 const getFCMToken = async () => {
   try {
     // await messaging().registerDeviceForRemoteMessages();
-    const token = await messaging().getToken();
+    const app = getApp();
+    const token = await messaging(app).getToken();
     console.log('token->>', token);
     return token;
   } catch (error) {

@@ -1,5 +1,4 @@
 import {PermissionsAndroid, Platform, Linking, Alert} from 'react-native';
-import Contacts from 'react-native-contacts';
 
 export const getAllContacts = async () => {
   try {
@@ -8,7 +7,7 @@ export const getAllContacts = async () => {
         PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
       );
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        return Contacts.getAll();
+        return true;
       } else if (granted === PermissionsAndroid.RESULTS.DENIED) {
         console.log('Permission Denied');
       } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
