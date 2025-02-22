@@ -10,9 +10,12 @@ import {getApp} from '@react-native-firebase/app';
 import useApi from '../../Components/Api/Api';
 import {setUserLogin} from '../../Redux/Slices/InitialSlice';
 import FlashMessage from '../../Components/Screen/FlashMessage';
+import DeviceInfo from 'react-native-device-info';
 const Google = () => {
+  let brand = DeviceInfo.getBrand();
+  let model = DeviceInfo.getModel();
+
   const dispatch = useDispatch();
-  const {token, user: UserData} = useSelector(state => state.initial);
   const app = getApp();
   useEffect(() => {
     GoogleSignin.configure({
@@ -28,7 +31,9 @@ const Google = () => {
       const res = await useApi().post('/auth/googleSignup', {
         email: user.data.user.email,
         fname: user.data.user.givenName,
-        lname: user.data.user.familyName || ' ',
+        lname: user?.data?.user?.familyName || ' ',
+        brand: brand,
+        model: model,
       });
       console.log('profile updated', res);
       if (res.status == 200) {

@@ -82,7 +82,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         resConfigs "en", "US"
         versionCode 2   //increse it for new release
-        versionName "1.1"  //app version
+        versionName "1.2"  //app version
     }
     signingConfigs {
      release {
