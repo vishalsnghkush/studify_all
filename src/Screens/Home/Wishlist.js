@@ -2,13 +2,30 @@ import {Text, TextInput, Button} from '../../Components/Input';
 import {useState} from 'react';
 import {Screen} from '../../Components/Screen';
 import {Image, View} from 'react-native';
-const Wishlist = () => {
+import useApi from '../../Components/Api/Api';
+const Wishlist = ({navigation}) => {
   const [room, setRoom] = useState('');
+  const [loading, setLoading] = useState(false);
   const updateFormValue = ({name, value}) => {
     setRoom(value);
   };
   // https://freeipapi.com/api/json/103.69.14.110
-  const handleSubmit = () => {};
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const res = await useApi().post(
+        'https://ss-backend-xi.vercel.app/lms/jitsi_token/room',
+        {room},
+      );
+      if (res.status === 200) {
+        navigation.navigate('Meet', {room});
+      }
+    } catch (e) {
+      console.log('error', e);
+    }
+    setLoading(false);
+  };
+
   return (
     <Screen NoHeader list>
       <Image
@@ -27,7 +44,7 @@ const Wishlist = () => {
           name="room"
           updateFormValue={updateFormValue}
         />
-        <Button name="Join" onPress={handleSubmit} />
+        <Button name="Join" onPress={handleSubmit} loading={loading} />
       </View>
     </Screen>
   );

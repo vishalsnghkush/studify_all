@@ -21,6 +21,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
 import Pdf from '../Screens/Home/Notes/Pdf';
+import Internship from '../Screens/Home/User/Internship';
 
 const AppNavigation = () => {
   const Stack = createStackNavigator();
@@ -81,6 +82,7 @@ const AppNavigation = () => {
           title: 'Change Password',
         }}
       />
+      <Stack.Screen name="Internship" component={Internship} />
       <Stack.Screen
         name="Search"
         component={Search}

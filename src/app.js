@@ -37,7 +37,7 @@ const App = () => {
     prefixes: ['https://studifysuccess.com/app'],
     config: {
       screens: {
-        Meet: 'meet/:search',
+        Meet: 'meet/:room',
       },
     },
   };

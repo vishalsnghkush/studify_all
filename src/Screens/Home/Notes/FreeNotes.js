@@ -6,7 +6,6 @@ import useApi from '../../../Components/Api/Api';
 import {useQuery} from '@tanstack/react-query';
 import {ActivityIndicator, TouchableRipple, useTheme} from 'react-native-paper';
 import {Text} from '../../../Components/Input';
-import {set} from 'react-native-reanimated';
 
 const classList = [
   {label: 'Class 6th', value: 6},
@@ -43,9 +42,9 @@ const Notes = ({navigation}) => {
   return (
     <Screen list>
       <View style={{flexDirection: 'row', gap: 10, marginBottom: 10}}>
-        <View style={{flex: 1}}>
+        <View style={{flex: 1, marginTop: 15}}>
           <Dropdown
-            label="Class"
+            label="Select Class"
             name="class"
             value={form}
             updateFormValue={updateFormValue}
@@ -54,7 +53,7 @@ const Notes = ({navigation}) => {
           />
         </View>
       </View>
-      <View>
+      <View style={{flex: 1}}>
         {isLoading ? (
           <ActivityIndicator size={40} style={{marginTop: 30}} />
         ) : data?.data?.length == 0 ? (

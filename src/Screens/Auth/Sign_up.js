@@ -174,7 +174,9 @@ const Sign_up = ({navigation}) => {
           style={{
             marginVertical: 5,
             flexDirection: 'row',
+            marginBottom: 15,
             gap: 4,
+            justifyContent: 'center',
             flexWrap: 'wrap',
           }}>
           <Text size="">By signing up, you agree to our</Text>
@@ -191,7 +193,7 @@ const Sign_up = ({navigation}) => {
             onPress={() =>
               Linking.openURL('https://www.studifysuccess.com/privacy-policy')
             }>
-            <Text size="" style={{color: '#0c4e4e'}}>
+            <Text size="" style={{color: '#0c4e4e', marginTop: -5}}>
               Privacy Policy
             </Text>
           </Pressable>

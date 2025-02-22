@@ -12,7 +12,28 @@
           "package_name": "com.studifysuccess.courses"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "754353284004-ddl0i0u44scl5aj94semo8vmrtgrgj7v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studifysuccess.courses",
+            "certificate_hash": "976b89d928b2c25cb7ed8274ed1d894d9c1f8f05"
+          }
+        },
+        {
+          "client_id": "754353284004-opqiq1q0ii4dljsurtq5ktl2d4t8k47m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studifysuccess.courses",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "754353284004-474eirfunp8osjpcmqr8ut6b31o7ajq1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD0GPBDp4VojTm6hbj0TWN1NcaZ9bXoVwc"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "754353284004-474eirfunp8osjpcmqr8ut6b31o7ajq1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

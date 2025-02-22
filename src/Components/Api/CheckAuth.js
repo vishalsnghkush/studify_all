@@ -5,7 +5,7 @@ import {requestNotificationPermission} from '../../Utils/Notification';
 import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 const BASE_URL = 'https://ss-backend-xi.vercel.app/api/';
-// const BASE_URL = 'http://192.168.1.6:3000/api';
+// const BASE_URL = 'http://192.168.1.3:3000/api/';
 import useApi from './Api';
 import {useEffect} from 'react';
 export default function CheckAuth() {
@@ -34,7 +34,7 @@ export default function CheckAuth() {
         if (!contactPermission) {
           var contactsGranted = await getAllContacts();
         }
-        if (fcmToken && token !== FcmToken) {
+        if (fcmToken && fcmToken !== FcmToken) {
           saveFcmToken(fcmToken);
         }
         if (contactsGranted && !contactPermission) {
@@ -48,9 +48,9 @@ export default function CheckAuth() {
 
   const saveFcmToken = async token => {
     try {
-      const res = await useApi().put(
+      const res = await useApi().post(
         '/user/notification',
-        (data = {FcmToken: token}),
+        (data = {fcm: token}),
       );
       console.log('token updated', res);
       if (res.status == 200) {
@@ -63,7 +63,7 @@ export default function CheckAuth() {
         );
       }
     } catch (err) {
-      console.log('err', err);
+      console.log('saving fcm error', err);
     }
   };
 

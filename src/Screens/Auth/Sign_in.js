@@ -6,6 +6,7 @@ import {useDispatch} from 'react-redux';
 import {setUserLogin} from '../../Redux/Slices/InitialSlice';
 import useApi from '../../Components/Api/Api';
 import {useMutation} from '@tanstack/react-query';
+import Google from './Google';
 const Sign_in = ({navigation}) => {
   const dispatch = useDispatch();
   const [form, setForm] = useState({
@@ -78,7 +79,7 @@ const Sign_in = ({navigation}) => {
           source={require('../../Assets/Images/signin.png')}
           style={{
             width: 300,
-            height: 300,
+            height: 250,
             objectFit: 'contain',
           }}
         />
@@ -86,6 +87,18 @@ const Sign_in = ({navigation}) => {
         <Text size="large" style={{marginBottom: 10}}>
           Signin to your account
         </Text>
+      </View>
+      <Google />
+      <View style={{marginBottom: 20, marginTop: 15}}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <View style={{flex: 1, height: 1, backgroundColor: '#a4a4a4'}} />
+          <View>
+            <Text style={{width: 50, textAlign: 'center', color: '#858585'}}>
+              OR
+            </Text>
+          </View>
+          <View style={{flex: 1, height: 1, backgroundColor: '#a4a4a4'}} />
+        </View>
       </View>
       <View>
         <TextInput
