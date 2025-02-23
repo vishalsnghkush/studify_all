@@ -164,7 +164,7 @@ const Internship = ({navigation}) => {
               />
             </View>
           </View>
-          <Button name="Update Profile" onPress={submit} loading={isPending} />
+          <Button name="Submit" onPress={submit} loading={isPending} />
         </View>
       ) : (
         <ActivityIndicator size={40} style={{marginTop: 30}} />

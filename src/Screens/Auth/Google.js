@@ -25,8 +25,9 @@ const Google = () => {
   }, []);
   const onGoogleButtonPress = async () => {
     try {
+      await GoogleSignin.signOut();
       await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn();
+      const user = await GoogleSignin.signIn({prompt: 'select_account'});
       // console.log('Google response', user);
       const res = await useApi().post('/auth/googleSignup', {
         email: user.data.user.email,

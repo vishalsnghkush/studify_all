@@ -5,13 +5,6 @@ export const getAllContacts = async () => {
     if (Platform.OS == 'android' && Platform.Version >= 33) {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-        {
-          title: 'Contacts Access Permission',
-          message: 'This app needs access to your contacts.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
       );
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         return true;
