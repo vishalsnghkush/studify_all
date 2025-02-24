@@ -109,7 +109,11 @@ const AppNavigation = () => {
         component={Meet}
         options={{headerShown: false}}
       />
-      <Stack.Screen name="FreeNotes" component={FreeNotes} />
+      <Stack.Screen
+        name="FreeNotes"
+        component={FreeNotes}
+        options={{title: 'YouTube Notes'}}
+      />
       <Stack.Screen name="Pdf" component={Pdf} options={{headerShown: false}} />
       <Stack.Screen
         name="Appreport"
