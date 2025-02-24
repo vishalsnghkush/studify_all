@@ -11,6 +11,7 @@ const Wishlist = ({navigation}) => {
   };
   // https://freeipapi.com/api/json/103.69.14.110
   const handleSubmit = async () => {
+    if (!room) return;
     setLoading(true);
     try {
       const res = await useApi().post(

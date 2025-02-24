@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Button} from '../../Components/Input';
 import auth from '@react-native-firebase/auth';
 import {
@@ -12,9 +12,10 @@ import {setUserLogin} from '../../Redux/Slices/InitialSlice';
 import FlashMessage from '../../Components/Screen/FlashMessage';
 import DeviceInfo from 'react-native-device-info';
 const Google = () => {
+  const [loading, setLoading] = useState(false);
   let brand = DeviceInfo.getBrand();
   let model = DeviceInfo.getModel();
-
+  let androidVersion = DeviceInfo.getSystemVersion();
   const dispatch = useDispatch();
   const app = getApp();
   useEffect(() => {
@@ -24,6 +25,7 @@ const Google = () => {
     });
   }, []);
   const onGoogleButtonPress = async () => {
+    setLoading(true);
     try {
       await GoogleSignin.signOut();
       await GoogleSignin.hasPlayServices();
@@ -35,8 +37,9 @@ const Google = () => {
         lname: user?.data?.user?.familyName || ' ',
         brand: brand,
         model: model,
+        androidVersion: androidVersion,
       });
-      console.log('profile updated', res);
+      // console.log('profile updated', res);
       if (res.status == 200) {
         dispatch(
           setUserLogin({
@@ -65,6 +68,7 @@ const Google = () => {
         console.error(error);
       }
     }
+    setLoading(false);
   };
 
   return (
@@ -72,6 +76,7 @@ const Google = () => {
       mode="outlined"
       name="Sign in with Google"
       icon="google"
+      loading={loading}
       onPress={onGoogleButtonPress}
       style={{marginBottom: 15}}
     />

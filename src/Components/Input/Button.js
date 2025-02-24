@@ -24,14 +24,14 @@ const InputButton = ({
       }}
       onPress={onPress}
       disabled={loading}>
-      {icon && (
+      {icon && !loading && (
         <>
           <Icon name={icon} size={20} color="#007171" />
           <View style={{width: 5}} />
         </>
       )}
       {loading ? (
-        <ActivityIndicator size={25} color="white" />
+        <ActivityIndicator size={25} color={!mode ? 'white' : '#007171'} />
       ) : (
         <Text size="medium" style={{color: !mode ? 'white' : '#007171'}}>
           {name}
