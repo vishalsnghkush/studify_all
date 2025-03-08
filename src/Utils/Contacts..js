@@ -12,7 +12,7 @@ export const getAllContacts = async () => {
     } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
       console.log('Permission Denied - Never ask again selected');
       // Guide the user to enable the permission manually
-      showPermissionSettingsAlert();
+      // showPermissionSettingsAlert();
     }
   } catch (err) {
     console.warn(err);

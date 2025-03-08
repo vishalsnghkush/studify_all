@@ -13,6 +13,7 @@
     "generate_aab": "npx react-native build-android --mode=release"
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.21.0",
     "@react-native-community/datetimepicker": "^7.7.0",
     "@react-native-community/netinfo": "^11.2.1",
