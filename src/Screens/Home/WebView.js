@@ -1,7 +1,6 @@
 import WebView from 'react-native-webview';
 import {StatusBar, View, ActivityIndicator} from 'react-native';
 import {useTheme} from 'react-native-paper';
-import {Text} from '../../Components/Input';
 const WebviewScreen = ({route}) => {
   let url = route?.params?.url || '';
   const height = StatusBar.currentHeight || 0;
