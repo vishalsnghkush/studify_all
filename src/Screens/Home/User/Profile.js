@@ -65,7 +65,7 @@ const Profile = ({navigation}) => {
           leftIcon="shield-alert"
           onPress={() => {
             navigation.navigate('WebView', {
-              url: 'terms-conditions',
+              url: 'https://studifysuccess.com/terms-conditions',
             });
           }}
         />
@@ -74,7 +74,7 @@ const Profile = ({navigation}) => {
           leftIcon="clipboard-text"
           onPress={() => {
             navigation.navigate('WebView', {
-              url: 'privacy-policy',
+              url: 'https://studifysuccess.com/privacy-policy',
             });
           }}
         />

@@ -5,22 +5,37 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 const Notes = ({navigation}) => {
   return (
     <Screen NoHeader list>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('FreeNotes')}
-        style={styles.youtubeNotes}>
-        <Icon name="youtube" size={28} color="#007171" />
-        <Text size="medium">YouTube Notes</Text>
-      </TouchableOpacity>
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-        <Image
-          source={require('../../../Assets/Images/college.png')}
-          style={{
-            height: 250,
-            width: '90%',
-            objectFit: 'cover',
-          }}
-        />
-        <Text style={{fontSize: 22}}>Other Notes are coming soon!</Text>
+      <View>
+        <Text style={styles.heading}>Free Notes</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('FreeNotes')}
+          style={styles.youtubeNotes}>
+          <Icon name="youtube" size={40} color="#007171" />
+          <Text size="medium">YouTube Notes</Text>
+        </TouchableOpacity>
+      </View>
+      <View>
+        <Text style={styles.heading}>Paid Notes</Text>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('WebView', {
+              url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
+            })
+          }
+          style={styles.youtubeNotes}>
+          <Icon name="file" size={40} color="#007171" />
+          <Text size="medium">Chapter Wise Notes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('WebView', {
+              url: 'https://allstudynotes.studifysuccess.com/select-class-subject?mobile=true',
+            })
+          }
+          style={styles.youtubeNotes}>
+          <Icon name="book" size={40} color="#007171" />
+          <Text size="medium">Combo Notes</Text>
+        </TouchableOpacity>
       </View>
     </Screen>
   );
@@ -30,14 +45,19 @@ const styles = StyleSheet.create({
   youtubeNotes: {
     padding: 10,
     paddingVertical: 15,
+    flexDirection: 'column',
     borderWidth: 2,
-    flexDirection: 'row',
     justifyContent: 'center',
     borderColor: '#007171',
     borderRadius: 10,
-    gap: 10,
+    gap: 5,
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 10,
+  },
+  heading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 15,
   },
 });
 export default Notes;

@@ -54,6 +54,12 @@ const Sign_up = ({navigation}) => {
     },
   });
 
+  const isGreaterThan5Years = dobString => {
+    const [day, month, year] = dobString.split('/').map(Number);
+    const dob = new Date(year, month - 1, day); // month is 0-indexed
+    return (new Date() - dob) / (1000 * 60 * 60 * 24 * 365.25) > 5;
+  };
+
   const handleSubmit = async () => {
     const newErrors = {};
     Object.keys(form).forEach(key => {
@@ -69,12 +75,17 @@ const Sign_up = ({navigation}) => {
 
     const phoneRegex = /^[0-9]{10}$/;
     newErrors.phone = !phoneRegex.test(form.phone.trim());
-
     newErrors.cpassword = form.password !== form.cpassword;
     newErrors.gender = false;
     setErrors(newErrors);
 
     if (!Object.values(newErrors).some(error => error)) {
+      if (!isGreaterThan5Years(form.dob)) {
+        return FlashMessage({
+          message: 'Enter a valid date of birth',
+          type: 'danger',
+        });
+      }
       if (form.gender === '') {
         return FlashMessage({
           message: 'Please select your gender',

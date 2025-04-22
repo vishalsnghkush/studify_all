@@ -8,6 +8,7 @@ const BASE_URL = 'https://ss-backend-xi.vercel.app/api/';
 // const BASE_URL = 'http://192.168.1.3:3000/api/';
 import useApi from './Api';
 import {useEffect} from 'react';
+import {Alert} from 'react-native';
 export default function CheckAuth() {
   const dispatch = useDispatch();
   const {user, token, FcmToken, contactPermission, isUserLoggedIn} =
@@ -27,19 +28,43 @@ export default function CheckAuth() {
     },
   );
 
+  const onContinue = async () => {
+    if (!contactPermission) {
+      var contactsGranted = await getAllContacts();
+    }
+    if (contactsGranted && !contactPermission) {
+      saveContacts();
+    }
+  };
+
+  const oncancel = () => {
+    dispatch(setPermission({permission: 'contactPermission', value: true}));
+  };
+
   useEffect(() => {
     const requestPermissions = async () => {
       if (isUserLoggedIn) {
         const fcmToken = await requestNotificationPermission();
-        if (!contactPermission) {
-          var contactsGranted = await getAllContacts();
-        }
         if (fcmToken && fcmToken !== FcmToken) {
           saveFcmToken(fcmToken);
         }
-        if (contactsGranted && !contactPermission) {
-          saveContacts();
-        }
+
+        !contactPermission &&
+          Alert.alert(
+            'Connect with Friends on Studifysuccess?',
+            "To help you find and connect with your friends who are already using Studifysuccess, we'd like to access your contacts. We will securely upload your contact list information to https://studifysuccess.com to check for matching users.",
+            [
+              {
+                text: 'Maybe Later',
+                onPress: oncancel,
+              },
+              {
+                text: 'Sounds Good!',
+                onPress: onContinue,
+              },
+            ],
+            {cancelable: false}, // Prevent dismissing by tapping outside asaad
+          );
       }
     };
 
