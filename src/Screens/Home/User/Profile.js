@@ -45,7 +45,8 @@ const Profile = ({navigation}) => {
           title="Transactions"
           leftIcon="credit-card"
           onPress={() => {
-            navigation.navigate('Transaction');
+            // navigation.navigate('Transaction');
+            navigation.navigate('CustomerService');
           }}
         />
         <CardHorizontal

@@ -4,15 +4,20 @@ import Notes from '../Screens/Home/Notes/Notes';
 import Main from '../Screens/Home/Main';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+
 export default function BottomNavigation() {
   const Tab = createMaterialBottomTabNavigator();
   const theme = useTheme();
+  const {bottom} = useSafeAreaInsets();
+
   return (
     <>
       <Tab.Navigator
         activeColor={theme.colors.primary}
         inactiveColor={theme.colors.onSurfaceVariant}
         barStyle={{
+          paddingBottom: bottom || 0,
           height: 55,
           justifyContent: 'center',
           backgroundColor: theme.colors.background,

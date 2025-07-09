@@ -1,6 +1,8 @@
 import {View, StatusBar, SafeAreaView, ScrollView} from 'react-native';
 import {windowPaddingHorizontal} from '../../Utils/Dimentions';
 import {useTheme} from 'react-native-paper';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+
 function Screen({
   children,
   style,
@@ -11,9 +13,16 @@ function Screen({
 }) {
   const height = StatusBar.currentHeight || 0;
   const theme = useTheme();
+  const {bottom} = useSafeAreaInsets();
+
   if (list) {
     return (
-      <View style={{flexGrow: 1, backgroundColor: theme.colors.background}}>
+      <View
+        style={{
+          flexGrow: 1,
+          backgroundColor: theme.colors.background,
+          paddingBottom: bottom || 0,
+        }}>
         <View
           style={{
             marginTop: NoHeader ? height : 0,
@@ -35,6 +44,7 @@ function Screen({
         flex: 1,
         backgroundColor: theme.colors.background,
         paddingTop: NoHeader ? height : 0,
+        paddingBottom: bottom || 0,
       }}>
       <ScrollView
         contentContainerStyle={{

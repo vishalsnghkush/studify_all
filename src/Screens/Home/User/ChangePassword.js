@@ -62,7 +62,6 @@ const ChangePassword = ({navigation}) => {
     <Screen>
       <View
         style={{
-          marginVertical: 10,
           flex: 1,
           justifyContent: 'space-between',
         }}>

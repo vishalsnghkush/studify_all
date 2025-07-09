@@ -31,7 +31,7 @@ const ContactUs = ({navigation}) => {
           title="WhatsApp"
           leftIcon="whatsapp"
           onPress={() => {
-            Linking.openURL('whatsapp://send?text=Hi!' + '&phone=918743967234');
+            Linking.openURL('whatsapp://send?text=Hi!' + '&phone=917428949640');
           }}
         />
         <CardHorizontal

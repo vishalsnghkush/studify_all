@@ -1,29 +1,36 @@
 import {PermissionsAndroid, Platform, Linking, Alert} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import {getApp} from '@react-native-firebase/app';
-import notifee, {AndroidStyle} from '@notifee/react-native';
+import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
 
 const app = getApp();
 
-async function onMessageReceived(message) {
+export const onMessageReceived = async message => {
+  if (!message.data.title) {
+    return;
+  }
+  // console.log('notification message', message);
   const channelId = await notifee.createChannel({
-    id: 'default',
+    id: 'defaulta',
     name: 'Default Channel',
+    importance: AndroidImportance.HIGH,
   });
 
   await notifee.displayNotification({
-    title: message.notification.title,
-    body: message.notification.body.slice(0, 20),
+    title: message?.data?.title || 'Notification',
+    body: message?.data?.body || 'You have a new message.',
     android: {
       channelId,
       largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
-      style: {type: AndroidStyle.BIGTEXT, text: message.notification.body},
-      color: 'cyan',
+      style: {
+        type: AndroidStyle.BIGTEXT,
+        text: message?.data?.body || 'You have a new message.',
+      },
+      color: 'teal',
     },
   });
-}
+};
 
-messaging().onMessage(onMessageReceived);
 export const requestNotificationPermission = async () => {
   try {
     if (Platform.OS == 'android' && Platform.Version >= 33) {

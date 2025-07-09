@@ -84,12 +84,14 @@ const Notes = ({navigation}) => {
                   }}>
                   <View>
                     <Text
-                      size="large"
+                      size="medium"
                       numberOfLines={1}
                       style={{
                         alignSelf: 'center',
                         textTransform: 'capitalize',
                         marginVertical: 10,
+                        fontWeight: 'bold',
+                        color: colors.primary,
                       }}>
                       {item.name}
                     </Text>
