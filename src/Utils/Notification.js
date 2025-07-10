@@ -11,9 +11,10 @@ export const onMessageReceived = async message => {
   }
   // console.log('notification message', message);
   const channelId = await notifee.createChannel({
-    id: 'defaulta',
+    id: 'defaulta1',
     name: 'Default Channel',
     importance: AndroidImportance.HIGH,
+    sound: 'default',
   });
 
   await notifee.displayNotification({
