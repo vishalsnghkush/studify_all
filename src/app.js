@@ -54,19 +54,18 @@ const App = () => {
   };
 
   useEffect(() => {
+    if (!isUserLoggedIn) return;
     init({
       size: 10000,
       storageBackend: AsyncStorage,
       defaultExpires: 1000 * 3600 * 24,
       enableCache: true,
     });
-
-    if (!isUserLoggedIn) return;
     const client = new Paho.MQTT.Client(
       'ss-backend-amuk.onrender.com', // IP for local testing
       443,
       '/',
-      'ankit',
+      user?.email,
     );
 
     client.onConnectionLost = e => console.log('Disconnected ', e);
@@ -78,7 +77,7 @@ const App = () => {
       const topic = message.destinationName;
       console.log('Message arrived:', payload, 'on topic:', topic);
       const data = JSON.parse(payload);
-      if (data?.sender === user?.email) return;
+      if (data?.email === user?.email) return;
       const currentScreen = getCurrentScreen();
       console.log('currentScreen--->', currentScreen);
       dispatch(

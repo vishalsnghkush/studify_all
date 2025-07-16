@@ -25,10 +25,11 @@ export default function CustomerService() {
 
   const onSend = useCallback((messages = []) => {
     dispatch(addMessage(...messages));
-    GiftedChat.append(chatMessages, messages);
+    // GiftedChat.append(chatMessages, messages);
     const msg = messages[0].text;
     const payload = JSON.stringify({
-      sender: user?.email,
+      sender: user?.fname || user?.lname || user?.email,
+      email: user?.email,
       text: msg,
       timestamp: Date.now(),
     });
@@ -50,7 +51,7 @@ export default function CustomerService() {
             marginBottom: 2,
           },
           left: {
-            backgroundColor: '#6719e5',
+            backgroundColor: '#284B63',
             borderRadius: 18,
             padding: 4,
             marginBottom: 2,
@@ -89,7 +90,7 @@ export default function CustomerService() {
         messages={chatMessages}
         onSend={messages => onSend(messages)}
         renderBubble={renderBubble}
-        user={{_id: 1, name: 'User Test'}}
+        user={{_id: 1, name: user?.fname || user?.email}}
         renderSend={renderSend}
         alwaysShowSend
         renderUsernameOnMessage={true}
