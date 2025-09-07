@@ -1,5 +1,6 @@
 import {CardStyleInterpolators} from '@react-navigation/stack';
 import DrawerNavigation from './DrawerNavigation';
+import {lazy} from 'react';
 import {
   Profile,
   EditProfile,
@@ -22,6 +23,8 @@ import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
+const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
+const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
 
 const AppNavigation = () => {
   const Stack = createStackNavigator();
@@ -119,6 +122,18 @@ const AppNavigation = () => {
         name="Appreport"
         component={Appreport}
         options={{title: 'Report issue or bug'}}
+      />
+      <Stack.Screen
+        name="Groups"
+        component={Groups}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={Chat}
+        options={({route}) => ({
+          title: route?.params?.data?.display_name || 'Chats',
+        })}
       />
     </Stack.Navigator>
   );

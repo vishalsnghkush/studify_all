@@ -22,6 +22,9 @@ const initialSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
     },
+    setUser(state, action) {
+      state.user = action.payload;
+    },
     setUserLogout(state) {
       state.isUserLoggedIn = false;
       state.user = {};
@@ -42,6 +45,7 @@ const initialSlice = createSlice({
 
 export const {
   setTheme,
+  setUser,
   setUserLogin,
   setUserLogout,
   updateUserName,

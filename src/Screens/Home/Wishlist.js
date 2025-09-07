@@ -15,7 +15,7 @@ const Wishlist = ({navigation}) => {
     setLoading(true);
     try {
       const res = await useApi().post(
-        'https://ss-backend-xi.vercel.app/lms/jitsi_token/room',
+        'https://www.api.studifysuccess.com/lms/jitsi_token/room',
         {room},
       );
       if (res.status === 200) {

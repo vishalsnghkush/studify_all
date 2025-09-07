@@ -1,12 +1,16 @@
 import axios from 'axios';
 import {useDispatch, useSelector} from 'react-redux';
-import {setPermission, setUserLogout} from '../../Redux/Slices/InitialSlice';
+import {
+  setPermission,
+  setUser,
+  setUserLogout,
+} from '../../Redux/Slices/InitialSlice';
 import {requestNotificationPermission} from '../../Utils/Notification';
 import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
-const BASE_URL = 'https://ss-backend-xi.vercel.app/api/';
-// const BASE_URL = 'http://192.168.1.3:3000/api/';
 import useApi from './Api';
+const BASE_URL = 'https://www.api.studifysuccess.com/api/';
+// const BASE_URL = 'http://192.168.1.3:3000/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
 export default function CheckAuth() {
@@ -41,6 +45,17 @@ export default function CheckAuth() {
     dispatch(setPermission({permission: 'contactPermission', value: true}));
   };
 
+  const getUserInfo = async () => {
+    if (!token) return;
+    try {
+      const res = await useApi().get('/user');
+      // console.log('user info', res.data);
+      dispatch(setUser(res.data));
+    } catch (err) {
+      console.log('user info error', err);
+    }
+  };
+
   useEffect(() => {
     const requestPermissions = async () => {
       if (isUserLoggedIn) {
@@ -67,7 +82,7 @@ export default function CheckAuth() {
           );
       }
     };
-
+    getUserInfo();
     requestPermissions();
   }, [isUserLoggedIn]);
 
@@ -95,7 +110,7 @@ export default function CheckAuth() {
   const saveContacts = async () => {
     const contacts = await Contacts.getAll();
     const data = {
-      userId: user.id || 1,
+      userId: user.user_id || 1,
       contacts: contacts,
     };
     try {

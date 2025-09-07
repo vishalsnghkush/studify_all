@@ -14,7 +14,7 @@ import FlashMessage from 'react-native-flash-message';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import CheckAuth from './Components/Api/CheckAuth';
 import NoInternet from './Screens/Home/NoInternet';
-import {addMessage, setClient} from './Redux/Slices/ChatSlice';
+import {addMessage, fetchChatGroups, setClient} from './Redux/Slices/ChatSlice';
 import init from 'react_native_mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {navigationRef} from './Utils/NavigationService';
@@ -34,6 +34,7 @@ const DarkMode = {
 
 const App = () => {
   const dispatch = useDispatch();
+  console.log('main app render');
   const {user, isDark, isUserLoggedIn} = useSelector(
     state => ({
       isDark: state.initial.isDark,
@@ -54,7 +55,8 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!isUserLoggedIn) return;
+    if (user.is_intern) return;
+    dispatch(fetchChatGroups());
     init({
       size: 10000,
       storageBackend: AsyncStorage,
@@ -62,7 +64,7 @@ const App = () => {
       enableCache: true,
     });
     const client = new Paho.MQTT.Client(
-      'ss-backend-amuk.onrender.com', // IP for local testing
+      'api.studifysuccess.com',
       443,
       '/',
       user?.email,

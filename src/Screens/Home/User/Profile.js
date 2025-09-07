@@ -41,14 +41,14 @@ const Profile = ({navigation}) => {
             navigation.navigate('ChangePassword');
           }}
         />
-        <CardHorizontal
+        {/* <CardHorizontal
           title="Transactions"
           leftIcon="credit-card"
           onPress={() => {
             // navigation.navigate('Transaction');
             navigation.navigate('CustomerService');
           }}
-        />
+        /> */}
         <CardHorizontal
           title="Dark Mode"
           leftIcon="weather-night"

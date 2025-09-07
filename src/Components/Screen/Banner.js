@@ -29,7 +29,7 @@ const Banner = () => {
       </TouchableRipple>
       {data?.data[1] && (
         <TouchableRipple
-          style={{height: 400, width: '100%', marginTop: 5}}
+          style={styles.secondary}
           onPress={() => {
             navigation.navigate('Internship');
           }}>
@@ -37,12 +37,7 @@ const Banner = () => {
             source={{
               uri: data?.data[1]?.image,
             }}
-            style={{
-              height: '100%',
-              width: '100%',
-              resizeMode: 'cover',
-              borderRadius: 15,
-            }}
+            style={styles.img}
           />
         </TouchableRipple>
       )}
@@ -52,9 +47,14 @@ const Banner = () => {
 
 const styles = StyleSheet.create({
   banner: {
-    height: 200,
     width: '100%',
+    aspectRatio: 16 / 9,
     marginVertical: 15,
+  },
+  secondary: {
+    width: '100%',
+    aspectRatio: 1 / 1,
+    marginTop: 5,
   },
   img: {
     height: '100%',

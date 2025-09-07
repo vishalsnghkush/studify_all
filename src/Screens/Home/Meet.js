@@ -1,5 +1,5 @@
 import WebView from 'react-native-webview';
-import {StatusBar, View, Linking, Image} from 'react-native';
+import {StatusBar, View, Linking, Image, SafeAreaView} from 'react-native';
 import {useTheme} from 'react-native-paper';
 import {useEffect, useState} from 'react';
 import {Button, Text} from '../../Components/Input';
@@ -8,7 +8,7 @@ import {useSelector} from 'react-redux';
 const WebviewScreen = ({route, navigation}) => {
   const {room} = route?.params;
   const user = useSelector(state => state.initial.user);
-  console.log('app opne', room);
+  // console.log('app opne', room);
   const height = StatusBar.currentHeight || 0;
   const {colors} = useTheme();
   const [permission, setPermission] = useState(false);
@@ -23,7 +23,7 @@ const WebviewScreen = ({route, navigation}) => {
   };
 
   return (
-    <View style={{backgroundColor: colors.background, flex: 1}}>
+    <SafeAreaView style={{backgroundColor: colors.background, flex: 1}}>
       {permission ? (
         <WebView
           source={{
@@ -76,7 +76,7 @@ const WebviewScreen = ({route, navigation}) => {
           </View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

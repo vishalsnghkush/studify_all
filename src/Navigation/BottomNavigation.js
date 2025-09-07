@@ -5,11 +5,14 @@ import Main from '../Screens/Home/Main';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSelector} from 'react-redux';
+import Groups from '../Screens/Home/Chat/Groups';
 
 export default function BottomNavigation() {
   const Tab = createMaterialBottomTabNavigator();
   const theme = useTheme();
   const {bottom} = useSafeAreaInsets();
+  const {user} = useSelector(state => state.initial);
 
   return (
     <>
@@ -57,6 +60,26 @@ export default function BottomNavigation() {
             ),
           }}
         />
+        {!user?.is_intern && (
+          <Tab.Screen
+            name="Groups"
+            component={Groups}
+            options={{
+              title: 'Chat',
+              tabBarIcon: ({focused}) => (
+                <Micon
+                  name={focused ? 'chat' : 'chat-outline'}
+                  size={23}
+                  color={
+                    focused
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceVariant
+                  }
+                />
+              ),
+            }}
+          />
+        )}
         <Tab.Screen
           name="Wishlist"
           component={Wishlist}

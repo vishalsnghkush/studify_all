@@ -5,6 +5,8 @@ import {Button, Text} from '../../Components/Input';
 import {useDispatch, useSelector} from 'react-redux';
 import {setTheme} from '../../Redux/Slices/InitialSlice';
 import {windowHeight, windowWidth} from '../../Utils/Dimentions';
+import {Screen} from '../../Components/Screen';
+
 const Onboarding = ({navigation}) => {
   const theme = useTheme();
   const {isDark} = useSelector(state => state.initial);
@@ -89,15 +91,17 @@ const Onboarding = ({navigation}) => {
   };
 
   return (
-    <FlatList
-      ref={flatListRef}
-      data={data}
-      renderItem={renderItem}
-      keyExtractor={item => item.id}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-    />
+    <Screen padding>
+      <FlatList
+        ref={flatListRef}
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+      />
+    </Screen>
   );
 };
 
