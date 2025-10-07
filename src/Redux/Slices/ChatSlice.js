@@ -32,6 +32,9 @@ const mqttSlice = createSlice({
     setClient(state, action) {
       state.client = action.payload;
     },
+    setMessage(state, action) {
+      state.messages = action.payload;
+    },
     addMessage(state, action) {
       state.messages = [action.payload, ...state.messages];
     },
@@ -39,10 +42,17 @@ const mqttSlice = createSlice({
       state.groups = action.payload;
     },
     onSelectGroup(state, action) {
+      if (action.payload.unread_count === 0) return;
+      const groupId = action.payload.chat_group_id;
+      const group = state.groups.find(g => g.chat_group_id === groupId);
+      group.unread_count = 0;
+    },
+    onNotification(state, action) {
       const groupId = action.payload;
-      state.groups = state.groups.map(g =>
-        g.chat_group_id === groupId ? {...g, unread_count: 0} : g,
-      );
+      const group = state.groups.find(g => g.chat_group_id === groupId);
+      if (group) {
+        group.unread_count += 1;
+      }
     },
   },
   extraReducers: builder => {
@@ -63,6 +73,12 @@ const mqttSlice = createSlice({
   },
 });
 
-export const {setClient, addMessage, setGroups, onSelectGroup} =
-  mqttSlice.actions;
+export const {
+  setClient,
+  setMessage,
+  addMessage,
+  setGroups,
+  onSelectGroup,
+  onNotification,
+} = mqttSlice.actions;
 export default mqttSlice.reducer;

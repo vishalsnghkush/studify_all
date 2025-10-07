@@ -6,7 +6,7 @@ import RootReducer from '../Redux';
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['initial', 'chat'],
+  whitelist: ['initial'],
   // blacklist: ['key3', 'key4'],
 };
 

@@ -1,5 +1,5 @@
 import {useState, useEffect, useCallback} from 'react';
-import {View} from 'react-native';
+import {View, KeyboardAvoidingView} from 'react-native';
 import {
   GiftedChat,
   Bubble,
@@ -10,35 +10,19 @@ import {
 import {useDispatch, useSelector} from 'react-redux';
 import {Screen} from '../../../Components/Screen';
 import {useTheme, IconButton} from 'react-native-paper';
-import {addMessage} from '../../../Redux/Slices/ChatSlice';
-import Notifee from '@notifee/react-native';
+// import {addMessage} from '../../../Redux/Slices/ChatSlice';
 
 export default function CustomerService() {
   const {colors} = useTheme();
   const dispatch = useDispatch();
-  const {client, messages: chatMessages} = useSelector(state => state.chat);
   const {user} = useSelector(state => state.initial);
-
-  useEffect(() => {
-    Notifee.cancelAllNotifications();
-  }, []);
+  const [chatMessages, setChatMessages] = useState([]);
 
   const onSend = useCallback((messages = []) => {
-    dispatch(addMessage(...messages));
-    // GiftedChat.append(chatMessages, messages);
-    const msg = messages[0].text;
-    const payload = JSON.stringify({
-      sender: user?.fname || user?.lname || user?.email,
-      email: user?.email,
-      text: msg,
-      timestamp: Date.now(),
-    });
-    if (msg.trim() && client?.isConnected()) {
-      const message = new Paho.MQTT.Message(payload);
-      message.destinationName = 'chat/general';
-      client.send(message);
-    }
+    setChatMessages([...chatMessages, ...messages]);
+    GiftedChat.append(chatMessages, messages);
   }, []);
+
   const renderBubble = props => {
     return (
       <Bubble
@@ -85,26 +69,31 @@ export default function CustomerService() {
   };
 
   return (
-    <Screen padding list>
-      <GiftedChat
-        messages={chatMessages}
-        onSend={messages => onSend(messages)}
-        renderBubble={renderBubble}
-        user={{_id: 1, name: user?.fname || user?.email}}
-        renderSend={renderSend}
-        alwaysShowSend
-        renderUsernameOnMessage={true}
-        textInputStyle={{color: colors.onBackground}}
-        renderInputToolbar={props => (
-          <InputToolbar
-            {...props}
-            containerStyle={{
-              backgroundColor: colors.background,
-              marginTop: 5,
-            }}
-          />
-        )}
-      />
-    </Screen>
+    <KeyboardAvoidingView
+      behavior="padding"
+      keyboardVerticalOffset={100}
+      style={{flex: 1}}>
+      <Screen padding list>
+        <GiftedChat
+          messages={chatMessages}
+          onSend={messages => setChatMessages([...messages, ...chatMessages])}
+          renderBubble={renderBubble}
+          user={{_id: 1, name: user?.fname || user?.email}}
+          renderSend={renderSend}
+          alwaysShowSend
+          renderUsernameOnMessage={true}
+          textInputStyle={{color: colors.onBackground}}
+          renderInputToolbar={props => (
+            <InputToolbar
+              {...props}
+              containerStyle={{
+                backgroundColor: colors.background,
+                marginTop: 5,
+              }}
+            />
+          )}
+        />
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }

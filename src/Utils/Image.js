@@ -1,33 +1,57 @@
-import {PermissionsAndroid, Linking, Alert} from 'react-native';
+import {launchImageLibrary} from 'react-native-image-picker';
+import {requestImagePermissions} from './Permission';
+import {pick, keepLocalCopy} from '@react-native-documents/picker';
 
-export const getImagesPermission = async () => {
-  try {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES ||
-        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-    );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      return true;
-    } else if (granted === PermissionsAndroid.RESULTS.DENIED) {
-      console.log('Permission Denied');
-    } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-      console.log('Permission Denied - Never ask again selected');
-      showPermissionSettingsAlert();
-    }
-  } catch (err) {
-    console.warn(err);
-  }
+export const PickImage = async () => {
+  const hasPermission = await requestImagePermissions();
+  if (!hasPermission) return null;
+  const options = {mediaType: 'photo', includeBase64: false};
+  return new Promise((resolve, reject) => {
+    launchImageLibrary(options, response => {
+      if (response.didCancel) resolve(null);
+      else if (response.errorCode) reject(response.errorMessage);
+      else resolve(response.assets[0]);
+    });
+  });
 };
 
-const showPermissionSettingsAlert = () => {
-  Alert.alert('Permission Required', 'Please enable media permissions', [
-    {
-      text: 'Open Settings',
-      onPress: () => Linking.openSettings(),
-    },
-    {
-      text: 'Cancel',
-      style: 'cancel',
-    },
-  ]);
+export const PickVideo = async () => {
+  const hasPermission = await requestImagePermissions();
+  if (!hasPermission) return null;
+  const options = {mediaType: 'video', includeBase64: false};
+  return new Promise((resolve, reject) => {
+    launchImageLibrary(options, response => {
+      if (response.didCancel) resolve(null);
+      else if (response.errorCode) reject(response.errorMessage);
+      else resolve(response.assets[0]);
+    });
+  });
+};
+
+export const PickDoc = async () => {
+  try {
+    const a = await pick({
+      files: ['pdf', 'doc', 'txt', 'mp4'], // added mp4 if you want video too
+      destination: 'cachesDirectory',
+      allowMultiSelection: false,
+    });
+    const result = a[0];
+    console.log('Picker result:', result);
+
+    const file = result;
+    console.log('Picked file:', file);
+
+    // Create a local copy
+    const localFile = await keepLocalCopy(file);
+    console.log('Local copy:', localFile);
+
+    return {
+      uri: localFile.fileCopyUri ?? file.uri, // fallback if keepLocalCopy fails
+      type: file.type || 'application/octet-stream',
+      name: file.name || 'document',
+    };
+  } catch (error) {
+    console.error('Document Picker Error:', error);
+    return null;
+  }
 };

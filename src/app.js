@@ -14,13 +14,19 @@ import FlashMessage from 'react-native-flash-message';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import CheckAuth from './Components/Api/CheckAuth';
 import NoInternet from './Screens/Home/NoInternet';
-import {addMessage, fetchChatGroups, setClient} from './Redux/Slices/ChatSlice';
+import {
+  addMessage,
+  fetchChatGroups,
+  setClient,
+  onNotification,
+} from './Redux/Slices/ChatSlice';
 import init from 'react_native_mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {navigationRef} from './Utils/NavigationService';
 import {getCurrentScreen, navigate} from './Utils/NavigationService';
 import {onMessageReceived} from './Utils/Notification';
 import notifee, {EventType} from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
 
 const queryClient = new QueryClient();
 const LightMode = {
@@ -43,6 +49,7 @@ const App = () => {
     }),
     shallowEqual,
   );
+
   const theme = isDark ? DarkMode : LightMode;
 
   const linking = {
@@ -55,7 +62,27 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (user.is_intern) return;
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log(
+            'Notification caused app to open from quit state:',
+            remoteMessage,
+          );
+          navigateToScreen(remoteMessage.data);
+        }
+      });
+
+    const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log(
+        'Notification caused app to open from background state:',
+        remoteMessage,
+      );
+      navigateToScreen(remoteMessage.data);
+    });
+
+    if (!user || !user?.is_intern) return;
     dispatch(fetchChatGroups());
     init({
       size: 10000,
@@ -67,7 +94,7 @@ const App = () => {
       'api.studifysuccess.com',
       443,
       '/',
-      user?.email,
+      `${user?.user_id}`,
     );
 
     client.onConnectionLost = e => console.log('Disconnected ', e);
@@ -77,27 +104,43 @@ const App = () => {
     client.onMessageArrived = message => {
       const payload = message.payloadString;
       const topic = message.destinationName;
-      console.log('Message arrived:', payload, 'on topic:', topic);
+      console.log('message arrived:', payload, 'on topic:', topic);
       const data = JSON.parse(payload);
-      if (data?.email === user?.email) return;
+      if (user?.user_id === data?.sender_id) return;
       const currentScreen = getCurrentScreen();
-      console.log('currentScreen--->', currentScreen);
-      dispatch(
-        addMessage({
-          _id: Date.now(),
-          text: data.text,
-          createdAt: new Date(),
-          user: {
-            _id: 2,
-            name: data?.sender,
-          },
-        }),
+      console.log(
+        'currentScreen--->',
+        currentScreen?.name,
+        currentScreen?.params?.data?.chat_group_id,
       );
-      if (currentScreen !== 'CustomerService') {
+      if (topic !== `notification/${user?.user_id}`) {
+        dispatch(
+          addMessage({
+            id: Date.now(),
+            created_at: data?.created_at,
+            message_type: 'text',
+            message: data?.message,
+            sender_id: '0323',
+          }),
+        );
+      } else {
+        if (currentScreen?.params?.data?.chat_group_id === data?.chat_group_id)
+          return;
+        dispatch(onNotification(data?.chat_group_id));
         onMessageReceived({
           data: {
-            title: data?.sender,
-            body: data.text,
+            title: data?.name || 'New Message',
+            body: data?.message,
+            chat_group_id: data?.chat_group_id,
+            // data: data.data,
+            data: {
+              chat_group_id: 1,
+              display_name: 'Anku 😎',
+              is_group: 0,
+              receiver_id: 1,
+              role: 'user',
+              unread_count: 3,
+            },
           },
         });
       }
@@ -106,7 +149,7 @@ const App = () => {
     client.connect({
       onSuccess: () => {
         console.log('Connected to MQTT');
-        client.subscribe('chat/general');
+        client.subscribe(`notification/${user?.user_id}`);
       },
       useSSL: true, // false for localHost
       onFailure: onFailure,
@@ -114,18 +157,28 @@ const App = () => {
     });
     dispatch(setClient(client));
 
-    const unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
+    const unsubscribeFore = notifee.onForegroundEvent(({type, detail}) => {
       if (type === EventType.PRESS) {
-        // console.log('data', detail);
-        navigate('CustomerService');
+        const data = detail?.notification.data;
+        console.log('notifee onForegroundEvent', data);
+        navigate('Chat', {
+          data: data,
+        });
       }
     });
 
     return () => {
       client.disconnect();
       unsubscribe();
+      unsubscribeFore();
     };
   }, [isUserLoggedIn]);
+
+  const navigateToScreen = data => {
+    if (data?.screen === 'Chat') {
+      navigate('Chat', {data: data});
+    }
+  };
 
   return (
     <PaperProvider theme={theme}>

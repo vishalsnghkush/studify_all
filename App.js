@@ -14,8 +14,8 @@ const App = () => {
       SplashScreen.hide();
     }, 1000);
 
-    const unsubscribe = messaging().onMessage(onMessageReceived);
-    return unsubscribe;
+    // const unsubscribe = messaging().onMessage(onMessageReceived);
+    // return unsubscribe;
   }, []);
 
   return (

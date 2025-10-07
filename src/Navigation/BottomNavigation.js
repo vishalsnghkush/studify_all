@@ -60,7 +60,7 @@ export default function BottomNavigation() {
             ),
           }}
         />
-        {!user?.is_intern && (
+        {user?.is_intern && (
           <Tab.Screen
             name="Groups"
             component={Groups}

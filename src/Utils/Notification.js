@@ -6,23 +6,30 @@ import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
 const app = getApp();
 
 export const onMessageReceived = async message => {
+  // console.log('from onMessageReceived', message);
   if (!message.data.title) {
     return;
   }
   // console.log('notification message', message);
   const channelId = await notifee.createChannel({
-    id: 'defaulta1',
+    id: 'chat',
     name: 'Default Channel',
     importance: AndroidImportance.HIGH,
     sound: 'default',
   });
 
   await notifee.displayNotification({
+    id: message?.data?.chat_group_id?.toString(),
     title: message?.data?.title || 'Notification',
     body: message?.data?.body || 'You have a new message.',
+    data: message?.data?.data,
     android: {
       channelId,
       largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
+      timestamp: Date.now(),
+      showTimestamp: true,
+      groupId: message?.data?.chat_group_id?.toString(),
+      // groupSummary: true,
       style: {
         type: AndroidStyle.BIGTEXT,
         text: message?.data?.body || 'You have a new message.',
@@ -45,7 +52,7 @@ export const requestNotificationPermission = async () => {
         console.log('Permission Denied');
       } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
         console.log('Permission Denied - Never ask again selected');
-        // showPermissionSettingsAlert();
+        showPermissionSettingsAlert();
       }
     } else {
       const authStatus = await messaging(app).requestPermission();

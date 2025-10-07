@@ -20,7 +20,6 @@ const Groups = () => {
   const {groups} = useSelector(state => state.chat);
   const [query, setQuery] = useState('');
   const dispatch = useDispatch();
-
   const filtered = useMemo(() => {
     if (!query.trim()) return groups;
     return groups.filter(c =>
@@ -32,7 +31,7 @@ const Groups = () => {
     navigation.navigate('Chat', {
       data: item,
     });
-    dispatch(onSelectGroup(item.chat_group_id));
+    dispatch(onSelectGroup(item));
   };
 
   const renderItem = ({item}) => (
