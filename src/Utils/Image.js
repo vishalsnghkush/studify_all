@@ -5,12 +5,12 @@ import {pick, keepLocalCopy} from '@react-native-documents/picker';
 export const PickImage = async () => {
   const hasPermission = await requestImagePermissions();
   if (!hasPermission) return null;
-  const options = {mediaType: 'photo', includeBase64: false};
+  const options = {mediaType: 'photo', includeBase64: false, selectionLimit: 0};
   return new Promise((resolve, reject) => {
     launchImageLibrary(options, response => {
       if (response.didCancel) resolve(null);
       else if (response.errorCode) reject(response.errorMessage);
-      else resolve(response.assets[0]);
+      else resolve(response.assets);
     });
   });
 };
@@ -31,22 +31,15 @@ export const PickVideo = async () => {
 export const PickDoc = async () => {
   try {
     const a = await pick({
-      files: ['pdf', 'doc', 'txt', 'mp4'], // added mp4 if you want video too
+      files: ['pdf', 'doc', 'txt'],
       destination: 'cachesDirectory',
       allowMultiSelection: false,
     });
-    const result = a[0];
-    console.log('Picker result:', result);
-
-    const file = result;
+    const file = a[0];
     console.log('Picked file:', file);
 
-    // Create a local copy
-    const localFile = await keepLocalCopy(file);
-    console.log('Local copy:', localFile);
-
     return {
-      uri: localFile.fileCopyUri ?? file.uri, // fallback if keepLocalCopy fails
+      uri: file.uri,
       type: file.type || 'application/octet-stream',
       name: file.name || 'document',
     };

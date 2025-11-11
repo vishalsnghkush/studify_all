@@ -106,7 +106,7 @@ const App = () => {
       const topic = message.destinationName;
       console.log('message arrived:', payload, 'on topic:', topic);
       const data = JSON.parse(payload);
-      if (user?.user_id === data?.sender_id) return;
+      if (user?.user_id == data?.sender_id) return;
       const currentScreen = getCurrentScreen();
       console.log(
         'currentScreen--->',
@@ -118,28 +118,26 @@ const App = () => {
           addMessage({
             id: Date.now(),
             created_at: data?.created_at,
-            message_type: 'text',
+            message_type: data?.message_type,
             message: data?.message,
-            sender_id: '0323',
+            media_url: data?.media_url,
+            sender_id: data?.sender_id,
           }),
         );
       } else {
-        if (currentScreen?.params?.data?.chat_group_id === data?.chat_group_id)
+        if (currentScreen?.params?.data?.chat_group_id == data?.chat_group_id)
           return;
         dispatch(onNotification(data?.chat_group_id));
         onMessageReceived({
           data: {
-            title: data?.name || 'New Message',
+            title: data?.data?.display_name || 'New Message',
             body: data?.message,
             chat_group_id: data?.chat_group_id,
-            // data: data.data,
             data: {
-              chat_group_id: 1,
-              display_name: 'Anku 😎',
-              is_group: 0,
-              receiver_id: 1,
-              role: 'user',
-              unread_count: 3,
+              chat_group_id: data?.data?.chat_group_id,
+              display_name: data?.data?.display_name,
+              is_group: data?.data?.is_group,
+              receiver_id: data?.data?.receiver_id,
             },
           },
         });
@@ -154,6 +152,7 @@ const App = () => {
       useSSL: true, // false for localHost
       onFailure: onFailure,
       reconnect: true,
+      timeout: 5,
     });
     dispatch(setClient(client));
 

@@ -12,7 +12,6 @@ import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import {Screen} from '../../../Components/Screen';
 import Text from '../../../Components/Input/Text';
-import {onSelectGroup} from '../../../Redux/Slices/ChatSlice';
 
 const Groups = () => {
   const navigation = useNavigation();
@@ -31,7 +30,6 @@ const Groups = () => {
     navigation.navigate('Chat', {
       data: item,
     });
-    dispatch(onSelectGroup(item));
   };
 
   const renderItem = ({item}) => (

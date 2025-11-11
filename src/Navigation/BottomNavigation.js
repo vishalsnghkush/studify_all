@@ -60,7 +60,7 @@ export default function BottomNavigation() {
             ),
           }}
         />
-        {user?.is_intern && (
+        {user?.is_intern ? (
           <Tab.Screen
             name="Groups"
             component={Groups}
@@ -79,7 +79,7 @@ export default function BottomNavigation() {
               ),
             }}
           />
-        )}
+        ) : null}
         <Tab.Screen
           name="Wishlist"
           component={Wishlist}

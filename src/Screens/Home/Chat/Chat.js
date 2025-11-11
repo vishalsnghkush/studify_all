@@ -16,7 +16,11 @@ import {Screen} from '../../../Components/Screen';
 import useApi from '../../../Components/Api/Api';
 import WebView from 'react-native-webview';
 import AttachmentModal from '../../../Components/Screen/Chat/Modal';
-import {setMessage, addMessage} from '../../../Redux/Slices/ChatSlice';
+import {
+  setMessage,
+  addMessage,
+  onSelectGroup,
+} from '../../../Redux/Slices/ChatSlice';
 import Notifee from '@notifee/react-native';
 
 const Chat = ({route}) => {
@@ -25,6 +29,7 @@ const Chat = ({route}) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [members, setMembers] = useState({});
   const offsetRef = useRef(0);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
@@ -35,19 +40,28 @@ const Chat = ({route}) => {
   const pageSize = 30;
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
   const giftedRef = useRef(null);
-
   const currentUserId = user?.user_id;
+  const unreadRef = useRef(data?.unread_count || 0);
 
   useEffect(() => {
-    fetchChats();
+    dispatch(onSelectGroup(data));
     Notifee.cancelDisplayedNotification(data?.chat_group_id?.toString());
     var newTopic;
     if (data?.is_group) {
+      Promise.all([fetchMembers(), fetchChats()]);
       newTopic = `chat/${data?.chat_group_id}`;
     } else {
+      fetchChats();
       newTopic = `chat/${[currentUserId, data.receiver_id].sort().join('-')}`;
     }
     client.subscribe(newTopic);
+    if (unreadRef.current > 0) {
+      setTimeout(() => {
+        try {
+          unreadRef.current = 0;
+        } catch (e) {}
+      }, 1000);
+    }
     return () => {
       client.unsubscribe(newTopic);
     };
@@ -99,6 +113,22 @@ const Chat = ({route}) => {
     }
   };
 
+  const fetchMembers = async () => {
+    try {
+      const res = await useApi().get(
+        `/chat/groups/members/${data?.chat_group_id}`,
+      );
+      const userMap = res?.data.reduce((acc, user) => {
+        acc[user.user_id] = user.name;
+        return acc;
+      }, {});
+
+      setMembers(userMap);
+    } catch (e) {
+      console.log('fetch members error', e);
+    }
+  };
+
   const loadMoreMessages = () => {
     if (hasMoreRef.current && !loadingMore) fetchChats(true);
   };
@@ -109,19 +139,31 @@ const Chat = ({route}) => {
     );
 
     const mappedMessages = sortedChats.map(c => {
-      const senderId = c.sender_id || c.user_id || c.receiver_id || 'other';
+      const senderId = c.sender_id;
       const isCurrentUser = senderId === currentUserId;
+
+      let displayName = 'User';
+      if (data?.is_group) {
+        displayName = isCurrentUser
+          ? user?.fname || user?.email || 'You'
+          : members?.[senderId] || 'Member';
+      } else {
+        displayName = isCurrentUser
+          ? user?.fname || user?.email || 'You'
+          : data?.display_name || 'User';
+      }
       return {
-        _id: c.id || `${c.created_at}-${Math.random()}`,
+        _id: c.id,
         text: c.message_type === 'text' ? c.message : '',
         createdAt: new Date(c.created_at),
         user: {
           _id: isCurrentUser ? currentUserId : senderId,
-          name: isCurrentUser
-            ? user?.fname || user?.email || 'You'
-            : c.sender_name || c.display_name || 'User',
+          name: displayName,
         },
-        image: c.message_type === 'image' ? c.media_url : undefined,
+        image:
+          c.message_type === 'image' && c?.media_url
+            ? JSON.parse(c.media_url)
+            : [],
         video: c.message_type === 'video' ? c.media_url : undefined,
         docUrl: c.message_type === 'document' ? c.media_url : undefined,
         mediaType: c.message_type,
@@ -130,7 +172,7 @@ const Chat = ({route}) => {
       };
     });
 
-    const unreadCount = data?.unread_count || 0;
+    const unreadCount = unreadRef.current;
     if (unreadCount > 0 && unreadCount < mappedMessages.length) {
       const insertIndex = unreadCount;
       mappedMessages.splice(insertIndex, 0, {
@@ -142,54 +184,88 @@ const Chat = ({route}) => {
         isUnreadLine: true,
       });
     }
-
     return mappedMessages;
-  }, [messages, data?.unread_count, currentUserId]);
+  }, [messages, members]);
 
   const onSend = useCallback(
-    async (msgs = []) => {
-      if (!msgs.length) return;
-      const {text} = msgs[0];
-      const trimmed = text?.trim();
-      if (!trimmed) return;
-
-      const tempId = `temp-${Date.now()}`;
-      const optimistic = {
-        id: tempId,
-        created_at: new Date().toISOString(),
-        message_type: 'text',
-        message: trimmed,
-        sender_id: currentUserId,
-      };
-
-      dispatch(addMessage(optimistic));
-      messageIdsRef.current.add(tempId);
+    async ({msgs = [], type, url}) => {
       try {
+        // if (!msgs.length) return;
+        const {text} = msgs[0] || {};
+        const trimmed = text?.trim() || null;
+        // if (!trimmed) return;
+        const tempId = `temp-${Date.now()}`;
+        let media = null;
+        if (type === 'image') {
+          media = JSON.stringify(url);
+        } else {
+          media = url;
+        }
+        const optimistic = {
+          id: tempId,
+          created_at: new Date().toISOString(),
+          message_type: type,
+          message: text ? trimmed : '',
+          media_url: text ? null : media,
+          sender_id: currentUserId,
+        };
+        dispatch(addMessage(optimistic));
+        messageIdsRef.current.add(tempId);
         if (client?.isConnected()) {
           const payload = JSON.stringify({
             chat_group_id: data?.chat_group_id,
             sender_id: currentUserId,
             receiver_id: data?.receiver_id,
-            message: trimmed,
-            message_type: 'text',
-            media_url: null,
+            message: text ? trimmed : ' ',
+            message_type: type,
+            media_url: text ? null : media,
           });
           const message = new Paho.MQTT.Message(payload);
-          const notifi = new Paho.MQTT.Message(
-            JSON.stringify({
-              chat_group_id: data?.chat_group_id,
-              receiver_id: data?.receiver_id,
-              message: '1 sent you a message.',
-            }),
-          );
-          notifi.destinationName = `notification/${data?.receiver_id}`;
-          client.send(notifi);
+
           if (data?.is_group) {
             message.destinationName = `chat/${data?.chat_group_id}`;
+
+            Object.entries(members)?.forEach(([key, member]) => {
+              if (key !== user?.user_id) {
+                const notifi = new Paho.MQTT.Message(
+                  JSON.stringify({
+                    chat_group_id: `${data?.chat_group_id}`,
+                    receiver_id: `${key}`,
+                    message: trimmed || ' ',
+                    data: {
+                      chat_group_id: `${data?.chat_group_id}`,
+                      display_name: `${'group name'}` || 'New message',
+                      is_group: '1',
+                      receiver_id: `${key}`,
+                      screen: 'Chat',
+                    },
+                  }),
+                );
+                notifi.destinationName = `notification/${member?.user_id}`;
+                client.send(notifi);
+              }
+            });
           } else {
             message.destinationName = `chat/${[currentUserId, data?.receiver_id]
               .sort()
               .join('-')}`;
+
+            const notifi = new Paho.MQTT.Message(
+              JSON.stringify({
+                chat_group_id: `${data?.chat_group_id}`,
+                receiver_id: `${data.receiver_id}`,
+                message: trimmed || ' ',
+                data: {
+                  chat_group_id: `${data?.chat_group_id}`,
+                  display_name: `${user?.fname}` || 'New message',
+                  is_group: '0',
+                  receiver_id: `${data?.receiver_id}`,
+                  screen: 'Chat',
+                },
+              }),
+            );
+            notifi.destinationName = `notification/${data?.receiver_id}`;
+            client.send(notifi);
           }
           client.send(message);
         }
@@ -203,7 +279,7 @@ const Chat = ({route}) => {
         } catch (e) {}
       }, 60);
     },
-    [client, currentUserId, data?.chat_group_id, dispatch, user],
+    [client, data?.chat_group_id, dispatch],
   );
 
   if (loading)
@@ -226,12 +302,33 @@ const Chat = ({route}) => {
         <GiftedChat
           ref={giftedRef}
           messages={mapToGifted}
-          onSend={msgs => onSend(msgs)}
+          onSend={msgs => onSend({msgs, type: 'text'})}
           user={{_id: currentUserId, name: user?.fname || user?.email}}
           showUserAvatar
+          // showAvatarForEveryMessage
+          renderAvatar={user => (
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 50,
+                backgroundColor:
+                  user?.currentMessage?.user._id == currentUserId
+                    ? colors.primary
+                    : '#18a3fa',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+              <Text style={{color: '#fff', fontSize: 20}}>
+                {data?.is_group
+                  ? members[user?.currentMessage?.user._id]?.charAt(0) || '#'
+                  : user?.currentMessage?.user?.name?.charAt(0) || '#'}
+              </Text>
+            </View>
+          )}
           isLoadingEarlier={loadingMore}
           textInputProps={{
-            style: {color: '#fff', flex: 1, fontSize: 18},
+            style: {color: colors.onBackground, flex: 1, fontSize: 18},
             placeholderTextColor: '#aaa',
           }}
           loadEarlier={hasMoreRef.current}
@@ -246,8 +343,8 @@ const Chat = ({route}) => {
                 <View style={styles.unreadLine}>
                   <View style={styles.unreadLineBar} />
                   <Text style={styles.unreadLineText}>
-                    {data?.unread_count} unread message
-                    {data?.unread_count !== 1 ? 's' : ''}
+                    {unreadRef.current} unread message
+                    {unreadRef.current !== 1 ? 's' : ''}
                   </Text>
                   <View style={styles.unreadLineBar} />
                 </View>
@@ -255,34 +352,54 @@ const Chat = ({route}) => {
             }
             return null;
           }}
-          renderBubble={props => (
-            <Bubble
-              {...props}
-              wrapperStyle={{
-                right: {
-                  backgroundColor: colors.primary,
-                  borderRadius: 18,
-                  padding: 4,
-                  marginBottom: 2,
-                  opacity: props.currentMessage.pending ? 0.6 : 1,
-                },
-                left: {
-                  backgroundColor: '#18a3fa',
-                  borderRadius: 18,
-                  padding: 4,
-                  marginBottom: 2,
-                },
-              }}
-              textStyle={{
-                right: {color: '#fff', fontSize: 18},
-                left: {color: '#fff', fontSize: 18},
-              }}
-              timeTextStyle={{
-                right: {color: '#fff', fontSize: 12},
-                left: {color: '#fff', fontSize: 12},
-              }}
-            />
-          )}
+          renderBubble={props => {
+            const isLeft = props.position === 'left';
+            const showCustomUsername =
+              data?.is_group &&
+              isLeft &&
+              (!props.previousMessage ||
+                props.previousMessage?.user?._id !==
+                  props.currentMessage?.user?._id ||
+                props?.currentMessage?.image ||
+                props?.currentMessage?.video ||
+                props?.currentMessage?.docUrl);
+            const uname = props?.currentMessage?.user?.name;
+            return (
+              <View style={{maxWidth: '85%', position: 'relative'}}>
+                {showCustomUsername ? (
+                  <Text style={styles.usernameText} numberOfLines={1}>
+                    {uname}
+                  </Text>
+                ) : null}
+                <Bubble
+                  {...props}
+                  wrapperStyle={{
+                    right: {
+                      backgroundColor: colors.primary,
+                      borderRadius: 18,
+                      padding: 4,
+                      marginBottom: 2,
+                    },
+                    left: {
+                      backgroundColor: '#18a3fa',
+                      borderRadius: 18,
+                      padding: 4,
+                      marginBottom: 2,
+                      paddingTop: showCustomUsername ? 23 : null,
+                    },
+                  }}
+                  textStyle={{
+                    right: {color: '#fff', fontSize: 18},
+                    left: {color: '#fff', fontSize: 18},
+                  }}
+                  timeTextStyle={{
+                    right: {color: '#fff', fontSize: 12},
+                    left: {color: '#fff', fontSize: 12},
+                  }}
+                />
+              </View>
+            );
+          }}
           renderSend={props => (
             <Send {...props} disabled={!props.text?.trim()}>
               <View>
@@ -302,7 +419,7 @@ const Chat = ({route}) => {
             <InputToolbar
               {...props}
               containerStyle={{
-                backgroundColor: colors.elevation?.level2 || '#222',
+                backgroundColor: colors.elevation?.level4 || '#222',
                 borderTopWidth: 0,
                 borderRadius: 24,
                 paddingHorizontal: 4,
@@ -310,27 +427,35 @@ const Chat = ({route}) => {
               }}
             />
           )}
-          renderMessageImage={props => (
-            <Pressable
-              onPress={() =>
-                setViewer({
-                  visible: true,
-                  type: 'image',
-                  url: props.currentMessage.image,
-                })
-              }>
-              <Image
-                source={{uri: props.currentMessage.image}}
+          renderMessageImage={props =>
+            props?.currentMessage?.image?.map((imgUrl, index) => (
+              <Pressable
+                key={index}
                 style={{
-                  width: 230,
-                  height: 280,
+                  backgroundColor: '#100f0f',
                   borderRadius: 12,
-                  marginBottom: 5,
+                  marginVertical: 3,
                 }}
-                resizeMode="cover"
-              />
-            </Pressable>
-          )}
+                onPress={() =>
+                  setViewer({
+                    visible: true,
+                    type: 'image',
+                    url: imgUrl,
+                  })
+                }>
+                <Image
+                  source={{uri: imgUrl}}
+                  style={{
+                    width: 230,
+                    height: 280,
+                    borderRadius: 12,
+                    marginBottom: 5,
+                  }}
+                  resizeMode="contain"
+                />
+              </Pressable>
+            ))
+          }
           renderMessageVideo={props => (
             <Pressable
               onPress={() =>
@@ -379,11 +504,13 @@ const Chat = ({route}) => {
           <AttachmentModal
             showAttachmentPicker={showAttachmentPicker}
             setShowAttachmentPicker={setShowAttachmentPicker}
+            onSendAttachment={onSend}
           />
         )}
         <Modal
           visible={viewer.visible}
           transparent={false}
+          statusBarTranslucent={true}
           animationType="fade">
           <View
             style={[
@@ -445,6 +572,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#100f0f',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 3,
   },
   videoHint: {
     position: 'absolute',
@@ -461,6 +589,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#100f0f',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 3,
   },
   viewerContainer: {
     flex: 1,
@@ -499,6 +628,15 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+  usernameText: {
+    position: 'absolute',
+    top: 5,
+    zIndex: 2,
+    color: '#ffffff',
+    marginLeft: 10,
+    fontWeight: '600',
+    fontSize: 14,
   },
   attachmentOverlay: {
     flex: 1,

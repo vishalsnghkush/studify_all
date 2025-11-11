@@ -42,14 +42,16 @@ const mqttSlice = createSlice({
       state.groups = action.payload;
     },
     onSelectGroup(state, action) {
-      if (action.payload.unread_count === 0) return;
+      // if (action.payload.unread_count == 0) return;
       const groupId = action.payload.chat_group_id;
-      const group = state.groups.find(g => g.chat_group_id === groupId);
-      group.unread_count = 0;
+      const group = state.groups.find(g => g.chat_group_id == groupId);
+      if (group) {
+        group.unread_count = 0;
+      }
     },
     onNotification(state, action) {
       const groupId = action.payload;
-      const group = state.groups.find(g => g.chat_group_id === groupId);
+      const group = state.groups.find(g => g.chat_group_id == groupId);
       if (group) {
         group.unread_count += 1;
       }
