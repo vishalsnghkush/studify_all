@@ -7,6 +7,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import {setUserLogout, setTheme} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import InAppReview from '../../../Components/Screen/InAppReview';
+import {removeFcmToken} from '../../../Components/Api/CheckAuth';
 
 const Profile = ({navigation}) => {
   const dispatch = useDispatch();
@@ -98,6 +99,7 @@ const Profile = ({navigation}) => {
                   title: 'Logout',
                   onPress: () => {
                     dispatch(setUserLogout());
+                    removeFcmToken();
                   },
                 },
               }),

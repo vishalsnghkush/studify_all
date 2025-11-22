@@ -29,6 +29,7 @@ const initialSlice = createSlice({
       state.isUserLoggedIn = false;
       state.user = {};
       state.token = '';
+      state.FcmToken = null;
     },
     updateUserName(state, action) {
       state.user.fname = action.payload.fname;

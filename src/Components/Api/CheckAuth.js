@@ -13,6 +13,16 @@ const BASE_URL = 'https://www.api.studifysuccess.com/api/';
 // const BASE_URL = 'http://192.168.1.3:3000/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
+
+export const removeFcmToken = async () => {
+  try {
+    const res = await useApi().post('/user/notification', (data = {fcm: null}));
+    console.log('token removed', res);
+  } catch (err) {
+    console.log('removing fcm error', err);
+  }
+};
+
 export default function CheckAuth() {
   const dispatch = useDispatch();
   const {user, token, FcmToken, contactPermission, isUserLoggedIn} =
@@ -26,6 +36,7 @@ export default function CheckAuth() {
     err => {
       if (err.response.status === 401) {
         dispatch(setUserLogout());
+        removeFcmToken();
         console.log('invalid token');
       }
       return Promise.reject(err);

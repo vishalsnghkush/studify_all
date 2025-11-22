@@ -62,6 +62,7 @@ const App = () => {
   };
 
   useEffect(() => {
+    if (!user?.is_intern) return;
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
@@ -74,15 +75,26 @@ const App = () => {
         }
       });
 
-    const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log(
-        'Notification caused app to open from background state:',
-        remoteMessage,
-      );
-      navigateToScreen(remoteMessage.data);
+    const unsubscribeFore = notifee.onForegroundEvent(({type, detail}) => {
+      if (type === EventType.PRESS) {
+        const data = detail?.notification.data;
+        console.log('notifee onForegroundEvent', data);
+        navigate('Chat', {
+          data: data,
+        });
+      }
     });
 
-    if (!user || !user?.is_intern) return;
+    const unsubscribeMessaging = messaging().onNotificationOpenedApp(
+      remoteMessage => {
+        console.log(
+          'Notification caused app to open from background state:',
+          remoteMessage,
+        );
+        navigateToScreen(remoteMessage.data);
+      },
+    );
+
     dispatch(fetchChatGroups());
     init({
       size: 10000,
@@ -156,20 +168,18 @@ const App = () => {
     });
     dispatch(setClient(client));
 
-    const unsubscribeFore = notifee.onForegroundEvent(({type, detail}) => {
-      if (type === EventType.PRESS) {
-        const data = detail?.notification.data;
-        console.log('notifee onForegroundEvent', data);
-        navigate('Chat', {
-          data: data,
-        });
-      }
-    });
-
     return () => {
-      client.disconnect();
-      unsubscribe();
-      unsubscribeFore();
+      try {
+        mqttClient?.disconnect();
+      } catch (e) {
+        console.log('MQTT disconnect error:', e);
+      }
+      try {
+        unsubscribeMessaging?.();
+      } catch (e) {}
+      try {
+        unsubscribeFore?.();
+      } catch (e) {}
     };
   }, [isUserLoggedIn]);
 
