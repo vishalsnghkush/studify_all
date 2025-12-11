@@ -63,6 +63,8 @@ const App = () => {
 
   useEffect(() => {
     if (!user?.is_intern) return;
+    dispatch(fetchChatGroups());
+
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
@@ -95,7 +97,6 @@ const App = () => {
       },
     );
 
-    dispatch(fetchChatGroups());
     init({
       size: 10000,
       storageBackend: AsyncStorage,
@@ -129,7 +130,7 @@ const App = () => {
         dispatch(
           addMessage({
             id: Date.now(),
-            created_at: data?.created_at,
+            created_at: new Date().toISOString(),
             message_type: data?.message_type,
             message: data?.message,
             media_url: data?.media_url,
