@@ -13,6 +13,7 @@ import {
   Update,
   TransactionDetails,
   Search,
+  TestGenerator,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -122,6 +123,11 @@ const AppNavigation = () => {
         name="Appreport"
         component={Appreport}
         options={{title: 'Report issue or bug'}}
+      />
+      <Stack.Screen
+        name="TestGenerator"
+        component={TestGenerator}
+        options={{title: 'AI Test Generator'}}
       />
       <Stack.Screen
         name="Groups"

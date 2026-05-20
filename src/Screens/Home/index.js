@@ -10,6 +10,7 @@ import ChangePassword from './User/ChangePassword';
 import Update from './Update';
 import TransactionDetails from './Transactions/TransactionDetails';
 import Search from './Search';
+import TestGenerator from './TestGenerator';
 
 export {
   Home,
@@ -24,4 +25,5 @@ export {
   Update,
   TransactionDetails,
   Search,
+  TestGenerator,
 };

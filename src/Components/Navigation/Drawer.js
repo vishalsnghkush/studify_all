@@ -45,6 +45,11 @@ const DrawerComponent = props => {
             onPress={() => navigate('Notes')}
           /> */}
           <Drawer.Item
+            label="AI Test Generator"
+            icon="brain"
+            onPress={() => navigate('TestGenerator')}
+          />
+          <Drawer.Item
             label="Report Issue or Bug"
             icon="bug"
             onPress={() => navigate('Appreport')}

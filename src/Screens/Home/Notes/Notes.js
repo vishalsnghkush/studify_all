@@ -37,6 +37,15 @@ const Notes = ({navigation}) => {
           <Text size="medium">Combo Notes</Text>
         </TouchableOpacity>
       </View>
+      <View>
+        <Text style={styles.heading}>Practice & Testing</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('TestGenerator')}
+          style={styles.youtubeNotes}>
+          <Icon name="brain" size={40} color="#007171" />
+          <Text size="medium">AI Test Generator</Text>
+        </TouchableOpacity>
+      </View>
     </Screen>
   );
 };

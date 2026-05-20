@@ -10,7 +10,7 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 class MainActivity : ReactActivity() {
   
   override fun onCreate(savedInstanceState: Bundle?) {
-    SplashScreen.show(this,true)  // here
+    // SplashScreen.show(this, true)
     super.onCreate(savedInstanceState)
 }
   /**
