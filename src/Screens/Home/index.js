@@ -11,6 +11,7 @@ import Update from './Update';
 import TransactionDetails from './Transactions/TransactionDetails';
 import Search from './Search';
 import TestGenerator from './TestGenerator';
+import StudyPlanner from './StudyPlanner';
 
 export {
   Home,
@@ -26,4 +27,5 @@ export {
   TransactionDetails,
   Search,
   TestGenerator,
+  StudyPlanner,
 };

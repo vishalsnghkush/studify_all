@@ -14,6 +14,7 @@ import {
   TransactionDetails,
   Search,
   TestGenerator,
+  StudyPlanner,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -128,6 +129,11 @@ const AppNavigation = () => {
         name="TestGenerator"
         component={TestGenerator}
         options={{title: 'AI Test Generator'}}
+      />
+      <Stack.Screen
+        name="StudyPlanner"
+        component={StudyPlanner}
+        options={{title: 'Study Planner & Tasks'}}
       />
       <Stack.Screen
         name="Groups"
