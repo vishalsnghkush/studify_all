@@ -15,7 +15,8 @@ import {Text, TextInput, Button} from '../../Components/Input';
 import Dropdown from '../../Components/Input/Dropdown';
 
 // ── API Key ── hardcoded so it is always correct, never stale
-const OPENROUTER_API_KEY = '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';
+const OPENROUTER_API_KEY =
+  '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';
 
 // Data Lists
 const classList = [
@@ -83,7 +84,15 @@ const getSubjectsList = exam => {
   if (exam === 'NEET') {
     return neetSubjects;
   }
-  if (['NCERT Class 6', 'NCERT Class 7', 'NCERT Class 8', 'NCERT Class 9', 'NCERT Class 10'].includes(exam)) {
+  if (
+    [
+      'NCERT Class 6',
+      'NCERT Class 7',
+      'NCERT Class 8',
+      'NCERT Class 9',
+      'NCERT Class 10',
+    ].includes(exam)
+  ) {
     return ncertSubjectsLower;
   }
   if (['NCERT Class 11', 'NCERT Class 12'].includes(exam)) {
@@ -93,6 +102,7 @@ const getSubjectsList = exam => {
 };
 
 export default function TestGenerator() {
+  const theme = useTheme();
   // Form State
   const [examName, setExamName] = useState('JEE');
   const [generationType, setGenerationType] = useState('Topic Wise');
@@ -126,6 +136,7 @@ export default function TestGenerator() {
     } else {
       setSubject('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examName, generationType]);
 
   const submitTest = useCallback(() => {
@@ -211,17 +222,27 @@ export default function TestGenerator() {
     setUserAnswers({});
 
     let finalNumQuestions = parseInt(numQuestions) || 5;
-    if (finalNumQuestions > 50) {finalNumQuestions = 50;}
-    if (finalNumQuestions < 1) {finalNumQuestions = 1;}
+    if (finalNumQuestions > 50) {
+      finalNumQuestions = 50;
+    }
+    if (finalNumQuestions < 1) {
+      finalNumQuestions = 1;
+    }
 
     let finalSubject = subject;
     if (generationType === 'Complete Paper') {
       finalSubject = 'Complete Syllabus';
-      if (examName === 'JEE') {finalNumQuestions = 75;}
-      else if (examName === 'NEET') {finalNumQuestions = 200;}
-      else if (examName === 'CUET') {finalNumQuestions = 50;}
-      else if (examName === 'GATE') {finalNumQuestions = 65;}
-      else if (examName.startsWith('NCERT')) {finalNumQuestions = 40;}
+      if (examName === 'JEE') {
+        finalNumQuestions = 75;
+      } else if (examName === 'NEET') {
+        finalNumQuestions = 200;
+      } else if (examName === 'CUET') {
+        finalNumQuestions = 50;
+      } else if (examName === 'GATE') {
+        finalNumQuestions = 65;
+      } else if (examName.startsWith('NCERT')) {
+        finalNumQuestions = 40;
+      }
     }
 
     // ── Exact same prompts as the working web API route ──
@@ -230,7 +251,9 @@ export default function TestGenerator() {
       'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
       'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string"}\n\n' +
       'CRITICAL RULES:\n' +
-      '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
+      '- Exactly ' +
+      finalNumQuestions +
+      ' question objects in the array.\n' +
       '- Exactly 4 options per question. Never 3, never 5.\n' +
       '- correctAnswer must exactly match one of the 4 options.\n' +
       '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
@@ -238,11 +261,21 @@ export default function TestGenerator() {
       '- Output ONLY the raw JSON array starting with [ and ending with ].';
 
     const userPrompt =
-      'Create EXACTLY ' + finalNumQuestions + ' MCQ questions:\n' +
-      '- Exam: ' + examName + '\n' +
-      '- Type: ' + generationType + '\n' +
-      '- Subject: ' + (finalSubject || 'General') + '\n' +
-      '- Difficulty: ' + difficulty + '\n\n' +
+      'Create EXACTLY ' +
+      finalNumQuestions +
+      ' MCQ questions:\n' +
+      '- Exam: ' +
+      examName +
+      '\n' +
+      '- Type: ' +
+      generationType +
+      '\n' +
+      '- Subject: ' +
+      (finalSubject || 'General') +
+      '\n' +
+      '- Difficulty: ' +
+      difficulty +
+      '\n\n' +
       'Remember: plain text only, no LaTeX. Output raw JSON array only.';
 
     try {
@@ -270,7 +303,12 @@ export default function TestGenerator() {
       }
 
       const data = await response.json();
-      let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '[]';
+      let content =
+        (data.choices &&
+          data.choices[0] &&
+          data.choices[0].message &&
+          data.choices[0].message.content) ||
+        '[]';
       content = content.trim();
 
       // Strip markdown code fences
@@ -284,7 +322,9 @@ export default function TestGenerator() {
 
       // Extract just the JSON array
       var arrayMatch = content.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {content = arrayMatch[0];}
+      if (arrayMatch) {
+        content = arrayMatch[0];
+      }
 
       // Replace LaTeX patterns with plain text (matches web app exactly)
       content = content.replace(/\\\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1/$2)');
@@ -315,27 +355,39 @@ export default function TestGenerator() {
       var parsedQuestions = [];
       try {
         parsedQuestions = JSON.parse(content);
-        parsedQuestions = parsedQuestions.map(function(q) {
+        parsedQuestions = parsedQuestions.map(function (q) {
           if (!Array.isArray(q.options)) {
             q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
           }
-          while (q.options.length < 4) {q.options.push('None of the above');}
+          while (q.options.length < 4) {
+            q.options.push('None of the above');
+          }
           if (q.options.length > 4) {
             q.options = q.options.slice(0, 4);
-            if (!q.options.includes(q.correctAnswer)) {q.correctAnswer = q.options[0];}
+            if (!q.options.includes(q.correctAnswer)) {
+              q.correctAnswer = q.options[0];
+            }
           }
-          if (!q.correctAnswer) {q.correctAnswer = q.options[0];}
+          if (!q.correctAnswer) {
+            q.correctAnswer = q.options[0];
+          }
           return q;
         });
       } catch (_e) {
         // Regex fallback — same as web app
-        var questionRegex = /\{"question"\s*:\s*"([^"]*?)"\s*,\s*"options"\s*:\s*\[([^\]]*?)\]\s*,\s*"correctAnswer"\s*:\s*"([^"]*?)"\}/g;
+        var questionRegex =
+          /\{"question"\s*:\s*"([^"]*?)"\s*,\s*"options"\s*:\s*\[([^\]]*?)\]\s*,\s*"correctAnswer"\s*:\s*"([^"]*?)"\}/g;
         var m;
         while ((m = questionRegex.exec(content)) !== null) {
-          var opts = m[2].split(',').map(function(s) {return s.trim().replace(/^"|"$/g, '');});
+          var opts = m[2].split(',').map(function (s) {
+            return s.trim().replace(/^"|"$/g, '');
+          });
           parsedQuestions.push({
             question: m[1],
-            options: opts.length >= 4 ? opts.slice(0, 4) : opts.concat(Array(4 - opts.length).fill('None of the above')),
+            options:
+              opts.length >= 4
+                ? opts.slice(0, 4)
+                : opts.concat(Array(4 - opts.length).fill('None of the above')),
             correctAnswer: m[3],
           });
         }
@@ -414,15 +466,25 @@ export default function TestGenerator() {
   if (appState === 'setup') {
     return (
       <Screen style={{paddingBottom: 40}}>
-        <Text style={styles.title} size="large">
+        <Text
+          style={[styles.title, {color: theme.colors.primary}]}
+          size="large">
           AI Test Generator
         </Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, {color: theme.colors.onSurfaceVariant}]}>
           Configure your test options to generate a custom, AI-powered test
           based on your exam syllabus.
         </Text>
 
-        <Card style={styles.formCard}>
+        <Card
+          style={[
+            styles.formCard,
+            theme.dark && {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+              borderWidth: 1,
+            },
+          ]}>
           <Card.Content>
             <View style={{marginTop: 15}}>
               <Dropdown
@@ -516,12 +578,16 @@ export default function TestGenerator() {
   if (appState === 'generating') {
     return (
       <Screen style={styles.centered}>
-        <ActivityIndicator size={60} color="#007171" />
-        <Text style={styles.loadingText} size="medium">
+        <ActivityIndicator size={60} color={theme.colors.primary} />
+        <Text
+          style={[styles.loadingText, {color: theme.colors.primary}]}
+          size="medium">
           Creating your bespoke test...
         </Text>
-        <Text style={styles.loadingSub}>
-          Connecting to OpenRouter to build exam-specific questions. This can take up to 20 seconds.
+        <Text
+          style={[styles.loadingSub, {color: theme.colors.onSurfaceVariant}]}>
+          Connecting to OpenRouter to build exam-specific questions. This can
+          take up to 20 seconds.
         </Text>
       </Screen>
     );
@@ -534,10 +600,12 @@ export default function TestGenerator() {
         <View style={styles.successCircle}>
           <Icon name="check-bold" size={50} color="white" />
         </View>
-        <Text style={styles.readyTitle} size="large">
+        <Text
+          style={[styles.readyTitle, {color: theme.colors.primary}]}
+          size="large">
           Test Ready!
         </Text>
-        <Text style={styles.readySub}>
+        <Text style={[styles.readySub, {color: theme.colors.onSurfaceVariant}]}>
           Generated exactly {questions.length} questions for {examName}.
         </Text>
 
@@ -545,7 +613,9 @@ export default function TestGenerator() {
           <TouchableOpacity
             onPress={resetGenerator}
             style={styles.secondaryButton}>
-            <Text style={{color: '#007171', fontWeight: 'bold'}} size="medium">
+            <Text
+              style={{color: theme.colors.primary, fontWeight: 'bold'}}
+              size="medium">
               Cancel
             </Text>
           </TouchableOpacity>
@@ -564,9 +634,18 @@ export default function TestGenerator() {
     return (
       <Screen list style={{flex: 1, paddingBottom: 40}}>
         {/* Sticky Timer Header */}
-        <View style={styles.stickyTimerHeader}>
-          <Icon name="clock-outline" size={24} color="#007171" />
-          <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+        <View
+          style={[
+            styles.stickyTimerHeader,
+            theme.dark && {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.primary,
+            },
+          ]}>
+          <Icon name="clock-outline" size={24} color={theme.colors.primary} />
+          <Text style={[styles.timerText, {color: theme.colors.primary}]}>
+            {formatTime(timeLeft)}
+          </Text>
         </View>
 
         <ScrollView style={{flex: 1, marginTop: 45}} nestedScrollEnabled={true}>
@@ -574,16 +653,45 @@ export default function TestGenerator() {
             const uAnswer = userAnswers[idx];
 
             return (
-              <Card key={idx} style={styles.questionCard}>
+              <Card
+                key={idx}
+                style={[
+                  styles.questionCard,
+                  theme.dark && {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outlineVariant,
+                    borderWidth: 1,
+                  },
+                ]}>
                 <Card.Content>
                   <View style={styles.questionMetaHeader}>
                     <View style={styles.badgeContainer}>
-                      <Text style={styles.questionBadge}>Q{idx + 1}</Text>
-                      <Text style={styles.typeBadge}>MCQ</Text>
+                      <Text
+                        style={[
+                          styles.questionBadge,
+                          {backgroundColor: theme.colors.primary},
+                        ]}>
+                        Q{idx + 1}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.typeBadge,
+                          theme.dark && {
+                            backgroundColor: theme.colors.elevation.level3,
+                            color: theme.colors.onSurfaceVariant,
+                          },
+                        ]}>
+                        MCQ
+                      </Text>
                     </View>
                   </View>
 
-                  <Text style={styles.questionText} size="medium">
+                  <Text
+                    style={[
+                      styles.questionText,
+                      {color: theme.colors.onSurface},
+                    ]}
+                    size="medium">
                     {q.question}
                   </Text>
 
@@ -598,26 +706,46 @@ export default function TestGenerator() {
                           onPress={() => handleSelectOption(idx, opt)}
                           style={[
                             styles.optionButton,
+                            theme.dark && {
+                              backgroundColor: theme.colors.surface,
+                              borderColor: theme.colors.outlineVariant,
+                            },
                             isSelected && {
-                              borderColor: '#007171',
-                              backgroundColor: '#e0f2f1',
+                              borderColor: theme.colors.primary,
+                              backgroundColor: theme.dark
+                                ? 'rgba(0, 113, 113, 0.15)'
+                                : '#e0f2f1',
                             },
                           ]}>
                           <View style={styles.optionContent}>
                             <View
                               style={[
                                 styles.letterCircle,
-                                isSelected && {backgroundColor: '#007171'},
+                                theme.dark && {
+                                  backgroundColor:
+                                    theme.colors.elevation.level3,
+                                },
+                                isSelected && {
+                                  backgroundColor: theme.colors.primary,
+                                },
                               ]}>
                               <Text
                                 style={{
-                                  color: isSelected ? 'white' : '#666',
+                                  color: isSelected
+                                    ? 'white'
+                                    : theme.colors.onSurfaceVariant,
                                   fontWeight: 'bold',
                                 }}>
                                 {letter}
                               </Text>
                             </View>
-                            <Text style={styles.optionText}>{opt}</Text>
+                            <Text
+                              style={[
+                                styles.optionText,
+                                {color: theme.colors.onSurface},
+                              ]}>
+                              {opt}
+                            </Text>
                           </View>
                         </TouchableOpacity>
                       );
@@ -642,23 +770,51 @@ export default function TestGenerator() {
   if (appState === 'results') {
     return (
       <Screen style={{paddingBottom: 40}}>
-        <Text style={styles.title} size="large">
+        <Text
+          style={[styles.title, {color: theme.colors.onBackground}]}
+          size="large">
           Test Completed
         </Text>
 
-        <Card style={styles.scoreCard}>
+        <Card
+          style={[
+            styles.scoreCard,
+            theme.dark && {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+              borderWidth: 1,
+            },
+          ]}>
           <Card.Content style={styles.scoreContent}>
-            <Text style={styles.scoreMarksText}>
+            <Text
+              style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
               {scoreData.marks}
-              <Text style={{color: '#666', fontSize: 24}}>
+              <Text
+                style={{color: theme.colors.onSurfaceVariant, fontSize: 24}}>
                 {' '}
                 / {scoreData.maxMarks}
               </Text>
             </Text>
-            <Text style={styles.scoreSubTitle}>Total Marks Scored</Text>
+            <Text
+              style={[
+                styles.scoreSubTitle,
+                {color: theme.colors.onSurfaceVariant},
+              ]}>
+              Total Marks Scored
+            </Text>
 
             <View style={styles.scoreGrid}>
-              <View style={[styles.gridCell, {backgroundColor: '#e8f5e9'}]}>
+              <View
+                style={[
+                  styles.gridCell,
+                  {
+                    backgroundColor: theme.dark
+                      ? 'rgba(46, 125, 50, 0.15)'
+                      : '#e8f5e9',
+                    borderColor: '#2e7d32',
+                    borderWidth: theme.dark ? 1 : 0,
+                  },
+                ]}>
                 <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>
                   Correct
                 </Text>
@@ -667,7 +823,17 @@ export default function TestGenerator() {
                   {scoreData.correct}
                 </Text>
               </View>
-              <View style={[styles.gridCell, {backgroundColor: '#ffebee'}]}>
+              <View
+                style={[
+                  styles.gridCell,
+                  {
+                    backgroundColor: theme.dark
+                      ? 'rgba(198, 40, 40, 0.15)'
+                      : '#ffebee',
+                    borderColor: '#c62828',
+                    borderWidth: theme.dark ? 1 : 0,
+                  },
+                ]}>
                 <Text style={{color: '#c62828', fontWeight: 'bold'}}>
                   Incorrect
                 </Text>
@@ -676,12 +842,30 @@ export default function TestGenerator() {
                   {scoreData.incorrect}
                 </Text>
               </View>
-              <View style={[styles.gridCell, {backgroundColor: '#eceff1'}]}>
-                <Text style={{color: '#37474f', fontWeight: 'bold'}}>
+              <View
+                style={[
+                  styles.gridCell,
+                  {
+                    backgroundColor: theme.dark
+                      ? 'rgba(55, 71, 79, 0.15)'
+                      : '#eceff1',
+                    borderColor: '#37474f',
+                    borderWidth: theme.dark ? 1 : 0,
+                  },
+                ]}>
+                <Text
+                  style={{
+                    color: theme.dark ? '#cfd8dc' : '#37474f',
+                    fontWeight: 'bold',
+                  }}>
                   Skipped
                 </Text>
                 <Text
-                  style={{fontSize: 20, fontWeight: 'bold', color: '#37474f'}}>
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: theme.dark ? '#cfd8dc' : '#37474f',
+                  }}>
                   {scoreData.unattempted}
                 </Text>
               </View>
@@ -697,7 +881,9 @@ export default function TestGenerator() {
           </Card.Content>
         </Card>
 
-        <Text style={styles.reviewHeader} size="medium">
+        <Text
+          style={[styles.reviewHeader, {color: theme.colors.onBackground}]}
+          size="medium">
           Detailed Answer Review
         </Text>
 
@@ -714,13 +900,29 @@ export default function TestGenerator() {
                 {
                   borderColor: isCorrect ? '#81c784' : '#e57373',
                   borderWidth: 2,
+                  backgroundColor: theme.dark ? theme.colors.surface : 'white',
                 },
               ]}>
               <Card.Content>
                 <View style={styles.questionMetaHeader}>
                   <View style={styles.badgeContainer}>
-                    <Text style={styles.questionBadge}>Q{idx + 1}</Text>
-                    <Text style={styles.typeBadge}>MCQ</Text>
+                    <Text
+                      style={[
+                        styles.questionBadge,
+                        {backgroundColor: theme.colors.primary},
+                      ]}>
+                      Q{idx + 1}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.typeBadge,
+                        theme.dark && {
+                          backgroundColor: theme.colors.elevation.level3,
+                          color: theme.colors.onSurfaceVariant,
+                        },
+                      ]}>
+                      MCQ
+                    </Text>
                   </View>
                   <Icon
                     name={isCorrect ? 'check-circle' : 'close-circle'}
@@ -729,7 +931,9 @@ export default function TestGenerator() {
                   />
                 </View>
 
-                <Text style={styles.questionText} size="medium">
+                <Text
+                  style={[styles.questionText, {color: theme.colors.onSurface}]}
+                  size="medium">
                   {q.question}
                 </Text>
 
@@ -739,15 +943,21 @@ export default function TestGenerator() {
                     const isSelected = uA === opt;
                     const isActualCorrect = cA === opt;
 
-                    let borderClr = '#ccc';
-                    let bgClr = '#fff';
+                    let borderClr = theme.dark
+                      ? theme.colors.outlineVariant
+                      : '#ccc';
+                    let bgClr = theme.dark ? theme.colors.surface : '#fff';
 
                     if (isActualCorrect) {
                       borderClr = '#2e7d32';
-                      bgClr = '#e8f5e9';
+                      bgClr = theme.dark
+                        ? 'rgba(46, 125, 50, 0.15)'
+                        : '#e8f5e9';
                     } else if (isSelected && !isCorrect) {
                       borderClr = '#c62828';
-                      bgClr = '#ffebee';
+                      bgClr = theme.dark
+                        ? 'rgba(198, 40, 40, 0.15)'
+                        : '#ffebee';
                     }
 
                     return (
@@ -761,6 +971,9 @@ export default function TestGenerator() {
                           <View
                             style={[
                               styles.letterCircle,
+                              theme.dark && {
+                                backgroundColor: theme.colors.elevation.level3,
+                              },
                               isActualCorrect
                                 ? {backgroundColor: '#2e7d32'}
                                 : isSelected
@@ -772,18 +985,26 @@ export default function TestGenerator() {
                                 color:
                                   isActualCorrect || isSelected
                                     ? 'white'
-                                    : '#666',
+                                    : theme.colors.onSurfaceVariant,
                                 fontWeight: 'bold',
                               }}>
                               {letter}
                             </Text>
                           </View>
                           <Text
-                            style={{
-                              ...styles.optionText,
-                              ...(isActualCorrect ? {color: '#1b5e20', fontWeight: 'bold'} : {}),
-                              ...(isSelected && !isCorrect ? {color: '#b71c1c', textDecorationLine: 'line-through'} : {}),
-                            }}>
+                            style={[
+                              styles.optionText,
+                              {color: theme.colors.onSurface},
+                              isActualCorrect && {
+                                color: theme.dark ? '#81c784' : '#1b5e20',
+                                fontWeight: 'bold',
+                              },
+                              isSelected &&
+                                !isCorrect && {
+                                  color: theme.dark ? '#e57373' : '#b71c1c',
+                                  textDecorationLine: 'line-through',
+                                },
+                            ]}>
                             {opt}
                           </Text>
                         </View>

@@ -2,338 +2,396 @@ import React, {useState, useCallback} from 'react';
 import {Screen} from '../../Components/Screen';
 import HomeHeader from '../../Components/Screen/HomeHeader';
 import Banner from '../../Components/Screen/Banner';
-import {
-  TouchableOpacity,
-  StyleSheet,
-  View,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import {TouchableOpacity, StyleSheet, View, Image} from 'react-native';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useTheme, Card, ProgressBar} from 'react-native-paper';
+import {useTheme} from 'react-native-paper';
 
 const Home = () => {
   const navigation = useNavigation();
-  const theme = useTheme();
+  const {colors, dark} = useTheme();
 
   // Tasks state
   const [tasks, setTasks] = useState([]);
   const [plannerCount, setPlannerCount] = useState(0);
 
-  const loadDashboardData = async () => {
+  const formatDateKey = date => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const loadDashboardData = useCallback(async () => {
     try {
-      const storedTasks = await AsyncStorage.getItem('studify_tasks');
-      if (storedTasks) {
-        setTasks(JSON.parse(storedTasks));
-      } else {
-        setTasks([]);
-      }
-      
+      const todayKey = formatDateKey(new Date());
       const storedSlots = await AsyncStorage.getItem('studify_slots');
       if (storedSlots) {
-        setPlannerCount(JSON.parse(storedSlots).length);
+        const parsed = JSON.parse(storedSlots);
+        const todaySlots = parsed.filter(
+          s => (s.date || todayKey) === todayKey,
+        );
+        setTasks(todaySlots);
+        setPlannerCount(todaySlots.length);
       } else {
+        setTasks([]);
         setPlannerCount(0);
       }
     } catch (e) {
       console.log('Failed to load dashboard data', e);
     }
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, []),
+    }, [loadDashboardData]),
   );
-
-  const handleToggleTask = async (id) => {
-    const updated = tasks.map(t =>
-      t.id === id ? {...t, completed: !t.completed} : t
-    );
-    setTasks(updated);
-    try {
-      await AsyncStorage.setItem('studify_tasks', JSON.stringify(updated));
-    } catch (e) {
-      console.log('Failed to save updated task state', e);
-    }
-  };
 
   // Stats Calculations
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.completed).length;
-  const pendingTasks = totalTasks - completedTasks;
-  const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) : 0;
-  const topPendingTasks = tasks.filter(t => !t.completed).slice(0, 3);
+
   return (
-    <Screen NoHeader style={{marginBottom: 80}}>
+    <Screen NoHeader style={styles.screenContainer}>
       {/* 1. Header component */}
       <HomeHeader />
 
       {/* 2. Interactive Quick Stats Dashboard */}
       <View style={styles.statsRow}>
-        <View style={styles.statBox}>
+        <View
+          style={[
+            styles.statBox,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
           <Icon name="fire" size={24} color="#ff9500" />
-          <View style={{marginLeft: 6}}>
-            <Text style={styles.statVal}>5 Days</Text>
-            <Text style={styles.statLabel}>Study Streak</Text>
-          </View>
-        </View>
-        
-        <View style={styles.statBox}>
-          <Icon name="clipboard-check" size={22} color="#007171" />
-          <View style={{marginLeft: 6}}>
-            <Text style={styles.statVal}>
-              {completedTasks}/{totalTasks}
+          <View style={styles.statTextContainer}>
+            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+              5 Days
             </Text>
-            <Text style={styles.statLabel}>Tasks Done</Text>
+            <Text
+              style={[
+                styles.statLabel,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              Study Streak
+            </Text>
           </View>
         </View>
 
-        <View style={styles.statBox}>
+        <View
+          style={[
+            styles.statBox,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
+          <Icon name="clipboard-check" size={22} color="#007171" />
+          <View style={styles.statTextContainer}>
+            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+              {completedTasks}/{totalTasks}
+            </Text>
+            <Text
+              style={[
+                styles.statLabel,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              Tasks Done
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.statBox,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
           <Icon name="calendar-multiselect" size={22} color="#5c6bc0" />
-          <View style={{marginLeft: 6}}>
-            <Text style={styles.statVal}>{plannerCount} Slots</Text>
-            <Text style={styles.statLabel}>Scheduled</Text>
+          <View style={styles.statTextContainer}>
+            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+              {plannerCount} Slots
+            </Text>
+            <Text
+              style={[
+                styles.statLabel,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              Scheduled
+            </Text>
           </View>
         </View>
       </View>
 
       {/* 3. Promo Banner Slides */}
       <Banner />
-      {/* 4. Daily Study Progress Tracker Card */}
-      <Card style={styles.progressCard}>
-        <View style={styles.progressHeader}>
-          <Icon name="chart-donut" size={24} color="#ffffff" />
-          <Text style={styles.progressTitle}>Today's Learning Progress</Text>
-        </View>
-        <Text style={styles.progressText}>
-          {totalTasks === 0
-            ? "Create daily study targets to track progress!"
-            : `You've completed ${completedTasks} of ${totalTasks} scheduled tasks (${Math.round(completionRate * 100)}%).`}
-        </Text>
-        <ProgressBar
-          progress={completionRate}
-          color="#80cbc4"
-          style={styles.progressBar}
-        />
-      </Card>
 
-      {/* 5. Mini Task Checklist Widget */}
-      <View style={styles.checklistSection}>
-        <View style={styles.sectionHeader}>
-          <Text size="medium" style={styles.sectionTitle}>
-            Current Tasks
+      {/* Personalized Learning Banner Card */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('PersonalizedLearning')}
+        style={[
+          styles.personalBanner,
+          dark && {
+            backgroundColor: 'rgba(0, 96, 100, 0.15)',
+            borderColor: '#00838f',
+          },
+        ]}>
+        <View style={styles.personalTextContainer}>
+          <Text style={[styles.personalSubtitle, dark && {color: '#b2ebf2'}]}>
+            <Text style={[styles.subtitleBoldText, dark && {color: '#80deea'}]}>
+              My
+            </Text>{' '}
+            study planner & targets
           </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('StudyPlanner')}>
-            <Text style={styles.seeAllText}>Manage Planner &gt;</Text>
-          </TouchableOpacity>
-        </View>
-
-        {topPendingTasks.length === 0 ? (
-          <Card style={styles.emptyChecklistCard}>
-            <Icon name="check-decagram" size={32} color="#007171" />
-            <Text style={styles.emptyChecklistText}>
-              {totalTasks > 0
-                ? "Excellent! All scheduled tasks are complete."
-                : "No study tasks set. Structure your day in the planner!"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('StudyPlanner')}
-              style={[styles.miniBtn, {borderColor: theme.colors.primary}]}>
-              <Text style={[styles.miniBtnText, {color: theme.colors.primary}]}>
-                {totalTasks > 0 ? "Add More Tasks" : "Create Task List"}
-              </Text>
-            </TouchableOpacity>
-          </Card>
-        ) : (
-          <View>
-            {topPendingTasks.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => handleToggleTask(item.id)}
-                style={styles.checklistRow}>
-                <Icon
-                  name="minus-circle-outline"
-                  size={22}
-                  color="#b0bec5"
-                  style={styles.checklistCheckIcon}
-                />
-                <View style={{flex: 1}}>
-                  <Text style={styles.checklistTaskDesc}>{item.description}</Text>
-                  <Text style={styles.checklistTaskSub}>{item.subject} • Urgent</Text>
-                </View>
-                <Icon name="chevron-right" size={20} color="#b0bec5" />
-              </TouchableOpacity>
-            ))}
+          <Text style={[styles.personalTitle, dark && {color: '#ffffff'}]}>
+            Personalized Learning
+          </Text>
+          <View
+            style={[styles.personalBtn, dark && {backgroundColor: '#00838f'}]}>
+            <Text style={styles.personalBtnText}>Open Study Hub</Text>
+            <Icon
+              name="chevron-right"
+              size={13}
+              color="#ffffff"
+              style={styles.chevronIcon}
+            />
           </View>
-        )}
-      </View>
-
-      {/* 6. Primary Feature Navigation Grid (2x2) */}
-      <View style={styles.gridSection}>
-        <Text size="medium" style={[styles.sectionTitle, {marginBottom: 12}]}>
-          Learning Modules
-        </Text>
-
-        <View style={styles.gridRow}>
-          {/* Card 1: AI Test Generator */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('TestGenerator')}
-            style={[styles.gridCard, {backgroundColor: '#eef6f5', borderColor: '#007171'}]}>
-            <View style={[styles.gridIconCircle, {backgroundColor: '#007171'}]}>
-              <Icon name="brain" size={26} color="white" />
-            </View>
-            <Text style={styles.gridCardTitle}>AI Test Generator</Text>
-            <Text style={styles.gridCardDesc}>
-              Customized mock tests for CBSE, JEE, NEET & CUET.
-            </Text>
-            <View style={styles.gridBadgeNew}>
-              <Text style={styles.gridBadgeNewText}>AI</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Card 2: Study Planner & Tasks */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('StudyPlanner')}
-            style={[styles.gridCard, {backgroundColor: '#f1f8e9', borderColor: '#558b2f'}]}>
-            <View style={[styles.gridIconCircle, {backgroundColor: '#558b2f'}]}>
-              <Icon name="calendar-clock" size={26} color="white" />
-            </View>
-            <Text style={styles.gridCardTitle}>Planner & Tasks</Text>
-            <Text style={styles.gridCardDesc}>
-              Structure study slots, logs, and live timelines.
-            </Text>
-            <View style={[styles.gridBadgeNew, {backgroundColor: '#558b2f'}]}>
-              <Text style={styles.gridBadgeNewText}>NEW</Text>
-            </View>
-          </TouchableOpacity>
         </View>
+        <Image
+          source={require('../../Assets/Images/personalized_learning.png')}
+          style={styles.personalImage}
+        />
+      </TouchableOpacity>
 
-        <View style={styles.gridRow}>
-          {/* Card 3: Virtual Live Meet */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Wishlist')}
-            style={[styles.gridCard, {backgroundColor: '#e8eaf6', borderColor: '#283593'}]}>
-            <View style={[styles.gridIconCircle, {backgroundColor: '#283593'}]}>
-              <Icon name="video" size={26} color="white" />
-            </View>
-            <Text style={styles.gridCardTitle}>Virtual Live Meet</Text>
-            <Text style={styles.gridCardDesc}>
-              Join virtual classrooms and instant online doubt rooms.
+      {/* Offline Coaching Banner Card */}
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate('WebView', {
+            url: 'https://www.studifysuccess.com/pre-registration-offline-tuition',
+          })
+        }
+        style={[
+          styles.offlineBanner,
+          dark && {
+            backgroundColor: 'rgba(178, 59, 59, 0.15)',
+            borderColor: '#c62828',
+          },
+        ]}>
+        <View style={styles.offlineTextContainer}>
+          <Text style={[styles.offlineSubtitle, dark && {color: '#ffcdd2'}]}>
+            <Text
+              style={[styles.subtitleBoldOffline, dark && {color: '#e57373'}]}>
+              Want
+            </Text>{' '}
+            to study{' '}
+            <Text
+              style={[
+                styles.subtitleBoldOfflineHighlight,
+                dark && {color: '#80deea'},
+              ]}>
+              offline
             </Text>
-          </TouchableOpacity>
-
-          {/* Card 4: Free YouTube Notes */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('FreeNotes')}
-            style={[styles.gridCard, {backgroundColor: '#ffebee', borderColor: '#c62828'}]}>
-            <View style={[styles.gridIconCircle, {backgroundColor: '#c62828'}]}>
-              <Icon name="youtube" size={26} color="white" />
-            </View>
-            <Text style={styles.gridCardTitle}>YouTube Notes</Text>
-            <Text style={styles.gridCardDesc}>
-              High quality free study notes mapped to video lectures.
-            </Text>
-            <View style={[styles.gridBadgeNew, {backgroundColor: '#c62828'}]}>
-              <Text style={styles.gridBadgeNewText}>FREE</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 7. Premium Paid Academic Notes Section */}
-      <View style={styles.premiumSection}>
-        <View style={styles.sectionHeader}>
-          <Text size="medium" style={styles.sectionTitle}>
-            Premium Academic Notes
+            ?
           </Text>
+          <Text style={[styles.offlineTitle, dark && {color: '#ffffff'}]}>
+            Offline Coaching
+          </Text>
+          <View
+            style={[styles.offlineBtn, dark && {backgroundColor: '#b23b3b'}]}>
+            <Text style={styles.offlineBtnText}>Register Now</Text>
+            <Icon
+              name="open-in-new"
+              size={13}
+              color="#ffffff"
+              style={styles.openInNewIcon}
+            />
+          </View>
         </View>
+        <Image
+          source={require('../../Assets/Images/offline_coaching.png')}
+          style={styles.offlineImage}
+        />
+      </TouchableOpacity>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.notesSlider}>
-          {/* Note Card 1 */}
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('WebView', {
-                url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
-              })
-            }
-            style={styles.notesCard}>
-            <View style={[styles.notesIconBox, {backgroundColor: '#e0f2f1'}]}>
-              <Icon name="file-document-multiple-outline" size={24} color="#007171" />
-            </View>
-            <Text style={styles.notesCardTitle}>Chapter-Wise Notes</Text>
-            <Text style={styles.notesCardDesc}>
-              In-depth coverage of all concepts. High scores guaranteed.
-            </Text>
-          </TouchableOpacity>
+      {/* Study Notes Banner Card */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('ClassNotesSelector')}
+        style={[
+          styles.notesBanner,
+          dark && {
+            backgroundColor: 'rgba(0, 113, 113, 0.15)',
+            borderColor: '#007171',
+          },
+        ]}>
+        <View style={styles.notesTextContainer}>
+          <Text style={[styles.notesSubtitle, dark && {color: '#b2ebf2'}]}>
+            <Text
+              style={[styles.subtitleBoldNotes, dark && {color: '#80deea'}]}>
+              Free
+            </Text>{' '}
+            study materials!
+          </Text>
+          <Text style={[styles.notesTitle, dark && {color: '#ffffff'}]}>
+            Download Notes
+          </Text>
+          <View style={[styles.notesBtn, dark && {backgroundColor: '#007171'}]}>
+            <Text style={styles.notesBtnText}>Select Class</Text>
+            <Icon
+              name="chevron-right"
+              size={13}
+              color="#ffffff"
+              style={styles.chevronIcon}
+            />
+          </View>
+        </View>
+        <Image
+          source={require('../../Assets/Images/study_notes.png')}
+          style={styles.notesImage}
+        />
+      </TouchableOpacity>
 
-          {/* Note Card 2 */}
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('WebView', {
-                url: 'https://allstudynotes.studifysuccess.com/select-class-subject?mobile=true',
-              })
-            }
-            style={styles.notesCard}>
-            <View style={[styles.notesIconBox, {backgroundColor: '#fff3e0'}]}>
-              <Icon name="book-open-page-variant" size={24} color="#e65100" />
-            </View>
-            <Text style={styles.notesCardTitle}>Combo Study Notes</Text>
-            <Text style={styles.notesCardDesc}>
-              Full syllabus bundles. Quick revision summaries.
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+      {/* Careers Banner Card */}
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate('WebView', {
+            url: 'https://careers.studifysuccess.com/',
+          })
+        }
+        style={[
+          styles.careersBanner,
+          dark && {
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            borderColor: '#6366f1',
+          },
+        ]}>
+        <View style={styles.careersTextContainer}>
+          <Text style={[styles.careersSubtitle, dark && {color: '#e0e7ff'}]}>
+            <Text
+              style={[styles.subtitleBoldCareers, dark && {color: '#818cf8'}]}>
+              Build
+            </Text>{' '}
+            the future with us
+          </Text>
+          <Text style={[styles.careersTitle, dark && {color: '#ffffff'}]}>
+            Careers
+          </Text>
+          <View
+            style={[styles.careersBtn, dark && {backgroundColor: '#6366f1'}]}>
+            <Text style={styles.careersBtnText}>Join Our Team</Text>
+            <Icon
+              name="chevron-right"
+              size={13}
+              color="#ffffff"
+              style={styles.chevronIcon}
+            />
+          </View>
+        </View>
+        <Image
+          source={require('../../Assets/Images/careers.png')}
+          style={styles.careersImage}
+        />
+      </TouchableOpacity>
 
-      {/* 8. Internship Banner */}
+      {/* Internship Banner */}
       <TouchableOpacity
         onPress={() => navigation.navigate('Internship')}
-        style={styles.internshipBanner}>
-        <View style={{flex: 1}}>
-          <Text style={styles.internshipTitle}>Gain Professional Experience</Text>
-          <Text style={styles.internshipSubtitle}>
-            Apply for the Studify Internship Program. Learn, grow, and build together!
+        style={[
+          styles.internshipBanner,
+          dark && {
+            backgroundColor: 'rgba(55, 71, 79, 0.4)',
+            borderColor: '#546e7a',
+            borderWidth: 1,
+          },
+        ]}>
+        <View style={styles.internshipTextContainer}>
+          <Text style={styles.internshipTitle}>
+            Gain Professional Experience
+          </Text>
+          <Text style={[styles.internshipSubtitle, dark && {color: '#b0bec5'}]}>
+            Apply for the Studify Internship Program. Learn, grow, and build
+            together!
           </Text>
         </View>
         <Icon name="briefcase-check-outline" size={32} color="#ffffff" />
       </TouchableOpacity>
 
       {/* 9. Support & Feedback Hub */}
-      <View style={styles.supportHub}>
-        <Text style={styles.supportHubTitle}>Need Academic or Tech Support?</Text>
+      <View
+        style={[
+          styles.supportHub,
+          dark && {
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
+          },
+        ]}>
+        <Text
+          style={[styles.supportHubTitle, dark && {color: colors.onSurface}]}>
+          Need Academic or Tech Support?
+        </Text>
         <View style={styles.supportIconsRow}>
           <TouchableOpacity
             onPress={() => navigation.navigate('HelpCenter')}
             style={styles.supportIconCol}>
-            <View style={styles.supportIconCircle}>
-              <Icon name="help-circle" size={22} color="#007171" />
+            <View
+              style={[
+                styles.supportIconCircle,
+                dark && {backgroundColor: '#1c2d2d'},
+              ]}>
+              <Icon name="help-circle" size={22} color={colors.primary} />
             </View>
-            <Text style={styles.supportIconText}>FAQ Center</Text>
+            <Text
+              style={[
+                styles.supportIconText,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              FAQ Center
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => navigation.navigate('CustomerService')}
             style={styles.supportIconCol}>
-            <View style={styles.supportIconCircle}>
-              <Icon name="phone" size={22} color="#007171" />
+            <View
+              style={[
+                styles.supportIconCircle,
+                dark && {backgroundColor: '#1c2d2d'},
+              ]}>
+              <Icon name="phone" size={22} color={colors.primary} />
             </View>
-            <Text style={styles.supportIconText}>Call Support</Text>
+            <Text
+              style={[
+                styles.supportIconText,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              Call Support
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => navigation.navigate('Appreport')}
             style={styles.supportIconCol}>
-            <View style={styles.supportIconCircle}>
-              <Icon name="bug-outline" size={22} color="#007171" />
+            <View
+              style={[
+                styles.supportIconCircle,
+                dark && {backgroundColor: '#1c2d2d'},
+              ]}>
+              <Icon name="bug-outline" size={22} color={colors.primary} />
             </View>
-            <Text style={styles.supportIconText}>Report Bug</Text>
+            <Text
+              style={[
+                styles.supportIconText,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              Report Bug
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -342,6 +400,9 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    marginBottom: 80,
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -365,6 +426,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eceff1',
   },
+  statTextContainer: {
+    marginLeft: 6,
+  },
   statVal: {
     fontWeight: 'bold',
     fontSize: 13,
@@ -375,221 +439,44 @@ const styles = StyleSheet.create({
     color: '#78909c',
     marginTop: 1,
   },
-  progressCard: {
-    marginHorizontal: 15,
-    marginVertical: 10,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#007171',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+  chevronIcon: {
+    marginLeft: 2,
   },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
+  openInNewIcon: {
+    marginLeft: 4,
   },
-  progressTitle: {
-    color: '#ffffff',
+  subtitleBoldText: {
     fontWeight: 'bold',
-    fontSize: 15,
+    color: '#006064',
   },
-  progressText: {
-    color: '#e0f2f1',
-    fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#004d40',
-  },
-  checklistSection: {
-    marginHorizontal: 15,
-    marginVertical: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  subtitleBoldOffline: {
     fontWeight: 'bold',
-    color: '#1a1d1d',
+    color: '#b23b3b',
   },
-  seeAllText: {
+  subtitleBoldOfflineHighlight: {
+    fontWeight: 'bold',
     color: '#007171',
+  },
+  subtitleBoldNotes: {
     fontWeight: 'bold',
-    fontSize: 13,
+    color: '#007171',
   },
-  emptyChecklistCard: {
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#eceff1',
-  },
-  emptyChecklistText: {
-    color: '#546e7a',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 16,
-    marginBottom: 12,
-  },
-  miniBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  miniBtnText: {
-    fontSize: 12,
+  subtitleBoldCareers: {
     fontWeight: 'bold',
+    color: '#6366f1',
   },
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#eceff1',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  checklistCheckIcon: {
-    marginRight: 12,
-  },
-  checklistTaskDesc: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#37474f',
-  },
-  checklistTaskSub: {
-    fontSize: 10,
-    color: '#78909c',
-    marginTop: 2,
-  },
-  gridSection: {
-    marginHorizontal: 15,
-    marginVertical: 12,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  gridCard: {
+  internshipTextContainer: {
     flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  gridIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  gridCardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#263238',
-    marginBottom: 4,
-  },
-  gridCardDesc: {
-    fontSize: 11,
-    color: '#546e7a',
-    lineHeight: 15,
-  },
-  gridBadgeNew: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    backgroundColor: '#007171',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-  },
-  gridBadgeNewText: {
-    color: 'white',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  premiumSection: {
-    marginVertical: 12,
-  },
-  notesSlider: {
-    paddingLeft: 15,
-    paddingRight: 5,
-    gap: 12,
-    paddingVertical: 4,
-  },
-  notesCard: {
-    width: 200,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#eceff1',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  notesIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  notesCardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#263238',
-    marginBottom: 4,
-  },
-  notesCardDesc: {
-    fontSize: 11,
-    color: '#78909c',
-    lineHeight: 15,
   },
   internshipBanner: {
     marginHorizontal: 15,
-    marginVertical: 12,
+    marginVertical: 10,
     padding: 16,
     borderRadius: 16,
     backgroundColor: '#37474f',
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 3,
+    elevation: 2,
     gap: 10,
   },
   internshipTitle: {
@@ -603,6 +490,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
+
   supportHub: {
     marginHorizontal: 15,
     marginVertical: 16,
@@ -643,6 +531,222 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#546e7a',
     fontWeight: 'bold',
+  },
+  offlineBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#fff5f5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ffe0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  offlineTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  offlineSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  offlineTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  offlineBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  offlineBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  offlineImage: {
+    flex: 0.8,
+    height: 90,
+    width: 90,
+    resizeMode: 'contain',
+  },
+  notesBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#eef9f9',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d5ebeb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  notesTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  notesSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  notesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  notesBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  notesBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  notesImage: {
+    flex: 0.8,
+    height: 90,
+    width: 90,
+    resizeMode: 'contain',
+  },
+  careersBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#f5f3ff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e5e0ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  careersTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  careersSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  careersTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  careersBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  careersBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  careersImage: {
+    flex: 0.8,
+    height: 90,
+    width: 90,
+    resizeMode: 'contain',
+  },
+  personalBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#e0f7fa',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#b2ebf2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  personalTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  personalSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  personalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  personalBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  personalBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  personalImage: {
+    flex: 0.8,
+    height: 90,
+    width: 90,
+    resizeMode: 'contain',
   },
 });
 

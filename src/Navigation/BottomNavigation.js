@@ -1,5 +1,5 @@
 import {createMaterialBottomTabNavigator} from 'react-native-paper/react-navigation';
-import {Wishlist, Profile} from '../Screens/Home';
+import {Profile, OnlineTuitions} from '../Screens/Home';
 import Notes from '../Screens/Home/Notes/Notes';
 import Main from '../Screens/Home/Main';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -81,14 +81,14 @@ export default function BottomNavigation() {
           />
         ) : null}
         <Tab.Screen
-          name="Wishlist"
-          component={Wishlist}
+          name="OnlineTuitions"
+          component={OnlineTuitions}
           options={{
-            title: 'Meet',
+            title: 'Online Tutions',
             tabBarIcon: ({focused}) => (
               <Micon
-                name={focused ? 'video' : 'video-outline'}
-                size={27}
+                name={focused ? 'school' : 'school-outline'}
+                size={24}
                 color={
                   focused ? theme.colors.primary : theme.colors.onSurfaceVariant
                 }

@@ -12,6 +12,9 @@ import TransactionDetails from './Transactions/TransactionDetails';
 import Search from './Search';
 import TestGenerator from './TestGenerator';
 import StudyPlanner from './StudyPlanner';
+import OnlineTuitions from './OnlineTuitions';
+import ClassNotesSelector from './ClassNotesSelector';
+import PersonalizedLearning from './PersonalizedLearning';
 
 export {
   Home,
@@ -28,4 +31,7 @@ export {
   Search,
   TestGenerator,
   StudyPlanner,
+  OnlineTuitions,
+  ClassNotesSelector,
+  PersonalizedLearning,
 };

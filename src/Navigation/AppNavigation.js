@@ -15,6 +15,9 @@ import {
   Search,
   TestGenerator,
   StudyPlanner,
+  OnlineTuitions,
+  ClassNotesSelector,
+  PersonalizedLearning,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -134,6 +137,16 @@ const AppNavigation = () => {
         name="StudyPlanner"
         component={StudyPlanner}
         options={{title: 'Study Planner & Tasks'}}
+      />
+      <Stack.Screen
+        name="ClassNotesSelector"
+        component={ClassNotesSelector}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="PersonalizedLearning"
+        component={PersonalizedLearning}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="Groups"
