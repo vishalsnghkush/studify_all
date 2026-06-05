@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
@@ -427,17 +427,20 @@ const styles = StyleSheet.create({
     borderColor: '#eceff1',
   },
   statTextContainer: {
-    marginLeft: 6,
+    marginLeft: 4,
+    flex: 1,
+    flexShrink: 1,
   },
   statVal: {
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
     color: '#263238',
   },
   statLabel: {
     fontSize: 9,
     color: '#78909c',
     marginTop: 1,
+    flexWrap: 'wrap',
   },
   chevronIcon: {
     marginLeft: 2,
