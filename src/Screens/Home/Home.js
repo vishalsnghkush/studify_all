@@ -140,22 +140,34 @@ const Home = () => {
         style={[
           styles.personalBanner,
           dark && {
-            backgroundColor: 'rgba(0, 96, 100, 0.15)',
-            borderColor: '#00838f',
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
         ]}>
         <View style={styles.personalTextContainer}>
-          <Text style={[styles.personalSubtitle, dark && {color: '#b2ebf2'}]}>
-            <Text style={[styles.subtitleBoldText, dark && {color: '#80deea'}]}>
+          <Text
+            style={[
+              styles.personalSubtitle,
+              dark && {color: colors.onSurfaceVariant},
+            ]}>
+            <Text
+              style={[
+                styles.subtitleBoldText,
+                dark && {color: colors.primary},
+              ]}>
               My
             </Text>{' '}
             study planner & targets
           </Text>
-          <Text style={[styles.personalTitle, dark && {color: '#ffffff'}]}>
+          <Text
+            style={[styles.personalTitle, dark && {color: colors.onSurface}]}>
             Personalized Learning
           </Text>
           <View
-            style={[styles.personalBtn, dark && {backgroundColor: '#00838f'}]}>
+            style={[
+              styles.personalBtn,
+              dark && {backgroundColor: colors.primary},
+            ]}>
             <Text style={styles.personalBtnText}>Open Study Hub</Text>
             <Icon
               name="chevron-right"
@@ -181,31 +193,42 @@ const Home = () => {
         style={[
           styles.offlineBanner,
           dark && {
-            backgroundColor: 'rgba(178, 59, 59, 0.15)',
-            borderColor: '#c62828',
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
         ]}>
         <View style={styles.offlineTextContainer}>
-          <Text style={[styles.offlineSubtitle, dark && {color: '#ffcdd2'}]}>
+          <Text
+            style={[
+              styles.offlineSubtitle,
+              dark && {color: colors.onSurfaceVariant},
+            ]}>
             <Text
-              style={[styles.subtitleBoldOffline, dark && {color: '#e57373'}]}>
+              style={[
+                styles.subtitleBoldOffline,
+                dark && {color: colors.primary},
+              ]}>
               Want
             </Text>{' '}
             to study{' '}
             <Text
               style={[
                 styles.subtitleBoldOfflineHighlight,
-                dark && {color: '#80deea'},
+                dark && {color: colors.secondary},
               ]}>
               offline
             </Text>
             ?
           </Text>
-          <Text style={[styles.offlineTitle, dark && {color: '#ffffff'}]}>
+          <Text
+            style={[styles.offlineTitle, dark && {color: colors.onSurface}]}>
             Offline Coaching
           </Text>
           <View
-            style={[styles.offlineBtn, dark && {backgroundColor: '#b23b3b'}]}>
+            style={[
+              styles.offlineBtn,
+              dark && {backgroundColor: colors.primary},
+            ]}>
             <Text style={styles.offlineBtnText}>Register Now</Text>
             <Icon
               name="open-in-new"
@@ -227,22 +250,33 @@ const Home = () => {
         style={[
           styles.notesBanner,
           dark && {
-            backgroundColor: 'rgba(0, 113, 113, 0.15)',
-            borderColor: '#007171',
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
         ]}>
         <View style={styles.notesTextContainer}>
-          <Text style={[styles.notesSubtitle, dark && {color: '#b2ebf2'}]}>
+          <Text
+            style={[
+              styles.notesSubtitle,
+              dark && {color: colors.onSurfaceVariant},
+            ]}>
             <Text
-              style={[styles.subtitleBoldNotes, dark && {color: '#80deea'}]}>
+              style={[
+                styles.subtitleBoldNotes,
+                dark && {color: colors.primary},
+              ]}>
               Free
             </Text>{' '}
             study materials!
           </Text>
-          <Text style={[styles.notesTitle, dark && {color: '#ffffff'}]}>
+          <Text style={[styles.notesTitle, dark && {color: colors.onSurface}]}>
             Download Notes
           </Text>
-          <View style={[styles.notesBtn, dark && {backgroundColor: '#007171'}]}>
+          <View
+            style={[
+              styles.notesBtn,
+              dark && {backgroundColor: colors.primary},
+            ]}>
             <Text style={styles.notesBtnText}>Select Class</Text>
             <Icon
               name="chevron-right"
@@ -268,23 +302,34 @@ const Home = () => {
         style={[
           styles.careersBanner,
           dark && {
-            backgroundColor: 'rgba(99, 102, 241, 0.15)',
-            borderColor: '#6366f1',
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
         ]}>
         <View style={styles.careersTextContainer}>
-          <Text style={[styles.careersSubtitle, dark && {color: '#e0e7ff'}]}>
+          <Text
+            style={[
+              styles.careersSubtitle,
+              dark && {color: colors.onSurfaceVariant},
+            ]}>
             <Text
-              style={[styles.subtitleBoldCareers, dark && {color: '#818cf8'}]}>
+              style={[
+                styles.subtitleBoldCareers,
+                dark && {color: colors.primary},
+              ]}>
               Build
             </Text>{' '}
             the future with us
           </Text>
-          <Text style={[styles.careersTitle, dark && {color: '#ffffff'}]}>
+          <Text
+            style={[styles.careersTitle, dark && {color: colors.onSurface}]}>
             Careers
           </Text>
           <View
-            style={[styles.careersBtn, dark && {backgroundColor: '#6366f1'}]}>
+            style={[
+              styles.careersBtn,
+              dark && {backgroundColor: colors.primary},
+            ]}>
             <Text style={styles.careersBtnText}>Join Our Team</Text>
             <Icon
               name="chevron-right"
