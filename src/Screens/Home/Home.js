@@ -65,20 +65,22 @@ const Home = () => {
           style={[
             styles.statBox,
             dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              borderColor: 'rgba(255, 255, 255, 0.07)',
             },
           ]}>
-          <Icon name="fire" size={24} color="#ff9500" />
+          <View
+            style={[
+              styles.statIconWrapper,
+              {backgroundColor: 'rgba(255, 149, 0, 0.12)'},
+            ]}>
+            <Icon name="fire" size={18} color="#ff9500" />
+          </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
               5 Days
             </Text>
-            <Text
-              style={[
-                styles.statLabel,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
+            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
               Study Streak
             </Text>
           </View>
@@ -88,20 +90,22 @@ const Home = () => {
           style={[
             styles.statBox,
             dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              borderColor: 'rgba(255, 255, 255, 0.07)',
             },
           ]}>
-          <Icon name="clipboard-check" size={22} color="#007171" />
+          <View
+            style={[
+              styles.statIconWrapper,
+              {backgroundColor: 'rgba(77, 182, 172, 0.12)'},
+            ]}>
+            <Icon name="clipboard-check" size={16} color="#4db6ac" />
+          </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
               {completedTasks}/{totalTasks}
             </Text>
-            <Text
-              style={[
-                styles.statLabel,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
+            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
               Tasks Done
             </Text>
           </View>
@@ -111,20 +115,22 @@ const Home = () => {
           style={[
             styles.statBox,
             dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              borderColor: 'rgba(255, 255, 255, 0.07)',
             },
           ]}>
-          <Icon name="calendar-multiselect" size={22} color="#5c6bc0" />
+          <View
+            style={[
+              styles.statIconWrapper,
+              {backgroundColor: 'rgba(129, 140, 248, 0.12)'},
+            ]}>
+            <Icon name="calendar-multiselect" size={16} color="#818cf8" />
+          </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
               {plannerCount} Slots
             </Text>
-            <Text
-              style={[
-                styles.statLabel,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
+            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
               Scheduled
             </Text>
           </View>
@@ -416,24 +422,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
     borderColor: '#eceff1',
   },
+  statIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   statTextContainer: {
-    marginLeft: 4,
+    marginLeft: 8,
     flex: 1,
     flexShrink: 1,
   },
   statVal: {
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 13,
     color: '#263238',
   },
   statLabel: {
@@ -443,7 +456,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   chevronIcon: {
-    marginLeft: 2,
+    marginLeft: 4,
   },
   openInNewIcon: {
     marginLeft: 4,
@@ -497,38 +510,42 @@ const styles = StyleSheet.create({
   supportHub: {
     marginHorizontal: 15,
     marginVertical: 16,
-    padding: 16,
+    padding: 18,
     borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#eceff1',
-    elevation: 2,
+    elevation: 1,
     alignItems: 'center',
   },
   supportHubTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#37474f',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   supportIconsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 10,
   },
   supportIconCol: {
     alignItems: 'center',
     flex: 1,
   },
   supportIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#eef6f5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   supportIconText: {
     fontSize: 10,
@@ -544,7 +561,7 @@ const styles = StyleSheet.create({
     borderColor: '#ffe0e0',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
     justifyContent: 'space-between',
     elevation: 2,
     shadowColor: '#000',
@@ -566,17 +583,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#263238',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   offlineBtn: {
     backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   offlineBtnText: {
     color: '#ffffff',
@@ -598,7 +617,7 @@ const styles = StyleSheet.create({
     borderColor: '#d5ebeb',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
     justifyContent: 'space-between',
     elevation: 2,
     shadowColor: '#000',
@@ -620,17 +639,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#263238',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   notesBtn: {
     backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   notesBtnText: {
     color: '#ffffff',
@@ -652,7 +673,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e0ff',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
     justifyContent: 'space-between',
     elevation: 2,
     shadowColor: '#000',
@@ -674,17 +695,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#263238',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   careersBtn: {
     backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   careersBtnText: {
     color: '#ffffff',
@@ -706,7 +729,7 @@ const styles = StyleSheet.create({
     borderColor: '#b2ebf2',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
     justifyContent: 'space-between',
     elevation: 2,
     shadowColor: '#000',
@@ -728,17 +751,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#263238',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   personalBtn: {
     backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   personalBtnText: {
     color: '#ffffff',

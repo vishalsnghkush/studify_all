@@ -54,37 +54,75 @@ const Notes = ({navigation}) => {
     }
   };
 
-  const renderCard = (item, index) => (
-    <TouchableOpacity
-      key={index}
-      onPress={() => handlePress(item)}
-      style={[
-        styles.gridCard,
-        {
-          backgroundColor: item.color,
-          borderColor: item.borderColor,
-          width: width - 32,
-        },
-      ]}>
-      <View
-        style={[styles.gridIconCircle, {backgroundColor: item.borderColor}]}>
-        <Icon name={item.icon} size={26} color="white" />
-      </View>
-      <Text
-        style={[styles.gridCardTitle, {color: dark ? '#ffffff' : '#263238'}]}>
-        {item.title}
-      </Text>
-      <Text
-        style={[styles.gridCardDesc, {color: dark ? '#b0bec5' : '#546e7a'}]}>
-        {item.desc}
-      </Text>
-      {item.badge && (
-        <View style={[styles.gridBadge, {backgroundColor: item.borderColor}]}>
-          <Text style={styles.gridBadgeText}>{item.badge}</Text>
+  const renderCard = (item, index) => {
+    // Dynamic icon colors
+    const getAccentColor = () => {
+      if (item.borderColor === '#c62828') {
+        return dark ? '#ef5350' : 'white';
+      }
+      if (item.borderColor === '#007171') {
+        return dark ? '#26a69a' : 'white';
+      }
+      return dark ? '#ffb74d' : 'white';
+    };
+
+    const getGlowBg = () => {
+      if (item.borderColor === '#c62828') {
+        return dark ? 'rgba(198, 40, 40, 0.15)' : item.borderColor;
+      }
+      if (item.borderColor === '#007171') {
+        return dark ? 'rgba(0, 113, 113, 0.15)' : item.borderColor;
+      }
+      return dark ? 'rgba(230, 81, 0, 0.15)' : item.borderColor;
+    };
+
+    return (
+      <TouchableOpacity
+        key={index}
+        onPress={() => handlePress(item)}
+        style={[
+          styles.gridCard,
+          {
+            backgroundColor: dark ? 'rgba(255, 255, 255, 0.02)' : item.color,
+            borderColor: dark ? 'rgba(255, 255, 255, 0.08)' : item.borderColor,
+            width: width - 32,
+          },
+        ]}>
+        <View style={styles.cardHeaderRow}>
+          <View
+            style={[
+              styles.gridIconCircle,
+              {
+                backgroundColor: getGlowBg(),
+                borderColor: item.borderColor,
+                borderWidth: dark ? 1 : 0,
+              },
+            ]}>
+            <Icon name={item.icon} size={22} color={getAccentColor()} />
+          </View>
+          <View style={styles.cardTitleCol}>
+            <Text
+              style={[
+                styles.gridCardTitle,
+                {color: dark ? '#ffffff' : '#263238'},
+              ]}>
+              {item.title}
+            </Text>
+            {item.badge && (
+              <View
+                style={[styles.gridBadge, {backgroundColor: item.borderColor}]}>
+                <Text style={styles.gridBadgeText}>{item.badge}</Text>
+              </View>
+            )}
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+        <Text
+          style={[styles.gridCardDesc, {color: dark ? '#b0bec5' : '#546e7a'}]}>
+          {item.desc}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const freeItems = noteTypes.filter(item => item.category === 'free');
   const paidItems = noteTypes.filter(item => item.category === 'paid');
@@ -142,17 +180,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   content: {
     padding: 16,
   },
   sectionHeading: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginTop: 10,
     marginBottom: 12,
+    letterSpacing: 0.3,
   },
   list: {
     gap: 12,
@@ -162,41 +201,46 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    position: 'relative',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 2,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cardTitleCol: {
+    marginLeft: 12,
+    flex: 1,
+  },
   gridIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   gridCardTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 3,
   },
   gridCardDesc: {
     fontSize: 11,
     lineHeight: 15,
   },
   gridBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    paddingVertical: 2,
+    paddingVertical: 1.5,
     paddingHorizontal: 6,
     borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   gridBadgeText: {
     color: 'white',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
   },
 });

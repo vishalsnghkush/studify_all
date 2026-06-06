@@ -108,20 +108,38 @@ const PersonalizedLearning = () => {
     return '#007171';
   };
 
+  const getPriorityBgColor = (p, isDark) => {
+    if (p === 'High') {
+      return isDark ? 'rgba(255, 59, 48, 0.12)' : '#ffebee';
+    }
+    if (p === 'Medium') {
+      return isDark ? 'rgba(255, 149, 0, 0.12)' : '#fff3e0';
+    }
+    return isDark ? 'rgba(0, 113, 113, 0.12)' : '#e0f2f1';
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, {backgroundColor: theme.colors.background}]}>
       <View
         style={[
           styles.header,
-          {borderBottomColor: theme.colors.outlineVariant},
+          {
+            backgroundColor: theme.dark ? theme.colors.surface : '#ffffff',
+            borderBottomColor: theme.colors.outlineVariant,
+          },
         ]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
+          style={[
+            styles.backBtn,
+            theme.dark && {backgroundColor: 'rgba(255,255,255,0.05)'},
+          ]}>
+          <Icon name="arrow-left" size={20} color={theme.colors.onBackground} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalized Learning</Text>
+        <Text style={[styles.headerTitle, {color: theme.colors.onBackground}]}>
+          Personalized Learning
+        </Text>
         <View style={styles.headerBackSpacer} />
       </View>
 
@@ -131,12 +149,24 @@ const PersonalizedLearning = () => {
           style={[
             styles.progressCard,
             {backgroundColor: theme.colors.primary},
+            theme.dark && {
+              backgroundColor: 'rgba(57, 151, 151, 0.08)',
+              borderColor: 'rgba(57, 151, 151, 0.2)',
+              borderWidth: 1,
+            },
           ]}>
           <View style={styles.progressHeader}>
-            <Icon name="chart-donut" size={24} color="#ffffff" />
-            <Text style={styles.progressTitle}>Today's Learning Progress</Text>
+            <Icon
+              name="chart-donut"
+              size={22}
+              color={theme.dark ? '#80cbc4' : '#ffffff'}
+            />
+            <Text
+              style={[styles.progressTitle, theme.dark && {color: '#ffffff'}]}>
+              Today's Learning Progress
+            </Text>
           </View>
-          <Text style={styles.progressText}>
+          <Text style={[styles.progressText, theme.dark && {color: '#cfd8dc'}]}>
             {totalTasks === 0
               ? 'Create daily study targets to track progress!'
               : `You've completed ${completedTasks} of ${totalTasks} scheduled tasks (${Math.round(
@@ -145,8 +175,11 @@ const PersonalizedLearning = () => {
           </Text>
           <ProgressBar
             progress={completionRate}
-            color={theme.colors.primaryContainer}
-            style={styles.progressBar}
+            color={theme.dark ? '#80cbc4' : theme.colors.primaryContainer}
+            style={[
+              styles.progressBar,
+              theme.dark && {backgroundColor: 'rgba(255,255,255,0.05)'},
+            ]}
           />
         </Card>
 
@@ -158,12 +191,20 @@ const PersonalizedLearning = () => {
             style={[
               styles.featureCard1,
               theme.dark && {
-                backgroundColor: 'rgba(0, 113, 113, 0.15)',
-                borderColor: '#007171',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                borderColor: 'rgba(57, 151, 151, 0.25)',
               },
             ]}>
-            <View style={styles.featureIconCircle1}>
-              <Icon name="brain" size={26} color="white" />
+            <View
+              style={[
+                styles.featureIconCircle1,
+                theme.dark && {backgroundColor: 'rgba(57, 151, 151, 0.15)'},
+              ]}>
+              <Icon
+                name="brain"
+                size={22}
+                color={theme.dark ? '#80cbc4' : 'white'}
+              />
             </View>
             <Text
               style={[
@@ -187,12 +228,20 @@ const PersonalizedLearning = () => {
             style={[
               styles.featureCard2,
               theme.dark && {
-                backgroundColor: 'rgba(85, 139, 47, 0.15)',
-                borderColor: '#558b2f',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                borderColor: 'rgba(85, 139, 47, 0.25)',
               },
             ]}>
-            <View style={styles.featureIconCircle2}>
-              <Icon name="calendar-clock" size={26} color="white" />
+            <View
+              style={[
+                styles.featureIconCircle2,
+                theme.dark && {backgroundColor: 'rgba(85, 139, 47, 0.15)'},
+              ]}>
+              <Icon
+                name="calendar-clock"
+                size={22}
+                color={theme.dark ? '#aed581' : 'white'}
+              />
             </View>
             <Text
               style={[
@@ -233,8 +282,8 @@ const PersonalizedLearning = () => {
               style={[
                 styles.emptyChecklistCard,
                 theme.dark && {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.outlineVariant,
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  borderColor: 'rgba(255, 255, 255, 0.06)',
                 },
               ]}>
               <Icon
@@ -247,7 +296,7 @@ const PersonalizedLearning = () => {
                   styles.emptyChecklistText,
                   {color: theme.colors.onSurfaceVariant},
                 ]}>
-                No study tasks set. Structure your day in the planner!
+                No study targets set. Structure your day in the planner!
               </Text>
               <TouchableOpacity
                 onPress={() => navigation.navigate('StudyPlanner')}
@@ -280,9 +329,14 @@ const PersonalizedLearning = () => {
                         onPress={() => handleToggleTask(item.id)}
                         style={[
                           styles.checklistRow,
+                          {
+                            borderLeftColor: getPriorityColor(
+                              item.priority || 'Medium',
+                            ),
+                          },
                           theme.dark && {
-                            backgroundColor: theme.colors.surface,
-                            borderColor: theme.colors.outlineVariant,
+                            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                            borderColor: 'rgba(255, 255, 255, 0.06)',
                           },
                         ]}>
                         <Icon
@@ -311,16 +365,17 @@ const PersonalizedLearning = () => {
                           <View style={styles.taskMetaRow}>
                             <View
                               style={[
-                                styles.priorityTag,
+                                styles.priorityBadge,
                                 {
-                                  borderColor: getPriorityColor(
+                                  backgroundColor: getPriorityBgColor(
                                     item.priority || 'Medium',
+                                    theme.dark,
                                   ),
                                 },
                               ]}>
                               <Text
                                 style={[
-                                  styles.priorityTagText,
+                                  styles.priorityBadgeText,
                                   {
                                     color: getPriorityColor(
                                       item.priority || 'Medium',
@@ -363,14 +418,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f5f7f8',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   headerBackSpacer: {
-    width: 40,
+    width: 36,
   },
   scrollContent: {
     padding: 16,
@@ -379,11 +439,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     backgroundColor: '#007171',
-    elevation: 4,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     marginBottom: 20,
   },
   progressHeader: {
@@ -395,17 +455,17 @@ const styles = StyleSheet.create({
   progressTitle: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 14,
   },
   progressText: {
     color: '#e0f2f1',
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
     marginBottom: 12,
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#004d40',
   },
   featuresRow: {
@@ -440,25 +500,25 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   featureIconCircle1: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
     backgroundColor: '#007171',
   },
   featureIconCircle2: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
     backgroundColor: '#558b2f',
   },
   featureCardTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#263238',
     marginBottom: 4,
@@ -466,7 +526,7 @@ const styles = StyleSheet.create({
   featureCardDesc: {
     fontSize: 11,
     color: '#546e7a',
-    lineHeight: 15,
+    lineHeight: 14,
   },
   checklistSection: {
     marginTop: 10,
@@ -475,17 +535,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#1a1d1d',
   },
   seeAllText: {
     color: '#007171',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   emptyChecklistCard: {
     padding: 20,
@@ -525,9 +585,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#eceff1',
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -535,7 +596,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   checklistTaskDesc: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#37474f',
   },
@@ -550,7 +611,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   subjectGroupHeader: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#007171',
     marginBottom: 8,
@@ -564,14 +625,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     gap: 6,
   },
-  priorityTag: {
+  priorityBadge: {
     paddingVertical: 1,
     paddingHorizontal: 6,
     borderRadius: 4,
-    borderWidth: 1,
   },
-  priorityTagText: {
-    fontSize: 10,
+  priorityBadgeText: {
+    fontSize: 9,
     fontWeight: 'bold',
   },
 });
