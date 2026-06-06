@@ -17,63 +17,63 @@ const cardWidth = (width - 48) / 2; // 2 column layout with padding
 
 const ClassNotesSelector = () => {
   const navigation = useNavigation();
-  const {colors} = useTheme();
+  const {colors, dark} = useTheme();
 
   const classes = [
     {
       title: 'Class 1 - 5',
       url: 'https://junior.studifysuccess.com/#junior-notes',
       color: '#eef6f5',
-      borderColor: '#007171',
+      borderColor: '#0284c7',
       icon: 'school',
     },
     {
       title: 'Class 6th',
       url: 'https://www.studifysuccess.com/notes/class-6-notes/',
       color: '#f1f8e9',
-      borderColor: '#558b2f',
+      borderColor: '#10b981',
       icon: 'numeric-6-box',
     },
     {
       title: 'Class 7th',
       url: 'https://www.studifysuccess.com/notes/class-7-notes/',
       color: '#e8eaf6',
-      borderColor: '#283593',
+      borderColor: '#6366f1',
       icon: 'numeric-7-box',
     },
     {
       title: 'Class 8th',
       url: 'https://www.studifysuccess.com/notes/class-8-notes/',
       color: '#ffebee',
-      borderColor: '#c62828',
+      borderColor: '#f43f5e',
       icon: 'numeric-8-box',
     },
     {
       title: 'Class 9th',
       url: 'https://www.studifysuccess.com/notes/class-9-notes/',
       color: '#fff3e0',
-      borderColor: '#e65100',
+      borderColor: '#f59e0b',
       icon: 'numeric-9-box',
     },
     {
       title: 'Class 10th',
       url: 'https://www.studifysuccess.com/notes/class-10-notes/',
       color: '#f3e5f5',
-      borderColor: '#8e24aa',
+      borderColor: '#d946ef',
       icon: 'numeric-10-box',
     },
     {
       title: 'Class 11th',
       url: 'https://www.studifysuccess.com/notes/class-11-notes/',
       color: '#e0f7fa',
-      borderColor: '#00838f',
+      borderColor: '#06b6d4',
       textIcon: '11',
     },
     {
       title: 'Class 12th',
       url: 'https://www.studifysuccess.com/notes/class-12-notes/',
       color: '#ede7f6',
-      borderColor: '#5e35b1',
+      borderColor: '#8b5cf6',
       textIcon: '12',
     },
   ];
@@ -91,12 +91,14 @@ const ClassNotesSelector = () => {
           style={styles.backBtn}>
           <Micon name="arrow-left" size={24} color={colors.onBackground} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Your Class</Text>
+        <Text style={[styles.headerTitle, {color: colors.onBackground}]}>
+          Select Your Class
+        </Text>
         <View style={{width: 40}} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, {color: colors.onSurfaceVariant}]}>
           Choose your class to view and download chapter-wise study notes.
         </Text>
 
@@ -108,26 +110,42 @@ const ClassNotesSelector = () => {
               style={[
                 styles.card,
                 {
-                  backgroundColor: item.color,
-                  borderColor: item.borderColor,
+                  backgroundColor: dark ? colors.surface : item.color,
+                  borderColor: dark ? colors.outline : item.borderColor,
                 },
               ]}>
               <View
                 style={[
                   styles.iconCircle,
-                  {backgroundColor: item.borderColor},
+                  {
+                    backgroundColor: dark
+                      ? 'rgba(139, 92, 246, 0.12)'
+                      : item.borderColor,
+                  },
                 ]}>
                 {item.textIcon ? (
                   <Text
-                    style={{color: 'white', fontWeight: 'bold', fontSize: 18}}>
+                    style={{
+                      color: dark ? colors.primary : 'white',
+                      fontWeight: 'bold',
+                      fontSize: 18,
+                    }}>
                     {item.textIcon}
                   </Text>
                 ) : (
-                  <Micon name={item.icon} size={26} color="white" />
+                  <Micon
+                    name={item.icon}
+                    size={26}
+                    color={dark ? colors.primary : 'white'}
+                  />
                 )}
               </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardAction}>View Notes →</Text>
+              <Text style={[styles.cardTitle, {color: colors.onSurface}]}>
+                {item.title}
+              </Text>
+              <Text style={[styles.cardAction, {color: colors.primary}]}>
+                View Notes →
+              </Text>
             </TouchableOpacity>
           ))}
         </View>

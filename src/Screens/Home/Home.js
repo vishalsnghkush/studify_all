@@ -64,23 +64,23 @@ const Home = () => {
         <View
           style={[
             styles.statBox,
-            dark && {
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderColor: 'rgba(255, 255, 255, 0.07)',
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outline,
             },
           ]}>
           <View
             style={[
               styles.statIconWrapper,
-              {backgroundColor: 'rgba(255, 149, 0, 0.12)'},
+              {backgroundColor: 'rgba(244, 63, 94, 0.12)'},
             ]}>
-            <Icon name="fire" size={18} color="#ff9500" />
+            <Icon name="fire" size={18} color="#f43f5e" />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
+            <Text style={[styles.statVal, {color: colors.onSurface}]}>
               5 Days
             </Text>
-            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
+            <Text style={[styles.statLabel, {color: colors.onSurfaceVariant}]}>
               Study Streak
             </Text>
           </View>
@@ -89,23 +89,23 @@ const Home = () => {
         <View
           style={[
             styles.statBox,
-            dark && {
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderColor: 'rgba(255, 255, 255, 0.07)',
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outline,
             },
           ]}>
           <View
             style={[
               styles.statIconWrapper,
-              {backgroundColor: 'rgba(77, 182, 172, 0.12)'},
+              {backgroundColor: 'rgba(14, 165, 233, 0.12)'},
             ]}>
-            <Icon name="clipboard-check" size={16} color="#4db6ac" />
+            <Icon name="clipboard-check" size={16} color="#0ea5e9" />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
+            <Text style={[styles.statVal, {color: colors.onSurface}]}>
               {completedTasks}/{totalTasks}
             </Text>
-            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
+            <Text style={[styles.statLabel, {color: colors.onSurfaceVariant}]}>
               Tasks Done
             </Text>
           </View>
@@ -114,23 +114,23 @@ const Home = () => {
         <View
           style={[
             styles.statBox,
-            dark && {
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderColor: 'rgba(255, 255, 255, 0.07)',
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outline,
             },
           ]}>
           <View
             style={[
               styles.statIconWrapper,
-              {backgroundColor: 'rgba(129, 140, 248, 0.12)'},
+              {backgroundColor: 'rgba(139, 92, 246, 0.12)'},
             ]}>
-            <Icon name="calendar-multiselect" size={16} color="#818cf8" />
+            <Icon name="calendar-multiselect" size={16} color="#8b5cf6" />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={[styles.statVal, dark && {color: '#ffffff'}]}>
+            <Text style={[styles.statVal, {color: colors.onSurface}]}>
               {plannerCount} Slots
             </Text>
-            <Text style={[styles.statLabel, dark && {color: '#cfd8dc'}]}>
+            <Text style={[styles.statLabel, {color: colors.onSurfaceVariant}]}>
               Scheduled
             </Text>
           </View>
@@ -145,23 +145,23 @@ const Home = () => {
         onPress={() => navigation.navigate('PersonalizedLearning')}
         style={[
           styles.personalBanner,
-          dark && {
-            backgroundColor: 'rgba(0, 96, 100, 0.15)',
-            borderColor: '#00838f',
+          {
+            backgroundColor: dark ? 'rgba(139, 92, 246, 0.1)' : '#f5f3ff',
+            borderColor: dark ? colors.primary : '#ddd6fe',
           },
         ]}>
         <View style={styles.personalTextContainer}>
-          <Text style={[styles.personalSubtitle, dark && {color: '#b2ebf2'}]}>
-            <Text style={[styles.subtitleBoldText, dark && {color: '#80deea'}]}>
+          <Text
+            style={[styles.personalSubtitle, {color: colors.onSurfaceVariant}]}>
+            <Text style={[styles.subtitleBoldText, {color: colors.primary}]}>
               My
             </Text>{' '}
             study planner & targets
           </Text>
-          <Text style={[styles.personalTitle, dark && {color: '#ffffff'}]}>
+          <Text style={[styles.personalTitle, {color: colors.onSurface}]}>
             Personalized Learning
           </Text>
-          <View
-            style={[styles.personalBtn, dark && {backgroundColor: '#00838f'}]}>
+          <View style={[styles.personalBtn, {backgroundColor: colors.primary}]}>
             <Text style={styles.personalBtnText}>Open Study Hub</Text>
             <Icon
               name="chevron-right"
@@ -186,32 +186,32 @@ const Home = () => {
         }
         style={[
           styles.offlineBanner,
-          dark && {
-            backgroundColor: 'rgba(178, 59, 59, 0.15)',
-            borderColor: '#c62828',
+          {
+            backgroundColor: dark ? 'rgba(244, 63, 94, 0.1)' : '#fff5f5',
+            borderColor: dark ? colors.tertiary : '#ffe0e0',
           },
         ]}>
         <View style={styles.offlineTextContainer}>
-          <Text style={[styles.offlineSubtitle, dark && {color: '#ffcdd2'}]}>
+          <Text
+            style={[styles.offlineSubtitle, {color: colors.onSurfaceVariant}]}>
             <Text
-              style={[styles.subtitleBoldOffline, dark && {color: '#e57373'}]}>
+              style={[styles.subtitleBoldOffline, {color: colors.tertiary}]}>
               Want
             </Text>{' '}
             to study{' '}
             <Text
               style={[
                 styles.subtitleBoldOfflineHighlight,
-                dark && {color: '#80deea'},
+                {color: colors.secondary},
               ]}>
               offline
             </Text>
             ?
           </Text>
-          <Text style={[styles.offlineTitle, dark && {color: '#ffffff'}]}>
+          <Text style={[styles.offlineTitle, {color: colors.onSurface}]}>
             Offline Coaching
           </Text>
-          <View
-            style={[styles.offlineBtn, dark && {backgroundColor: '#b23b3b'}]}>
+          <View style={[styles.offlineBtn, {backgroundColor: colors.tertiary}]}>
             <Text style={styles.offlineBtnText}>Register Now</Text>
             <Icon
               name="open-in-new"
@@ -232,23 +232,23 @@ const Home = () => {
         onPress={() => navigation.navigate('ClassNotesSelector')}
         style={[
           styles.notesBanner,
-          dark && {
-            backgroundColor: 'rgba(0, 113, 113, 0.15)',
-            borderColor: '#007171',
+          {
+            backgroundColor: dark ? 'rgba(14, 165, 233, 0.1)' : '#f0f9ff',
+            borderColor: dark ? colors.secondary : '#bae6fd',
           },
         ]}>
         <View style={styles.notesTextContainer}>
-          <Text style={[styles.notesSubtitle, dark && {color: '#b2ebf2'}]}>
-            <Text
-              style={[styles.subtitleBoldNotes, dark && {color: '#80deea'}]}>
+          <Text
+            style={[styles.notesSubtitle, {color: colors.onSurfaceVariant}]}>
+            <Text style={[styles.subtitleBoldNotes, {color: colors.secondary}]}>
               Free
             </Text>{' '}
             study materials!
           </Text>
-          <Text style={[styles.notesTitle, dark && {color: '#ffffff'}]}>
+          <Text style={[styles.notesTitle, {color: colors.onSurface}]}>
             Download Notes
           </Text>
-          <View style={[styles.notesBtn, dark && {backgroundColor: '#007171'}]}>
+          <View style={[styles.notesBtn, {backgroundColor: colors.secondary}]}>
             <Text style={styles.notesBtnText}>Select Class</Text>
             <Icon
               name="chevron-right"
@@ -273,24 +273,23 @@ const Home = () => {
         }
         style={[
           styles.careersBanner,
-          dark && {
-            backgroundColor: 'rgba(99, 102, 241, 0.15)',
-            borderColor: '#6366f1',
+          {
+            backgroundColor: dark ? 'rgba(139, 92, 246, 0.08)' : '#faf5ff',
+            borderColor: dark ? colors.primary : '#f3e8ff',
           },
         ]}>
         <View style={styles.careersTextContainer}>
-          <Text style={[styles.careersSubtitle, dark && {color: '#e0e7ff'}]}>
-            <Text
-              style={[styles.subtitleBoldCareers, dark && {color: '#818cf8'}]}>
+          <Text
+            style={[styles.careersSubtitle, {color: colors.onSurfaceVariant}]}>
+            <Text style={[styles.subtitleBoldCareers, {color: colors.primary}]}>
               Build
             </Text>{' '}
             the future with us
           </Text>
-          <Text style={[styles.careersTitle, dark && {color: '#ffffff'}]}>
+          <Text style={[styles.careersTitle, {color: colors.onSurface}]}>
             Careers
           </Text>
-          <View
-            style={[styles.careersBtn, dark && {backgroundColor: '#6366f1'}]}>
+          <View style={[styles.careersBtn, {backgroundColor: colors.primary}]}>
             <Text style={styles.careersBtnText}>Join Our Team</Text>
             <Icon
               name="chevron-right"
@@ -333,13 +332,12 @@ const Home = () => {
       <View
         style={[
           styles.supportHub,
-          dark && {
+          {
             backgroundColor: colors.surface,
-            borderColor: colors.outlineVariant,
+            borderColor: colors.outline,
           },
         ]}>
-        <Text
-          style={[styles.supportHubTitle, dark && {color: colors.onSurface}]}>
+        <Text style={[styles.supportHubTitle, {color: colors.onSurface}]}>
           Need Academic or Tech Support?
         </Text>
         <View style={styles.supportIconsRow}>
@@ -349,14 +347,18 @@ const Home = () => {
             <View
               style={[
                 styles.supportIconCircle,
-                dark && {backgroundColor: '#1c2d2d'},
+                {
+                  backgroundColor: dark
+                    ? 'rgba(139, 92, 246, 0.12)'
+                    : '#f3e8ff',
+                },
               ]}>
               <Icon name="help-circle" size={22} color={colors.primary} />
             </View>
             <Text
               style={[
                 styles.supportIconText,
-                dark && {color: colors.onSurfaceVariant},
+                {color: colors.onSurfaceVariant},
               ]}>
               FAQ Center
             </Text>
@@ -368,14 +370,18 @@ const Home = () => {
             <View
               style={[
                 styles.supportIconCircle,
-                dark && {backgroundColor: '#1c2d2d'},
+                {
+                  backgroundColor: dark
+                    ? 'rgba(139, 92, 246, 0.12)'
+                    : '#f3e8ff',
+                },
               ]}>
               <Icon name="phone" size={22} color={colors.primary} />
             </View>
             <Text
               style={[
                 styles.supportIconText,
-                dark && {color: colors.onSurfaceVariant},
+                {color: colors.onSurfaceVariant},
               ]}>
               Call Support
             </Text>
@@ -387,14 +393,18 @@ const Home = () => {
             <View
               style={[
                 styles.supportIconCircle,
-                dark && {backgroundColor: '#1c2d2d'},
+                {
+                  backgroundColor: dark
+                    ? 'rgba(139, 92, 246, 0.12)'
+                    : '#f3e8ff',
+                },
               ]}>
               <Icon name="bug-outline" size={22} color={colors.primary} />
             </View>
             <Text
               style={[
                 styles.supportIconText,
-                dark && {color: colors.onSurfaceVariant},
+                {color: colors.onSurfaceVariant},
               ]}>
               Report Bug
             </Text>
@@ -463,23 +473,23 @@ const styles = StyleSheet.create({
   },
   subtitleBoldText: {
     fontWeight: 'bold',
-    color: '#006064',
+    color: '#6d28d9',
   },
   subtitleBoldOffline: {
     fontWeight: 'bold',
-    color: '#b23b3b',
+    color: '#db2777',
   },
   subtitleBoldOfflineHighlight: {
     fontWeight: 'bold',
-    color: '#007171',
+    color: '#0284c7',
   },
   subtitleBoldNotes: {
     fontWeight: 'bold',
-    color: '#007171',
+    color: '#0284c7',
   },
   subtitleBoldCareers: {
     fontWeight: 'bold',
-    color: '#6366f1',
+    color: '#6d28d9',
   },
   internshipTextContainer: {
     flex: 1,
@@ -586,7 +596,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   offlineBtn: {
-    backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -642,7 +651,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   notesBtn: {
-    backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -698,7 +706,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   careersBtn: {
-    backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -754,7 +761,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   personalBtn: {
-    backgroundColor: '#007171',
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',

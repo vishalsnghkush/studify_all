@@ -16,33 +16,36 @@ const Notes = ({navigation}) => {
       desc: 'High quality free study notes mapped to video lectures.',
       url: 'FreeNotes',
       isStack: true,
-      color: dark ? 'rgba(198, 40, 40, 0.15)' : '#ffebee',
-      borderColor: '#c62828',
+      color: dark ? 'rgba(244, 63, 94, 0.08)' : 'rgba(244, 63, 94, 0.05)',
+      borderColor: colors.tertiary,
       icon: 'youtube',
       badge: 'FREE',
       category: 'free',
+      accent: colors.tertiary,
     },
     {
       title: 'Chapter-Wise Notes',
       desc: 'In-depth coverage of all concepts. High scores guaranteed.',
       url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
       isStack: false,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+      borderColor: colors.primary,
       icon: 'file-document-multiple-outline',
       badge: 'CHAPTERS',
       category: 'paid',
+      accent: colors.primary,
     },
     {
       title: 'Combo Study Notes',
       desc: 'Full syllabus bundles. Quick revision summaries.',
       url: 'https://allstudynotes.studifysuccess.com/select-class-subject?mobile=true',
       isStack: false,
-      color: dark ? 'rgba(230, 81, 0, 0.15)' : '#fff3e0',
-      borderColor: '#e65100',
+      color: dark ? 'rgba(14, 165, 233, 0.08)' : 'rgba(14, 165, 233, 0.05)',
+      borderColor: colors.secondary,
       icon: 'book-open-page-variant',
       badge: 'COMBO',
       category: 'paid',
+      accent: colors.secondary,
     },
   ];
 
@@ -55,27 +58,6 @@ const Notes = ({navigation}) => {
   };
 
   const renderCard = (item, index) => {
-    // Dynamic icon colors
-    const getAccentColor = () => {
-      if (item.borderColor === '#c62828') {
-        return dark ? '#ef5350' : 'white';
-      }
-      if (item.borderColor === '#007171') {
-        return dark ? '#26a69a' : 'white';
-      }
-      return dark ? '#ffb74d' : 'white';
-    };
-
-    const getGlowBg = () => {
-      if (item.borderColor === '#c62828') {
-        return dark ? 'rgba(198, 40, 40, 0.15)' : item.borderColor;
-      }
-      if (item.borderColor === '#007171') {
-        return dark ? 'rgba(0, 113, 113, 0.15)' : item.borderColor;
-      }
-      return dark ? 'rgba(230, 81, 0, 0.15)' : item.borderColor;
-    };
-
     return (
       <TouchableOpacity
         key={index}
@@ -83,8 +65,8 @@ const Notes = ({navigation}) => {
         style={[
           styles.gridCard,
           {
-            backgroundColor: dark ? 'rgba(255, 255, 255, 0.02)' : item.color,
-            borderColor: dark ? 'rgba(255, 255, 255, 0.08)' : item.borderColor,
+            backgroundColor: dark ? colors.surface : item.color,
+            borderColor: dark ? colors.outline : item.borderColor,
             width: width - 32,
           },
         ]}>
@@ -93,19 +75,17 @@ const Notes = ({navigation}) => {
             style={[
               styles.gridIconCircle,
               {
-                backgroundColor: getGlowBg(),
+                backgroundColor: dark
+                  ? 'rgba(255, 255, 255, 0.03)'
+                  : item.color,
                 borderColor: item.borderColor,
-                borderWidth: dark ? 1 : 0,
+                borderWidth: 1,
               },
             ]}>
-            <Icon name={item.icon} size={22} color={getAccentColor()} />
+            <Icon name={item.icon} size={22} color={item.accent} />
           </View>
           <View style={styles.cardTitleCol}>
-            <Text
-              style={[
-                styles.gridCardTitle,
-                {color: dark ? '#ffffff' : '#263238'},
-              ]}>
+            <Text style={[styles.gridCardTitle, {color: colors.onSurface}]}>
               {item.title}
             </Text>
             {item.badge && (
@@ -116,8 +96,7 @@ const Notes = ({navigation}) => {
             )}
           </View>
         </View>
-        <Text
-          style={[styles.gridCardDesc, {color: dark ? '#b0bec5' : '#546e7a'}]}>
+        <Text style={[styles.gridCardDesc, {color: colors.onSurfaceVariant}]}>
           {item.desc}
         </Text>
       </TouchableOpacity>

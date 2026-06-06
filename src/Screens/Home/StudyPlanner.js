@@ -294,7 +294,7 @@ const StudyPlanner = () => {
     if (p === 'Medium') {
       return '#ff9500';
     }
-    return '#007171';
+    return theme.colors.secondary;
   };
 
   return (
@@ -587,22 +587,24 @@ const StudyPlanner = () => {
               onPress={() => setDropdownVisible(true)}
               style={[
                 styles.dropdownBtn,
-                theme.dark && {
-                  backgroundColor: 'rgba(0, 113, 113, 0.15)',
-                  borderColor: '#007171',
+                {
+                  backgroundColor: theme.dark
+                    ? 'rgba(14, 165, 233, 0.12)'
+                    : '#e0f2fe',
+                  borderColor: theme.dark ? theme.colors.secondary : '#bae6fd',
                 },
               ]}>
               <Text
                 style={[
                   styles.dropdownBtnText,
-                  theme.dark && {color: '#80cbc4'},
+                  {color: theme.colors.secondary},
                 ]}>
                 {selectedSubjFilter}
               </Text>
               <Icon
                 name="chevron-down"
                 size={20}
-                color={theme.dark ? '#80cbc4' : '#007171'}
+                color={theme.colors.secondary}
               />
             </TouchableOpacity>
           </View>
@@ -653,7 +655,11 @@ const StudyPlanner = () => {
                       borderColor: theme.colors.outlineVariant,
                     },
                   ]}>
-                  <Icon name="check-circle-outline" size={32} color="#80cbc4" />
+                  <Icon
+                    name="check-circle-outline"
+                    size={32}
+                    color={theme.colors.secondary}
+                  />
                   <Text
                     style={[
                       styles.emptyPlaceholderText,

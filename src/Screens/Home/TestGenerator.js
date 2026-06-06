@@ -568,7 +568,7 @@ export default function TestGenerator() {
         <Button
           name="Generate Live Test"
           onPress={handleGenerate}
-          style={styles.actionButton}
+          style={[styles.actionButton, {backgroundColor: theme.colors.primary}]}
         />
       </Screen>
     );
@@ -612,14 +612,22 @@ export default function TestGenerator() {
         <View style={styles.readyButtonRow}>
           <TouchableOpacity
             onPress={resetGenerator}
-            style={styles.secondaryButton}>
+            style={[
+              styles.secondaryButton,
+              {borderColor: theme.colors.primary},
+            ]}>
             <Text
               style={{color: theme.colors.primary, fontWeight: 'bold'}}
               size="medium">
               Cancel
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={startTest} style={styles.primaryButton}>
+          <TouchableOpacity
+            onPress={startTest}
+            style={[
+              styles.primaryButton,
+              {backgroundColor: theme.colors.primary},
+            ]}>
             <Text style={{color: 'white', fontWeight: 'bold'}} size="medium">
               Start Test
             </Text>
@@ -637,7 +645,7 @@ export default function TestGenerator() {
         <View
           style={[
             styles.stickyTimerHeader,
-            theme.dark && {
+            {
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.primary,
             },
@@ -760,7 +768,7 @@ export default function TestGenerator() {
         <Button
           name="Submit Test & View Results"
           onPress={submitTest}
-          style={styles.actionButton}
+          style={[styles.actionButton, {backgroundColor: theme.colors.primary}]}
         />
       </Screen>
     );
@@ -873,7 +881,10 @@ export default function TestGenerator() {
 
             <TouchableOpacity
               onPress={resetGenerator}
-              style={styles.scoreResetButton}>
+              style={[
+                styles.scoreResetButton,
+                {backgroundColor: theme.colors.primary},
+              ]}>
               <Text style={{color: 'white', fontWeight: 'bold'}}>
                 Generate New Test
               </Text>
@@ -1020,7 +1031,7 @@ export default function TestGenerator() {
         <Button
           name="Back to Setup"
           onPress={resetGenerator}
-          style={styles.actionButton}
+          style={[styles.actionButton, {backgroundColor: theme.colors.primary}]}
         />
       </Screen>
     );
@@ -1032,7 +1043,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 20,
     marginBottom: 5,
-    color: '#007171',
   },
   subtitle: {
     color: '#666',
@@ -1056,7 +1066,6 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   actionButton: {
-    backgroundColor: '#007171',
     marginTop: 10,
     borderRadius: 12,
   },
@@ -1068,7 +1077,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontWeight: 'bold',
-    color: '#007171',
     marginTop: 20,
     marginBottom: 10,
   },
@@ -1108,7 +1116,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: '#007171',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 12,
@@ -1116,7 +1123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryButton: {
-    borderColor: '#007171',
     borderWidth: 2,
     paddingVertical: 12,
     paddingHorizontal: 30,
@@ -1131,12 +1137,10 @@ const styles = StyleSheet.create({
     zIndex: 999,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: '#007171',
     gap: 8,
     elevation: 4,
     shadowColor: '#000',
@@ -1148,7 +1152,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'monospace',
-    color: '#007171',
   },
   questionCard: {
     elevation: 2,
@@ -1236,8 +1239,6 @@ const styles = StyleSheet.create({
   scoreMarksText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#007171',
-    textShadowColor: 'rgba(0, 113, 113, 0.15)',
     textShadowOffset: {width: 0, height: 4},
     textShadowRadius: 8,
   },
@@ -1262,7 +1263,6 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   scoreResetButton: {
-    backgroundColor: '#007171',
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 12,
