@@ -162,7 +162,7 @@ const Notes = ({navigation}) => {
               key={idx}
               style={
                 word.highlight && {
-                  color: dark ? colors.secondary : '#007171',
+                  color: dark ? colors.secondary : item.borderColor,
                   fontWeight: 'bold',
                 }
               }>
@@ -173,7 +173,7 @@ const Notes = ({navigation}) => {
         <View
           style={[
             styles.bannerBtn,
-            {backgroundColor: dark ? colors.primary : '#007171'},
+            {backgroundColor: dark ? colors.primary : item.borderColor},
           ]}>
           <Text style={styles.bannerBtnText}>
             {item.actionText || 'Access'}
@@ -190,13 +190,15 @@ const Notes = ({navigation}) => {
         style={[
           styles.bannerIconCircle,
           {
-            backgroundColor: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
+            backgroundColor: dark
+              ? item.borderColor + '22'
+              : item.borderColor + '15' || '#f5f5f5',
           },
         ]}>
         <Icon
           name={item.icon}
           size={36}
-          color={dark ? colors.primary : '#007171'}
+          color={dark ? colors.primary : item.borderColor}
         />
       </View>
       {item.badge && (
