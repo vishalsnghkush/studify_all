@@ -49,6 +49,7 @@ export default function BottomNavigation() {
           name="Notes"
           component={Notes}
           options={{
+            title: 'Study Material',
             tabBarIcon: ({focused}) => (
               <Micon
                 name={focused ? 'book-open-variant' : 'book-open-blank-variant'}

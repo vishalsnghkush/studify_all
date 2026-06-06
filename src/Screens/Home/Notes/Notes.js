@@ -1,11 +1,9 @@
 import React from 'react';
 import {Screen} from '../../../Components/Screen';
 import {Text} from '../../../Components/Input';
-import {TouchableOpacity, StyleSheet, View, Dimensions} from 'react-native';
+import {TouchableOpacity, StyleSheet, View} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
-
-const {width} = Dimensions.get('window');
 
 const Notes = ({navigation}) => {
   const {colors, dark} = useTheme();
@@ -21,6 +19,7 @@ const Notes = ({navigation}) => {
       icon: 'youtube',
       badge: 'FREE',
       category: 'free',
+      actionText: 'Watch & Learn',
     },
     {
       title: 'NCERT Solutions',
@@ -32,6 +31,7 @@ const Notes = ({navigation}) => {
       icon: 'notebook-check-outline',
       badge: 'NCERT',
       category: 'free',
+      actionText: 'View Solutions',
     },
     {
       title: 'Important Questions',
@@ -43,6 +43,7 @@ const Notes = ({navigation}) => {
       icon: 'file-question-outline',
       badge: 'IMP Q',
       category: 'free',
+      actionText: 'View Questions',
     },
     {
       title: 'Online Quiz',
@@ -54,6 +55,7 @@ const Notes = ({navigation}) => {
       icon: 'chat-question-outline',
       badge: 'QUIZ',
       category: 'free',
+      actionText: 'Start Quiz',
     },
     {
       title: 'Science Keywords',
@@ -65,6 +67,7 @@ const Notes = ({navigation}) => {
       icon: 'key-variant',
       badge: 'KEYWORDS',
       category: 'free',
+      actionText: 'View Keywords',
     },
     {
       title: 'Chapter-Wise Notes',
@@ -76,6 +79,7 @@ const Notes = ({navigation}) => {
       icon: 'file-document-multiple-outline',
       badge: 'CHAPTERS',
       category: 'paid',
+      actionText: 'Access Chapters',
     },
     {
       title: 'Combo Study Notes',
@@ -87,6 +91,7 @@ const Notes = ({navigation}) => {
       icon: 'book-open-page-variant',
       badge: 'COMBO',
       category: 'paid',
+      actionText: 'Get Combo',
     },
   ];
 
@@ -103,30 +108,69 @@ const Notes = ({navigation}) => {
       key={index}
       onPress={() => handlePress(item)}
       style={[
-        styles.gridCard,
+        styles.bannerCard,
         {
-          backgroundColor: item.color,
-          borderColor: item.borderColor,
-          width: width - 32,
+          backgroundColor: dark ? colors.surface : item.color,
+          borderColor: dark
+            ? colors.outlineVariant
+            : item.borderColor + '33' || '#eceff1',
         },
       ]}>
-      <View
-        style={[styles.gridIconCircle, {backgroundColor: item.borderColor}]}>
-        <Icon name={item.icon} size={26} color="white" />
-      </View>
-      <Text
-        style={[styles.gridCardTitle, {color: dark ? '#ffffff' : '#263238'}]}>
-        {item.title}
-      </Text>
-      <Text
-        style={[styles.gridCardDesc, {color: dark ? '#b0bec5' : '#546e7a'}]}>
-        {item.desc}
-      </Text>
-      {item.badge && (
-        <View style={[styles.gridBadge, {backgroundColor: item.borderColor}]}>
-          <Text style={styles.gridBadgeText}>{item.badge}</Text>
+      <View style={styles.bannerTextContainer}>
+        {item.badge && (
+          <Text
+            style={[
+              styles.bannerBadgeText,
+              {color: dark ? colors.secondary : item.borderColor},
+            ]}>
+            {item.badge}
+          </Text>
+        )}
+        <Text
+          style={[
+            styles.bannerCardTitle,
+            {color: dark ? '#ffffff' : '#263238'},
+          ]}>
+          {item.title}
+        </Text>
+        <Text
+          style={[
+            styles.bannerCardDesc,
+            {color: dark ? '#b0bec5' : '#546e7a'},
+          ]}>
+          {item.desc}
+        </Text>
+        <View
+          style={[
+            styles.bannerBtn,
+            {backgroundColor: dark ? colors.primary : item.borderColor},
+          ]}>
+          <Text style={styles.bannerBtnText}>
+            {item.actionText || 'Access'}
+          </Text>
+          <Icon
+            name={item.isStack ? 'chevron-right' : 'open-in-new'}
+            size={14}
+            color="#ffffff"
+            style={styles.btnIcon}
+          />
         </View>
-      )}
+      </View>
+      <View
+        style={[
+          styles.bannerIconCircle,
+          {
+            backgroundColor: dark
+              ? 'rgba(255, 255, 255, 0.05)'
+              : item.borderColor + '15' || '#f5f5f5',
+          },
+        ]}>
+        <Icon
+          name={item.icon}
+          size={36}
+          color={dark ? colors.primary : item.borderColor}
+        />
+      </View>
     </TouchableOpacity>
   );
 
@@ -134,7 +178,7 @@ const Notes = ({navigation}) => {
   const paidItems = noteTypes.filter(item => item.category === 'paid');
 
   return (
-    <Screen NoHeader style={{flex: 1}}>
+    <Screen NoHeader>
       <View
         style={[
           styles.header,
@@ -202,46 +246,64 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  gridCard: {
+  bannerCard: {
     borderRadius: 16,
-    padding: 16,
     borderWidth: 1,
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 2,
   },
-  gridIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  bannerTextContainer: {
+    flex: 1.3,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  gridCardTitle: {
-    fontSize: 15,
+  bannerBadgeText: {
+    fontSize: 10,
     fontWeight: 'bold',
-    marginBottom: 6,
+    letterSpacing: 1,
+    marginBottom: 4,
+    textTransform: 'uppercase',
   },
-  gridCardDesc: {
+  bannerCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  bannerCardDesc: {
     fontSize: 11,
     lineHeight: 15,
+    marginBottom: 10,
   },
-  gridBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
+  bannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
   },
-  gridBadgeText: {
-    color: 'white',
-    fontSize: 9,
+  bannerBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: 'bold',
+  },
+  btnIcon: {
+    marginLeft: 4,
+  },
+  bannerIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
 });
 
