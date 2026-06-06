@@ -56,6 +56,17 @@ const Notes = ({navigation}) => {
       category: 'free',
     },
     {
+      title: 'Science Keywords',
+      desc: 'Important science keywords for Class 6th to 8th.',
+      url: 'Keywords',
+      isStack: true,
+      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
+      borderColor: '#007171',
+      icon: 'key-variant',
+      badge: 'KEYWORDS',
+      category: 'free',
+    },
+    {
       title: 'Chapter-Wise Notes',
       desc: 'In-depth coverage of all concepts. High scores guaranteed.',
       url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
