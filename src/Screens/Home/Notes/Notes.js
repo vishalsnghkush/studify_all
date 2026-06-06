@@ -11,10 +11,14 @@ const Notes = ({navigation}) => {
   const noteTypes = [
     {
       title: 'YouTube Notes',
-      desc: 'High quality free study notes mapped to video lectures.',
+      descWords: [
+        {text: 'High-quality ', highlight: false},
+        {text: 'video-mapped ', highlight: true},
+        {text: 'study notes.', highlight: false},
+      ],
       url: 'FreeNotes',
       isStack: true,
-      color: dark ? 'rgba(198, 40, 40, 0.15)' : '#ffebee',
+      color: dark ? 'rgba(198, 40, 40, 0.12)' : '#ffebee',
       borderColor: '#c62828',
       icon: 'youtube',
       badge: 'FREE',
@@ -23,11 +27,15 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'NCERT Solutions',
-      desc: 'Free textbook solutions for all classes and subjects.',
+      descWords: [
+        {text: 'Step-by-step ', highlight: false},
+        {text: 'solutions ', highlight: true},
+        {text: 'for all subjects.', highlight: false},
+      ],
       url: 'NcertSolutions',
       isStack: true,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(0, 150, 136, 0.12)' : '#e0f2f1',
+      borderColor: '#00897b',
       icon: 'notebook-check-outline',
       badge: 'NCERT',
       category: 'free',
@@ -35,11 +43,15 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'Important Questions',
-      desc: 'Important textbook questions for all classes and subjects.',
+      descWords: [
+        {text: 'Handpicked ', highlight: false},
+        {text: 'exam-critical ', highlight: true},
+        {text: 'questions.', highlight: false},
+      ],
       url: 'ImportantQuestions',
       isStack: true,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(63, 81, 181, 0.12)' : '#e8eaf6',
+      borderColor: '#3f51b5',
       icon: 'file-question-outline',
       badge: 'IMP Q',
       category: 'free',
@@ -47,11 +59,15 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'Online Quiz',
-      desc: 'Free textbook quizzes for all classes and subjects.',
+      descWords: [
+        {text: 'Interactive ', highlight: false},
+        {text: 'practice tests ', highlight: true},
+        {text: '& quizzes.', highlight: false},
+      ],
       url: 'OnlineQuiz',
       isStack: true,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(156, 39, 176, 0.12)' : '#f3e5f5',
+      borderColor: '#9c27b0',
       icon: 'chat-question-outline',
       badge: 'QUIZ',
       category: 'free',
@@ -59,11 +75,15 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'Science Keywords',
-      desc: 'Important science keywords for Class 6th to 8th.',
+      descWords: [
+        {text: 'Key ', highlight: false},
+        {text: 'science definitions ', highlight: true},
+        {text: 'for quick study.', highlight: false},
+      ],
       url: 'Keywords',
       isStack: true,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(76, 175, 80, 0.12)' : '#e8f5e9',
+      borderColor: '#4caf50',
       icon: 'key-variant',
       badge: 'KEYWORDS',
       category: 'free',
@@ -71,11 +91,15 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'Chapter-Wise Notes',
-      desc: 'In-depth coverage of all concepts. High scores guaranteed.',
+      descWords: [
+        {text: 'Comprehensive ', highlight: false},
+        {text: 'chapter-wise ', highlight: true},
+        {text: 'reference guides.', highlight: false},
+      ],
       url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
       isStack: false,
-      color: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
-      borderColor: '#007171',
+      color: dark ? 'rgba(233, 30, 99, 0.12)' : '#fce4ec',
+      borderColor: '#e91e63',
       icon: 'file-document-multiple-outline',
       badge: 'CHAPTERS',
       category: 'paid',
@@ -83,10 +107,14 @@ const Notes = ({navigation}) => {
     },
     {
       title: 'Combo Study Notes',
-      desc: 'Full syllabus bundles. Quick revision summaries.',
+      descWords: [
+        {text: 'Complete ', highlight: false},
+        {text: 'revision package ', highlight: true},
+        {text: '& summaries.', highlight: false},
+      ],
       url: 'https://allstudynotes.studifysuccess.com/select-class-subject?mobile=true',
       isStack: false,
-      color: dark ? 'rgba(230, 81, 0, 0.15)' : '#fff3e0',
+      color: dark ? 'rgba(230, 81, 0, 0.12)' : '#fff3e0',
       borderColor: '#e65100',
       icon: 'book-open-page-variant',
       badge: 'COMBO',
@@ -110,22 +138,13 @@ const Notes = ({navigation}) => {
       style={[
         styles.bannerCard,
         {
-          backgroundColor: dark ? colors.surface : item.color,
+          backgroundColor: item.color,
           borderColor: dark
             ? colors.outlineVariant
             : item.borderColor + '33' || '#eceff1',
         },
       ]}>
       <View style={styles.bannerTextContainer}>
-        {item.badge && (
-          <Text
-            style={[
-              styles.bannerBadgeText,
-              {color: dark ? colors.secondary : item.borderColor},
-            ]}>
-            {item.badge}
-          </Text>
-        )}
         <Text
           style={[
             styles.bannerCardTitle,
@@ -138,12 +157,23 @@ const Notes = ({navigation}) => {
             styles.bannerCardDesc,
             {color: dark ? '#b0bec5' : '#546e7a'},
           ]}>
-          {item.desc}
+          {item.descWords.map((word, idx) => (
+            <Text
+              key={idx}
+              style={
+                word.highlight && {
+                  color: dark ? colors.secondary : '#007171',
+                  fontWeight: 'bold',
+                }
+              }>
+              {word.text}
+            </Text>
+          ))}
         </Text>
         <View
           style={[
             styles.bannerBtn,
-            {backgroundColor: dark ? colors.primary : item.borderColor},
+            {backgroundColor: dark ? colors.primary : '#007171'},
           ]}>
           <Text style={styles.bannerBtnText}>
             {item.actionText || 'Access'}
@@ -160,17 +190,20 @@ const Notes = ({navigation}) => {
         style={[
           styles.bannerIconCircle,
           {
-            backgroundColor: dark
-              ? 'rgba(255, 255, 255, 0.05)'
-              : item.borderColor + '15' || '#f5f5f5',
+            backgroundColor: dark ? 'rgba(0, 113, 113, 0.15)' : '#eef6f5',
           },
         ]}>
         <Icon
           name={item.icon}
           size={36}
-          color={dark ? colors.primary : item.borderColor}
+          color={dark ? colors.primary : '#007171'}
         />
       </View>
+      {item.badge && (
+        <View style={[styles.gridBadge, {backgroundColor: item.borderColor}]}>
+          <Text style={styles.gridBadgeText}>{item.badge}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -258,22 +291,17 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.05,
     shadowRadius: 3,
+    position: 'relative',
   },
   bannerTextContainer: {
     flex: 1.3,
     justifyContent: 'center',
   },
-  bannerBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
   bannerCardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    marginRight: 64,
   },
   bannerCardDesc: {
     fontSize: 11,
@@ -304,6 +332,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
+  },
+  gridBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+  },
+  gridBadgeText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
   },
 });
 
