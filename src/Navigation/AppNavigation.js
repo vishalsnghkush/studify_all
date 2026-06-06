@@ -26,6 +26,9 @@ import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
+import NcertSolutions from '../Screens/Home/Notes/NcertSolutions';
+import ImportantQuestions from '../Screens/Home/Notes/ImportantQuestions';
+import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
 const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
@@ -121,6 +124,21 @@ const AppNavigation = () => {
         name="FreeNotes"
         component={FreeNotes}
         options={{title: 'YouTube Notes'}}
+      />
+      <Stack.Screen
+        name="NcertSolutions"
+        component={NcertSolutions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ImportantQuestions"
+        component={ImportantQuestions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="OnlineQuiz"
+        component={OnlineQuiz}
+        options={{headerShown: false}}
       />
       <Stack.Screen name="Pdf" component={Pdf} options={{headerShown: false}} />
       <Stack.Screen
