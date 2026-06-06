@@ -138,7 +138,7 @@ const Notes = ({navigation}) => {
       style={[
         styles.bannerCard,
         {
-          backgroundColor: item.color,
+          backgroundColor: dark ? colors.surface : item.color,
           borderColor: dark
             ? colors.outlineVariant
             : item.borderColor + '33' || '#eceff1',
@@ -162,7 +162,7 @@ const Notes = ({navigation}) => {
               key={idx}
               style={
                 word.highlight && {
-                  color: dark ? colors.secondary : item.borderColor,
+                  color: item.borderColor,
                   fontWeight: 'bold',
                 }
               }>
@@ -170,11 +170,7 @@ const Notes = ({navigation}) => {
             </Text>
           ))}
         </Text>
-        <View
-          style={[
-            styles.bannerBtn,
-            {backgroundColor: dark ? colors.primary : item.borderColor},
-          ]}>
+        <View style={[styles.bannerBtn, {backgroundColor: item.borderColor}]}>
           <Text style={styles.bannerBtnText}>
             {item.actionText || 'Access'}
           </Text>
@@ -195,11 +191,7 @@ const Notes = ({navigation}) => {
               : item.borderColor + '15' || '#f5f5f5',
           },
         ]}>
-        <Icon
-          name={item.icon}
-          size={36}
-          color={dark ? colors.primary : item.borderColor}
-        />
+        <Icon name={item.icon} size={36} color={item.borderColor} />
       </View>
       {item.badge && (
         <View style={[styles.gridBadge, {backgroundColor: item.borderColor}]}>

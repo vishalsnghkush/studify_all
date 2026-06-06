@@ -360,7 +360,11 @@ const Home = () => {
           <Text style={styles.internshipTitle}>
             Gain Professional Experience
           </Text>
-          <Text style={[styles.internshipSubtitle, dark && {color: '#b0bec5'}]}>
+          <Text
+            style={[
+              styles.internshipSubtitle,
+              {color: dark ? '#b0bec5' : '#cfd8dc'},
+            ]}>
             Apply for the Studify Internship Program. Learn, grow, and build
             together!
           </Text>
