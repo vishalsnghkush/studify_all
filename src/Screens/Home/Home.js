@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useRef, useEffect} from 'react';
-import {Screen} from '../../Components/Screen';
+import {Screen, BouncyButton, MascotParticleTrail} from '../../Components/Screen';
 import HomeHeader from '../../Components/Screen/HomeHeader';
 import Banner from '../../Components/Screen/Banner';
 import {
@@ -55,6 +55,7 @@ const Home = () => {
 
   const [isDizzy, setIsDizzy] = useState(false);
   const isAnimating = useRef(false);
+  
   const spinCount = useRef(0);
 
   const startFloat = useCallback(() => {
@@ -139,6 +140,8 @@ const Home = () => {
 
     return () => clearInterval(interval);
   }, [textOpacity, phrases.length]);
+
+
 
   const triggerSpin = () => {
     if (isAnimating.current || isDizzy) {
@@ -590,7 +593,7 @@ const Home = () => {
             </View>
           </View>
 
-          <TouchableOpacity
+          <BouncyButton
             onPress={() => navigation.navigate('PersonalizedLearning')}
             style={[
               styles.statBox,
@@ -612,9 +615,9 @@ const Home = () => {
                 Tasks Done
               </Text>
             </View>
-          </TouchableOpacity>
+          </BouncyButton>
 
-          <TouchableOpacity
+          <BouncyButton
             onPress={() => navigation.navigate('StudyPlanner')}
             style={[
               styles.statBox,
@@ -636,14 +639,14 @@ const Home = () => {
                 Scheduled
               </Text>
             </View>
-          </TouchableOpacity>
+          </BouncyButton>
         </View>
 
         {/* 3. Promo Banner Slides */}
         <Banner />
 
         {/* Personalized Learning Banner Card */}
-        <TouchableOpacity
+        <BouncyButton
           onPress={() => navigation.navigate('PersonalizedLearning')}
           style={[
             styles.personalBanner,
@@ -689,10 +692,10 @@ const Home = () => {
             source={require('../../Assets/Images/personalized_learning.png')}
             style={styles.personalImage}
           />
-        </TouchableOpacity>
+        </BouncyButton>
 
         {/* Offline Coaching Banner Card */}
-        <TouchableOpacity
+        <BouncyButton
           onPress={() =>
             navigation.navigate('WebView', {
               url: 'https://www.studifysuccess.com/pre-registration-offline-tuition',
@@ -750,10 +753,10 @@ const Home = () => {
             source={require('../../Assets/Images/offline_coaching.png')}
             style={styles.offlineImage}
           />
-        </TouchableOpacity>
+        </BouncyButton>
 
         {/* Study Notes Banner Card */}
-        <TouchableOpacity
+        <BouncyButton
           onPress={() => navigation.navigate('ClassNotesSelector')}
           style={[
             styles.notesBanner,
@@ -799,10 +802,10 @@ const Home = () => {
             source={require('../../Assets/Images/study_notes.png')}
             style={styles.notesImage}
           />
-        </TouchableOpacity>
+        </BouncyButton>
 
         {/* Careers Banner Card */}
-        <TouchableOpacity
+        <BouncyButton
           onPress={() =>
             navigation.navigate('WebView', {
               url: 'https://careers.studifysuccess.com/',
@@ -852,10 +855,10 @@ const Home = () => {
             source={require('../../Assets/Images/careers.png')}
             style={styles.careersImage}
           />
-        </TouchableOpacity>
+        </BouncyButton>
 
         {/* Internship Banner */}
-        <TouchableOpacity
+        <BouncyButton
           onPress={() => navigation.navigate('Internship')}
           style={[
             styles.internshipBanner,
@@ -879,7 +882,7 @@ const Home = () => {
             </Text>
           </View>
           <Icon name="briefcase-check-outline" size={32} color="#ffffff" />
-        </TouchableOpacity>
+        </BouncyButton>
 
         {/* 9. Support & Feedback Hub */}
         <View
@@ -895,7 +898,7 @@ const Home = () => {
             Need Academic or Tech Support?
           </Text>
           <View style={styles.supportIconsRow}>
-            <TouchableOpacity
+            <BouncyButton
               onPress={() => navigation.navigate('HelpCenter')}
               style={styles.supportIconCol}>
               <View
@@ -912,9 +915,9 @@ const Home = () => {
                 ]}>
                 FAQ Center
               </Text>
-            </TouchableOpacity>
+            </BouncyButton>
 
-            <TouchableOpacity
+            <BouncyButton
               onPress={() => navigation.navigate('CustomerService')}
               style={styles.supportIconCol}>
               <View
@@ -931,9 +934,9 @@ const Home = () => {
                 ]}>
                 Call Support
               </Text>
-            </TouchableOpacity>
+            </BouncyButton>
 
-            <TouchableOpacity
+            <BouncyButton
               onPress={() => navigation.navigate('Appreport')}
               style={styles.supportIconCol}>
               <View
@@ -950,7 +953,7 @@ const Home = () => {
                 ]}>
                 Report Bug
               </Text>
-            </TouchableOpacity>
+            </BouncyButton>
           </View>
         </View>
       </Screen>
@@ -1000,6 +1003,9 @@ const Home = () => {
             },
           ]}
         />
+
+        {/* Sparkle Particles Trail */}
+        <MascotParticleTrail pan={pan} rotateYAnim={rotateYAnim} />
 
         {/* Robot Button */}
         <Animated.View
@@ -1425,6 +1431,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 999,
   },
+
   botImageContainer: {
     width: 170,
     height: 170,

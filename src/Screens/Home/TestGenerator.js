@@ -20,6 +20,83 @@ import {Confetti} from '../../Components/Screen/Confetti';
 const OPENROUTER_API_KEY =
   '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';
 
+const isAnswerCorrect = (q, uA) => {
+  if (!uA) {
+    return false;
+  }
+  const cA = q.correctAnswer;
+  if (!cA) {
+    return false;
+  }
+
+  const cleanUA = uA.trim();
+  const cleanCA = cA.trim();
+
+  // 1. Exact match
+  if (cleanUA === cleanCA) {
+    return true;
+  }
+
+  // Find index of selected option in options array
+  const uIndex = q.options ? q.options.findIndex(opt => opt.trim() === cleanUA) : -1;
+  const cIndex = q.options ? q.options.findIndex(opt => opt.trim() === cleanCA) : -1;
+
+  // If both exist in options and refer to the same index
+  if (uIndex !== -1 && cIndex !== -1 && uIndex === cIndex) {
+    return true;
+  }
+
+  // 2. Letter-based comparison
+  const letters = ['A', 'B', 'C', 'D'];
+  const uLetter = uIndex !== -1 ? letters[uIndex] : null;
+  let cLetter = cIndex !== -1 ? letters[cIndex] : null;
+
+  if (!cLetter) {
+    const caUpper = cleanCA.toUpperCase();
+    if (letters.includes(caUpper)) {
+      cLetter = caUpper;
+    } else if (caUpper.startsWith('OPTION ')) {
+      const char = caUpper.replace('OPTION ', '').trim();
+      if (char.length === 1 && letters.includes(char)) {
+        cLetter = char;
+      }
+    } else {
+      const firstChar = caUpper.charAt(0);
+      if (letters.includes(firstChar)) {
+        const secondChar = caUpper.charAt(1);
+        if (!secondChar || [' ', '.', ':', ')', '-'].includes(secondChar)) {
+          cLetter = firstChar;
+        }
+      }
+    }
+  }
+
+  let uParsedLetter = uLetter;
+  if (!uParsedLetter) {
+    const uaUpper = cleanUA.toUpperCase();
+    const firstChar = uaUpper.charAt(0);
+    if (letters.includes(firstChar)) {
+      const secondChar = uaUpper.charAt(1);
+      if (!secondChar || [' ', '.', ':', ')', '-'].includes(secondChar)) {
+        uParsedLetter = firstChar;
+      }
+    }
+  }
+
+  if (uParsedLetter && cLetter && uParsedLetter === cLetter) {
+    return true;
+  }
+
+  // Fallback containment
+  if (cleanUA.toLowerCase().includes(cleanCA.toLowerCase()) || cleanCA.toLowerCase().includes(cleanUA.toLowerCase())) {
+    if (cleanCA.length > 2 && cleanUA.length > 2) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 // Data Lists
 const classList = [
   {label: 'JEE', value: 'JEE'},
@@ -189,6 +266,9 @@ export default function TestGenerator() {
   }, [examName, generationType]);
 
   const submitTest = useCallback(() => {
+    console.log('ST_DEBUG: submitTest called');
+    console.log('ST_DEBUG: questions count:', questions.length);
+    console.log('ST_DEBUG: userAnswers:', JSON.stringify(userAnswers));
     let marks = 0;
     let correct = 0;
     let incorrect = 0;
@@ -207,11 +287,12 @@ export default function TestGenerator() {
 
     questions.forEach((q, idx) => {
       const uA = userAnswers[idx];
-      const cA = q.correctAnswer;
+      const isCorrect = isAnswerCorrect(q, uA);
+      console.log(`ST_DEBUG: Q${idx} userAnswer: "${uA}", correctAnswer: "${q.correctAnswer}", isCorrect: ${isCorrect}`);
 
       if (!uA) {
         unattempted++;
-      } else if (uA === cA) {
+      } else if (isCorrect) {
         correct++;
         marks += correctMark;
       } else {
@@ -224,13 +305,16 @@ export default function TestGenerator() {
       marks = parseFloat(marks.toFixed(2));
     }
 
-    setScoreData({
+    const calculatedScoreData = {
       marks,
       correct,
       incorrect,
       unattempted,
       maxMarks: questions.length * correctMark,
-    });
+    };
+    console.log('ST_DEBUG: Calculated score data:', JSON.stringify(calculatedScoreData));
+
+    setScoreData(calculatedScoreData);
     setAppState('results');
     setTimeLeft(null);
   }, [examName, questions, userAnswers]);
@@ -817,277 +901,299 @@ export default function TestGenerator() {
 
   // Results State
   if (appState === 'results') {
-    return (
-      <Screen style={{paddingBottom: 40}}>
-        <Text
-          style={[styles.title, {color: theme.colors.onBackground}]}
-          size="large">
-          Test Completed
-        </Text>
-
-        <Card
-          style={[
-            styles.scoreCard,
-            theme.dark && {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
-              borderWidth: 1,
-            },
-          ]}>
-          <Card.Content style={styles.scoreContent}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'baseline',
-                justifyContent: 'center',
-              }}>
-              <RNText
-                style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
-                {displayedScore}
-              </RNText>
-              <RNText
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  fontSize: 24,
-                  fontWeight: 'bold',
-                  marginLeft: 6,
-                }}>
-                / {scoreData.maxMarks}
-              </RNText>
-            </View>
+    try {
+      console.log('ST_DEBUG: rendering results screen, scoreData:', JSON.stringify(scoreData), 'displayedScore:', displayedScore, 'showConfetti:', showConfetti);
+      return (
+        <Screen list style={{flex: 1, paddingBottom: 40}}>
+          <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 40}} keyboardShouldPersistTaps="handled">
             <Text
-              style={[
-                styles.scoreSubTitle,
-                {color: theme.colors.onSurfaceVariant},
-              ]}>
-              Total Marks Scored
+              style={[styles.title, {color: theme.colors.onBackground}]}
+              size="large">
+              Test Completed
             </Text>
 
-            <View style={styles.scoreGrid}>
-              <View
-                style={[
-                  styles.gridCell,
-                  {
-                    backgroundColor: theme.dark
-                      ? 'rgba(46, 125, 50, 0.15)'
-                      : '#e8f5e9',
-                    borderColor: '#2e7d32',
-                    borderWidth: theme.dark ? 1 : 0,
-                  },
-                ]}>
-                <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>
-                  Correct
-                </Text>
-                <Text
-                  style={{fontSize: 20, fontWeight: 'bold', color: '#2e7d32'}}>
-                  {scoreData.correct}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.gridCell,
-                  {
-                    backgroundColor: theme.dark
-                      ? 'rgba(198, 40, 40, 0.15)'
-                      : '#ffebee',
-                    borderColor: '#c62828',
-                    borderWidth: theme.dark ? 1 : 0,
-                  },
-                ]}>
-                <Text style={{color: '#c62828', fontWeight: 'bold'}}>
-                  Incorrect
-                </Text>
-                <Text
-                  style={{fontSize: 20, fontWeight: 'bold', color: '#c62828'}}>
-                  {scoreData.incorrect}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.gridCell,
-                  {
-                    backgroundColor: theme.dark
-                      ? 'rgba(55, 71, 79, 0.15)'
-                      : '#eceff1',
-                    borderColor: '#37474f',
-                    borderWidth: theme.dark ? 1 : 0,
-                  },
-                ]}>
-                <Text
-                  style={{
-                    color: theme.dark ? '#cfd8dc' : '#37474f',
-                    fontWeight: 'bold',
-                  }}>
-                  Skipped
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 'bold',
-                    color: theme.dark ? '#cfd8dc' : '#37474f',
-                  }}>
-                  {scoreData.unattempted}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={resetGenerator}
-              style={styles.scoreResetButton}>
-              <Text style={{color: 'white', fontWeight: 'bold'}}>
-                Generate New Test
-              </Text>
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-
-        <Text
-          style={[styles.reviewHeader, {color: theme.colors.onBackground}]}
-          size="medium">
-          Detailed Answer Review
-        </Text>
-
-        {questions.map((q, idx) => {
-          const uA = userAnswers[idx];
-          const cA = q.correctAnswer;
-          const isCorrect = uA === cA;
-
-          return (
             <Card
-              key={idx}
               style={[
-                styles.questionCard,
-                {
-                  borderColor: isCorrect ? '#81c784' : '#e57373',
-                  borderWidth: 2,
-                  backgroundColor: theme.dark ? theme.colors.surface : 'white',
+                styles.scoreCard,
+                theme.dark && {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outlineVariant,
+                  borderWidth: 1,
                 },
               ]}>
-              <Card.Content>
-                <View style={styles.questionMetaHeader}>
-                  <View style={styles.badgeContainer}>
-                    <Text
-                      style={[
-                        styles.questionBadge,
-                        {backgroundColor: theme.colors.primary},
-                      ]}>
-                      Q{idx + 1}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.typeBadge,
-                        theme.dark && {
-                          backgroundColor: theme.colors.elevation.level3,
-                          color: theme.colors.onSurfaceVariant,
-                        },
-                      ]}>
-                      MCQ
-                    </Text>
-                  </View>
-                  <Icon
-                    name={isCorrect ? 'check-circle' : 'close-circle'}
-                    size={26}
-                    color={isCorrect ? '#2e7d32' : '#c62828'}
-                  />
+              <Card.Content style={styles.scoreContent}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                  }}>
+                  <RNText
+                    style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
+                    {displayedScore}
+                  </RNText>
+                  <RNText
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      fontSize: 24,
+                      fontWeight: 'bold',
+                      marginLeft: 6,
+                      marginBottom: 8,
+                    }}>
+                    / {scoreData.maxMarks}
+                  </RNText>
                 </View>
-
                 <Text
-                  style={[styles.questionText, {color: theme.colors.onSurface}]}
-                  size="medium">
-                  {q.question}
+                  style={[
+                    styles.scoreSubTitle,
+                    {color: theme.colors.onSurfaceVariant},
+                  ]}>
+                  Total Marks Scored
                 </Text>
 
-                <View style={styles.optionsList}>
-                  {q.options?.map((opt, optIdx) => {
-                    const letter = String.fromCharCode(65 + optIdx);
-                    const isSelected = uA === opt;
-                    const isActualCorrect = cA === opt;
-
-                    let borderClr = theme.dark
-                      ? theme.colors.outlineVariant
-                      : '#ccc';
-                    let bgClr = theme.dark ? theme.colors.surface : '#fff';
-
-                    if (isActualCorrect) {
-                      borderClr = '#2e7d32';
-                      bgClr = theme.dark
-                        ? 'rgba(46, 125, 50, 0.15)'
-                        : '#e8f5e9';
-                    } else if (isSelected && !isCorrect) {
-                      borderClr = '#c62828';
-                      bgClr = theme.dark
-                        ? 'rgba(198, 40, 40, 0.15)'
-                        : '#ffebee';
-                    }
-
-                    return (
-                      <View
-                        key={optIdx}
-                        style={[
-                          styles.optionButton,
-                          {borderColor: borderClr, backgroundColor: bgClr},
-                        ]}>
-                        <View style={styles.optionContent}>
-                          <View
-                            style={[
-                              styles.letterCircle,
-                              theme.dark && {
-                                backgroundColor: theme.colors.elevation.level3,
-                              },
-                              isActualCorrect
-                                ? {backgroundColor: '#2e7d32'}
-                                : isSelected
-                                ? {backgroundColor: '#c62828'}
-                                : {},
-                            ]}>
-                            <Text
-                              style={{
-                                color:
-                                  isActualCorrect || isSelected
-                                    ? 'white'
-                                    : theme.colors.onSurfaceVariant,
-                                fontWeight: 'bold',
-                              }}>
-                              {letter}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[
-                              styles.optionText,
-                              {color: theme.colors.onSurface},
-                              isActualCorrect && {
-                                color: theme.dark ? '#81c784' : '#1b5e20',
-                                fontWeight: 'bold',
-                              },
-                              isSelected &&
-                                !isCorrect && {
-                                  color: theme.dark ? '#e57373' : '#b71c1c',
-                                  textDecorationLine: 'line-through',
-                                },
-                            ]}>
-                            {opt}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
+                <View style={styles.scoreGrid}>
+                  <View
+                    style={[
+                      styles.gridCell,
+                      {
+                        backgroundColor: theme.dark
+                          ? 'rgba(46, 125, 50, 0.15)'
+                          : '#e8f5e9',
+                        borderColor: '#2e7d32',
+                        borderWidth: theme.dark ? 1 : 0,
+                      },
+                    ]}>
+                    <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>
+                      Correct
+                    </Text>
+                    <Text
+                      style={{fontSize: 20, fontWeight: 'bold', color: '#2e7d32'}}>
+                      {scoreData.correct}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.gridCell,
+                      {
+                        backgroundColor: theme.dark
+                          ? 'rgba(198, 40, 40, 0.15)'
+                          : '#ffebee',
+                        borderColor: '#c62828',
+                        borderWidth: theme.dark ? 1 : 0,
+                      },
+                    ]}>
+                    <Text style={{color: '#c62828', fontWeight: 'bold'}}>
+                      Incorrect
+                    </Text>
+                    <Text
+                      style={{fontSize: 20, fontWeight: 'bold', color: '#c62828'}}>
+                      {scoreData.incorrect}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.gridCell,
+                      {
+                        backgroundColor: theme.dark
+                          ? 'rgba(55, 71, 79, 0.15)'
+                          : '#eceff1',
+                        borderColor: '#37474f',
+                        borderWidth: theme.dark ? 1 : 0,
+                      },
+                    ]}>
+                    <Text
+                      style={{
+                        color: theme.dark ? '#cfd8dc' : '#37474f',
+                        fontWeight: 'bold',
+                      }}>
+                      Skipped
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: theme.dark ? '#cfd8dc' : '#37474f',
+                      }}>
+                      {scoreData.unattempted}
+                    </Text>
+                  </View>
                 </View>
+
+                <TouchableOpacity
+                  onPress={resetGenerator}
+                  style={styles.scoreResetButton}>
+                  <Text style={{color: 'white', fontWeight: 'bold'}}>
+                    Generate New Test
+                  </Text>
+                </TouchableOpacity>
               </Card.Content>
             </Card>
-          );
-        })}
 
-        <Button
-          name="Back to Setup"
-          onPress={resetGenerator}
-          style={styles.actionButton}
-        />
-        <Confetti
-          active={showConfetti}
-          onComplete={() => setShowConfetti(false)}
-        />
-      </Screen>
-    );
+            <Text
+              style={[styles.reviewHeader, {color: theme.colors.onBackground}]}
+              size="medium">
+              Detailed Answer Review
+            </Text>
+
+            {questions.map((q, idx) => {
+              const uA = userAnswers[idx];
+              const isCorrect = isAnswerCorrect(q, uA);
+
+              return (
+                <Card
+                  key={idx}
+                  style={[
+                    styles.questionCard,
+                    {
+                      borderColor: isCorrect ? '#81c784' : '#e57373',
+                      borderWidth: 2,
+                      backgroundColor: theme.dark ? theme.colors.surface : 'white',
+                    },
+                  ]}>
+                  <Card.Content>
+                    <View style={styles.questionMetaHeader}>
+                      <View style={styles.badgeContainer}>
+                        <Text
+                          style={[
+                            styles.questionBadge,
+                            {backgroundColor: theme.colors.primary},
+                          ]}>
+                          Q{idx + 1}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.typeBadge,
+                            theme.dark && {
+                              backgroundColor: theme.colors.elevation.level3,
+                              color: theme.colors.onSurfaceVariant,
+                            },
+                          ]}>
+                          MCQ
+                        </Text>
+                      </View>
+                      <Icon
+                        name={isCorrect ? 'check-circle' : 'close-circle'}
+                        size={26}
+                        color={isCorrect ? '#2e7d32' : '#c62828'}
+                      />
+                    </View>
+
+                    <Text
+                      style={[styles.questionText, {color: theme.colors.onSurface}]}
+                      size="medium">
+                      {q.question}
+                    </Text>
+
+                    <View style={styles.optionsList}>
+                      {q.options?.map((opt, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        const isSelected = uA === opt;
+                        const isActualCorrect = isAnswerCorrect(q, opt);
+
+                        let borderClr = theme.dark
+                          ? theme.colors.outlineVariant
+                          : '#ccc';
+                        let bgClr = theme.dark ? theme.colors.surface : '#fff';
+
+                        if (isActualCorrect) {
+                          borderClr = '#2e7d32';
+                          bgClr = theme.dark
+                            ? 'rgba(46, 125, 50, 0.15)'
+                            : '#e8f5e9';
+                        } else if (isSelected && !isCorrect) {
+                          borderClr = '#c62828';
+                          bgClr = theme.dark
+                            ? 'rgba(198, 40, 40, 0.15)'
+                            : '#ffebee';
+                        }
+
+                        return (
+                          <View
+                            key={optIdx}
+                            style={[
+                              styles.optionButton,
+                              {borderColor: borderClr, backgroundColor: bgClr},
+                            ]}>
+                            <View style={styles.optionContent}>
+                              <View
+                                style={[
+                                  styles.letterCircle,
+                                  theme.dark && {
+                                    backgroundColor: theme.colors.elevation.level3,
+                                  },
+                                  isActualCorrect
+                                    ? {backgroundColor: '#2e7d32'}
+                                    : isSelected
+                                    ? {backgroundColor: '#c62828'}
+                                    : {},
+                                ]}>
+                                <Text
+                                  style={{
+                                    color:
+                                      isActualCorrect || isSelected
+                                        ? 'white'
+                                        : theme.colors.onSurfaceVariant,
+                                    fontWeight: 'bold',
+                                  }}>
+                                  {letter}
+                                </Text>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.optionText,
+                                  {color: theme.colors.onSurface},
+                                  isActualCorrect && {
+                                    color: theme.dark ? '#81c784' : '#1b5e20',
+                                    fontWeight: 'bold',
+                                  },
+                                  isSelected &&
+                                    !isCorrect && {
+                                      color: theme.dark ? '#e57373' : '#b71c1c',
+                                      textDecorationLine: 'line-through',
+                                    },
+                                ]}>
+                                {opt}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </Card.Content>
+                </Card>
+              );
+            })}
+
+            <Button
+              name="Back to Setup"
+              onPress={resetGenerator}
+              style={styles.actionButton}
+            />
+          </ScrollView>
+          <Confetti
+            active={showConfetti}
+            onComplete={() => setShowConfetti(false)}
+          />
+        </Screen>
+      );
+    } catch (e) {
+      console.error('ST_DEBUG: Error rendering results screen:', e);
+      return (
+        <Screen style={{paddingBottom: 40}}>
+          <Text style={{color: 'red', fontWeight: 'bold', marginBottom: 10}} size="large">
+            Rendering Error: {e.message}
+          </Text>
+          <RNText style={{color: 'gray', fontSize: 12, fontFamily: 'monospace'}}>
+            {e.stack}
+          </RNText>
+          <Button
+            name="Back to Setup"
+            onPress={resetGenerator}
+            style={styles.actionButton}
+          />
+        </Screen>
+      );
+    }
   }
 }
 

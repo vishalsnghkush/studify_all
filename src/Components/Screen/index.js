@@ -8,6 +8,9 @@ import Transaction from './Transaction,';
 import LiveClass from './LiveClass';
 import CourseSecion from './CourseSecion';
 import LiveClassSwiper from './LiveClassSwiper';
+import BouncyButton from './BouncyButton';
+import MascotParticleTrail from './MascotParticleTrail';
+
 export {
   Screen,
   Swiper,
@@ -19,4 +22,7 @@ export {
   LiveClass,
   CourseSecion,
   LiveClassSwiper,
+  BouncyButton,
+  MascotParticleTrail,
 };
+

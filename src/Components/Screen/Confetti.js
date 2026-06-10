@@ -33,14 +33,18 @@ export const Confetti = ({active, count = 60, onComplete}) => {
       const sizeWidth = Math.random() * 6 + 6;
       const sizeHeight = Math.random() * 12 + 8;
       const rotation = Math.random() * 360;
-      const delay = Math.random() * 1000; // Staggered drop
-      const duration = Math.random() * 1500 + 2000; // 2s to 3.5s
+      const rotationEnd = rotation + 360 + Math.random() * 720;
+      const rotateYEnd = 360 + Math.random() * 1080;
+      const delay = Math.random() * 800; // Staggered drop (capped at 800ms)
+      const duration = Math.random() * 1200 + 1500; // 1500ms to 2700ms (max delay+duration = 3500ms)
 
       return {
         color,
         sizeWidth,
         sizeHeight,
         rotation,
+        rotationEnd,
+        rotateYEnd,
         xStart,
         xEnd,
         delay,
@@ -54,7 +58,7 @@ export const Confetti = ({active, count = 60, onComplete}) => {
       animatedValue.setValue(0);
       Animated.timing(animatedValue, {
         toValue: 1,
-        duration: 3500, // Total sequence time
+        duration: 3800, // Total sequence time (3.8s, strictly greater than 3.5s max animation duration)
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start(({finished}) => {
@@ -73,56 +77,37 @@ export const Confetti = ({active, count = 60, onComplete}) => {
     <View style={styles.fullscreen} pointerEvents="none">
       {confettiItems.map((item, index) => {
         // Individual progress based on master value with delay and duration scaled
-        const delayProgress = item.delay / 3500;
-        const durationProgress = item.duration / 3500;
+        const delayProgress = item.delay / 3800;
+        const durationProgress = item.duration / 3800;
+        const endProgress = delayProgress + durationProgress;
 
         const translateY = animatedValue.interpolate({
-          inputRange: [
-            0,
-            delayProgress,
-            Math.min(delayProgress + durationProgress, 1),
-            1,
-          ],
+          inputRange: [0, delayProgress, endProgress, 1],
           outputRange: [-50, -50, SCREEN_HEIGHT + 50, SCREEN_HEIGHT + 50],
         });
 
         const translateX = animatedValue.interpolate({
-          inputRange: [
-            0,
-            delayProgress,
-            Math.min(delayProgress + durationProgress, 1),
-            1,
-          ],
+          inputRange: [0, delayProgress, endProgress, 1],
           outputRange: [item.xStart, item.xStart, item.xEnd, item.xEnd],
         });
 
         const rotate = animatedValue.interpolate({
-          inputRange: [
-            0,
-            delayProgress,
-            Math.min(delayProgress + durationProgress, 1),
-            1,
-          ],
+          inputRange: [0, delayProgress, endProgress, 1],
           outputRange: [
             `${item.rotation}deg`,
             `${item.rotation}deg`,
-            `${item.rotation + 360 + Math.random() * 720}deg`,
-            `${item.rotation + 360 + Math.random() * 720}deg`,
+            `${item.rotationEnd}deg`,
+            `${item.rotationEnd}deg`,
           ],
         });
 
         const rotateY = animatedValue.interpolate({
-          inputRange: [
-            0,
-            delayProgress,
-            Math.min(delayProgress + durationProgress, 1),
-            1,
-          ],
+          inputRange: [0, delayProgress, endProgress, 1],
           outputRange: [
             '0deg',
             '0deg',
-            `${360 + Math.random() * 1080}deg`,
-            `${360 + Math.random() * 1080}deg`,
+            `${item.rotateYEnd}deg`,
+            `${item.rotateYEnd}deg`,
           ],
         });
 
@@ -130,8 +115,8 @@ export const Confetti = ({active, count = 60, onComplete}) => {
           inputRange: [
             0,
             delayProgress,
-            Math.min(delayProgress + durationProgress * 0.8, 0.9),
-            Math.min(delayProgress + durationProgress, 1),
+            delayProgress + durationProgress * 0.8,
+            endProgress,
             1,
           ],
           outputRange: [0, 1, 1, 0, 0],
