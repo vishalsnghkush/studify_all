@@ -81,8 +81,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         resConfigs "en", "US"
-        versionCode 8  //increse it for new release
-        versionName "1.7"  //app version
+        versionCode 9  //increse it for new release
+        versionName "2"  //app version
     }
     signingConfigs {
      release {
