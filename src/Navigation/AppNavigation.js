@@ -1,6 +1,6 @@
 import {CardStyleInterpolators} from '@react-navigation/stack';
 import DrawerNavigation from './DrawerNavigation';
-import {lazy} from 'react';
+import React, {lazy} from 'react';
 import {
   Profile,
   EditProfile,
@@ -15,6 +15,9 @@ import {
   Search,
   TestGenerator,
   StudyPlanner,
+  OnlineTuitions,
+  ClassNotesSelector,
+  PersonalizedLearning,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -23,6 +26,10 @@ import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
+import NcertSolutions from '../Screens/Home/Notes/NcertSolutions';
+import ImportantQuestions from '../Screens/Home/Notes/ImportantQuestions';
+import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
+import Keywords from '../Screens/Home/Notes/Keywords';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
 const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
@@ -119,6 +126,26 @@ const AppNavigation = () => {
         component={FreeNotes}
         options={{title: 'YouTube Notes'}}
       />
+      <Stack.Screen
+        name="NcertSolutions"
+        component={NcertSolutions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ImportantQuestions"
+        component={ImportantQuestions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="OnlineQuiz"
+        component={OnlineQuiz}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Keywords"
+        component={Keywords}
+        options={{headerShown: false}}
+      />
       <Stack.Screen name="Pdf" component={Pdf} options={{headerShown: false}} />
       <Stack.Screen
         name="Appreport"
@@ -134,6 +161,16 @@ const AppNavigation = () => {
         name="StudyPlanner"
         component={StudyPlanner}
         options={{title: 'Study Planner & Tasks'}}
+      />
+      <Stack.Screen
+        name="ClassNotesSelector"
+        component={ClassNotesSelector}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="PersonalizedLearning"
+        component={PersonalizedLearning}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="Groups"
