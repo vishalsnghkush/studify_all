@@ -19,6 +19,7 @@ import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 import {Screen} from '../../Components/Screen';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
 
 // Helper: Format date key for storage (YYYY-MM-DD)
 const formatDateKey = date => {
@@ -87,6 +88,9 @@ const StudyPlanner = () => {
   const [slotTopic, setSlotTopic] = useState('');
   const [slotPriority, setSlotPriority] = useState('Medium'); // 'High' | 'Medium' | 'Low'
 
+  const [activeMiniBurstId, setActiveMiniBurstId] = useState(null);
+  const [showGrandConfetti, setShowGrandConfetti] = useState(false);
+
   // Subject filter dropdown state
   const [selectedSubjFilter, setSelectedSubjFilter] = useState('All');
   const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -133,11 +137,54 @@ const StudyPlanner = () => {
 
   // Toggle Slot Target Completion status
   const handleToggleTask = id => {
-    const updated = slots.map(s =>
-      s.id === id ? {...s, completed: !s.completed} : s,
-    );
-    setSlots(updated);
-    saveSlots(updated);
+    const target = slots.find(s => s.id === id);
+    if (!target) {
+      return;
+    }
+
+    const checkingDone = !target.completed;
+
+    if (checkingDone) {
+      // Trigger mini checkbox burst immediately on the pending task card
+      setActiveMiniBurstId(id);
+
+      // Delay moving the task card to the completed list to allow animation to play fully
+      setTimeout(() => {
+        setSlots(prevSlots => {
+          const updated = prevSlots.map(s => {
+            if (s.id === id) {
+              return {...s, completed: true};
+            }
+            return s;
+          });
+          saveSlots(updated);
+
+          // Check if all today's slots are now completed
+          const todaySlots = updated.filter(s => {
+            const slotDate = s.date || formatDateKey(new Date());
+            return slotDate === selectedDateKey;
+          });
+          const allDone =
+            todaySlots.length > 0 && todaySlots.every(s => s.completed);
+          if (allDone) {
+            // Trigger grand celebration confetti after the final mini burst completes
+            setShowGrandConfetti(true);
+          }
+          return updated;
+        });
+        setActiveMiniBurstId(null);
+      }, 550);
+    } else {
+      // If unchecking, toggle immediately without animation delays
+      const updated = slots.map(s => {
+        if (s.id === id) {
+          return {...s, completed: false};
+        }
+        return s;
+      });
+      setSlots(updated);
+      saveSlots(updated);
+    }
   };
 
   // Planner Slot Actions
@@ -682,6 +729,10 @@ const StudyPlanner = () => {
                           size={26}
                           color={theme.colors.onSurfaceVariant}
                         />
+                        <MiniBurst
+                          active={activeMiniBurstId === item.id}
+                          onComplete={() => setActiveMiniBurstId(null)}
+                        />
                       </TouchableOpacity>
                       <View style={styles.flex1}>
                         <Text
@@ -786,6 +837,10 @@ const StudyPlanner = () => {
                           name="checkbox-marked-circle"
                           size={26}
                           color={theme.colors.primary}
+                        />
+                        <MiniBurst
+                          active={activeMiniBurstId === item.id}
+                          onComplete={() => setActiveMiniBurstId(null)}
                         />
                       </TouchableOpacity>
                       <View style={styles.flex1}>
@@ -1053,6 +1108,10 @@ const StudyPlanner = () => {
           </View>
         </View>
       </Modal>
+      <Confetti
+        active={showGrandConfetti}
+        onComplete={() => setShowGrandConfetti(false)}
+      />
     </Screen>
   );
 };
@@ -1275,16 +1334,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     marginBottom: 10,
     elevation: 2,
+    overflow: 'visible',
   },
   taskCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+    overflow: 'visible',
   },
   checkboxContainer: {
     justifyContent: 'center',
     alignItems: 'center',
     padding: 4,
+    overflow: 'visible',
   },
   taskDescription: {
     fontSize: 15,

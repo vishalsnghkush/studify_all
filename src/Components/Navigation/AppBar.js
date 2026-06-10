@@ -33,7 +33,7 @@ const CustomAppBar = ({navigation, route, options, back}) => {
         <Appbar.Action
           icon="phone"
           onPress={() => {
-            Linking.openURL(`tel:9289253640`);
+            Linking.openURL('tel:8447186881');
           }}
         />
       )}

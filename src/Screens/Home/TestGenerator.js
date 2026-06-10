@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Text as RNText,
 } from 'react-native';
 import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -13,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Screen} from '../../Components/Screen';
 import {Text, TextInput, Button} from '../../Components/Input';
 import Dropdown from '../../Components/Input/Dropdown';
+import {Confetti} from '../../Components/Screen/Confetti';
 
 // ── API Key ── hardcoded so it is always correct, never stale
 const OPENROUTER_API_KEY =
@@ -125,6 +127,53 @@ export default function TestGenerator() {
     unattempted: 0,
     maxMarks: 0,
   });
+
+  const [displayedScore, setDisplayedScore] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    if (appState === 'results') {
+      setDisplayedScore(0);
+      const start = 0;
+      const end = Number(scoreData.marks) || 0;
+      const maxMarks = Number(scoreData.maxMarks) || 0;
+
+      const duration = 1200; // 1.2 seconds
+      const startTime = Date.now();
+
+      let animationId;
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing: easeOutQuad
+        const easeProgress = progress * (2 - progress);
+        let currentScore = start + (end - start) * easeProgress;
+        if (isNaN(currentScore)) {
+          currentScore = 0;
+        }
+
+        if (examName === 'GATE') {
+          setDisplayedScore(parseFloat(currentScore.toFixed(2)));
+        } else {
+          setDisplayedScore(Math.floor(currentScore));
+        }
+
+        if (progress < 1) {
+          animationId = requestAnimationFrame(animate);
+        } else {
+          setDisplayedScore(end);
+          // Trigger confetti burst if user scored >= 80%
+          if (end >= maxMarks * 0.8) {
+            setShowConfetti(true);
+          }
+        }
+      };
+
+      animationId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(animationId);
+    }
+  }, [appState, scoreData.marks, scoreData.maxMarks, examName]);
 
   // Update subject dropdown choices when class/exam changes
   useEffect(() => {
@@ -786,15 +835,26 @@ export default function TestGenerator() {
             },
           ]}>
           <Card.Content style={styles.scoreContent}>
-            <Text
-              style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
-              {scoreData.marks}
-              <Text
-                style={{color: theme.colors.onSurfaceVariant, fontSize: 24}}>
-                {' '}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'baseline',
+                justifyContent: 'center',
+              }}>
+              <RNText
+                style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
+                {displayedScore}
+              </RNText>
+              <RNText
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  marginLeft: 6,
+                }}>
                 / {scoreData.maxMarks}
-              </Text>
-            </Text>
+              </RNText>
+            </View>
             <Text
               style={[
                 styles.scoreSubTitle,
@@ -1021,6 +1081,10 @@ export default function TestGenerator() {
           name="Back to Setup"
           onPress={resetGenerator}
           style={styles.actionButton}
+        />
+        <Confetti
+          active={showConfetti}
+          onComplete={() => setShowConfetti(false)}
         />
       </Screen>
     );

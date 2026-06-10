@@ -11,6 +11,7 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {useTheme, Card, ProgressBar} from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
 
 const PersonalizedLearning = () => {
   const navigation = useNavigation();
@@ -19,6 +20,8 @@ const PersonalizedLearning = () => {
   // Tasks state
   const [tasks, setTasks] = useState([]);
   const [plannerCount, setPlannerCount] = useState(0);
+  const [activeMiniBurstId, setActiveMiniBurstId] = useState(null);
+  const [showGrandConfetti, setShowGrandConfetti] = useState(false);
 
   const formatDateKey = date => {
     const yyyy = date.getFullYear();
@@ -55,14 +58,58 @@ const PersonalizedLearning = () => {
 
   const handleToggleTask = async id => {
     try {
-      const storedSlots = await AsyncStorage.getItem('studify_slots');
-      if (storedSlots) {
-        const slotsArray = JSON.parse(storedSlots);
-        const updated = slotsArray.map(s =>
-          s.id === id ? {...s, completed: !s.completed} : s,
-        );
-        await AsyncStorage.setItem('studify_slots', JSON.stringify(updated));
-        loadDashboardData();
+      const target = tasks.find(t => t.id === id);
+      if (!target) {
+        return;
+      }
+
+      const checkingDone = !target.completed;
+
+      if (checkingDone) {
+        // Trigger mini checkbox burst immediately
+        setActiveMiniBurstId(id);
+
+        // Delay moving/updating the task to allow the animation to play fully
+        setTimeout(async () => {
+          const storedSlots = await AsyncStorage.getItem('studify_slots');
+          if (storedSlots) {
+            const slotsArray = JSON.parse(storedSlots);
+            const updated = slotsArray.map(s =>
+              s.id === id ? {...s, completed: true} : s,
+            );
+            await AsyncStorage.setItem(
+              'studify_slots',
+              JSON.stringify(updated),
+            );
+
+            // Reload state
+            const todayKey = formatDateKey(new Date());
+            const todaySlots = updated.filter(
+              s => (s.date || todayKey) === todayKey,
+            );
+            setTasks(todaySlots);
+            setPlannerCount(todaySlots.length);
+
+            // Check if all today's slots are now completed
+            const allDone =
+              todaySlots.length > 0 && todaySlots.every(s => s.completed);
+            if (allDone) {
+              setShowGrandConfetti(true);
+            }
+          }
+          setActiveMiniBurstId(null);
+        }, 550);
+      } else {
+        // If unchecking, toggle immediately without animation delays
+        const storedSlots = await AsyncStorage.getItem('studify_slots');
+        if (storedSlots) {
+          const slotsArray = JSON.parse(storedSlots);
+          const updated = slotsArray.map(s =>
+            s.id === id ? {...s, completed: false} : s,
+          );
+          await AsyncStorage.setItem('studify_slots', JSON.stringify(updated));
+          loadDashboardData();
+        }
       }
     } catch (e) {
       console.log('Failed to save updated task state', e);
@@ -285,20 +332,30 @@ const PersonalizedLearning = () => {
                             borderColor: theme.colors.outlineVariant,
                           },
                         ]}>
-                        <Icon
-                          name={
-                            isCompleted
-                              ? 'checkbox-marked-circle'
-                              : 'checkbox-blank-circle-outline'
-                          }
-                          size={22}
-                          color={
-                            isCompleted
-                              ? theme.colors.primary
-                              : theme.colors.onSurfaceVariant
-                          }
-                          style={styles.checklistCheckIcon}
-                        />
+                        <View
+                          style={{
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 12,
+                          }}>
+                          <Icon
+                            name={
+                              isCompleted
+                                ? 'checkbox-marked-circle'
+                                : 'checkbox-blank-circle-outline'
+                            }
+                            size={22}
+                            color={
+                              isCompleted
+                                ? theme.colors.primary
+                                : theme.colors.onSurfaceVariant
+                            }
+                          />
+                          <MiniBurst
+                            active={activeMiniBurstId === item.id}
+                            onComplete={() => setActiveMiniBurstId(null)}
+                          />
+                        </View>
                         <View style={styles.flex1}>
                           <Text
                             style={[
@@ -346,6 +403,10 @@ const PersonalizedLearning = () => {
           )}
         </View>
       </ScrollView>
+      <Confetti
+        active={showGrandConfetti}
+        onComplete={() => setShowGrandConfetti(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -530,6 +591,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    overflow: 'visible',
   },
   checklistCheckIcon: {
     marginRight: 12,
