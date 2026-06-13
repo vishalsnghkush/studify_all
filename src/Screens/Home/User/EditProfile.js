@@ -8,7 +8,7 @@ import {useDispatch} from 'react-redux';
 import {updateUserName} from '../../../Redux/Slices/InitialSlice';
 import {useMutation} from '@tanstack/react-query';
 const EditProfile = ({navigation}) => {
-  const {get} = useApi();
+  const {get, put, post} = useApi();
   const [user, setUser] = useState();
   const dispatch = useDispatch();
   const [form, setForm] = useState({
@@ -26,9 +26,9 @@ const EditProfile = ({navigation}) => {
       const res = await get('/user');
       setUser(res.data);
       setForm({
-        fname: res.data.fname,
-        lname: res.data.lname,
-        phone: res.data.phone,
+        fname: res.data.fname || '',
+        lname: res.data.lname || '',
+        phone: res.data.phone || '',
       });
     };
     getUser();
@@ -40,7 +40,7 @@ const EditProfile = ({navigation}) => {
   };
 
   const {mutate, isPending} = useMutation({
-    mutationFn: data => useApi().put('/user/update', (data = form)),
+    mutationFn: data => post('/user', data),
     onSuccess: res => {
       if (res.status === 200) {
         dispatch(updateUserName({fname: form.fname, lname: form.lname}));
@@ -59,14 +59,14 @@ const EditProfile = ({navigation}) => {
       }
     });
 
-    newErrors.fname = form.fname.length < 3;
-    newErrors.lname = form.lname.length < 3;
-    newErrors.phone = form.phone.length <= 9;
+    newErrors.fname = (form.fname || '').length < 3;
+    newErrors.lname = (form.lname || '').length < 3;
+    newErrors.phone = (form.phone || '').toString().length <= 9;
     setErrors(newErrors);
 
     if (!Object.values(newErrors).some(error => error)) {
       try {
-        mutate();
+        mutate(form);
       } catch (error) {}
     }
   };
@@ -97,7 +97,7 @@ const EditProfile = ({navigation}) => {
               label="Phone"
               name="phone"
               maxLength={10}
-              defaultValue={JSON.stringify(user?.phone)}
+              defaultValue={user?.phone ? String(user?.phone) : ''}
               updateFormValue={updateFormValue}
               keyboard="number-pad"
               error={errors.phone}

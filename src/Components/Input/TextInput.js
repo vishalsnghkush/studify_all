@@ -14,6 +14,7 @@ function InputText({
   error = false,
   disabled = false,
   multiline = 1,
+  ...props
 }) {
   const [value, setValue] = useState();
   const [showPassword, setShowPassword] = useState(rightIcon);
@@ -56,6 +57,7 @@ function InputText({
         ))
       }
       style={{marginBottom: 15, ...style}}
+      {...props}
     />
   );
 }

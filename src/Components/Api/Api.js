@@ -3,11 +3,24 @@ import FlashMessage from '../Screen/FlashMessage';
 const useApi = () => {
   const request = async (method, endpoint, data = {}, params = {}) => {
     try {
+      let reqMethod = method;
+      let reqHeaders = {};
+      let reqData = data;
+      
+      if (method === 'PUT' || method === 'DELETE') {
+        reqMethod = 'POST';
+        reqHeaders['X-HTTP-Method-Override'] = method;
+        if (reqData && typeof reqData === 'object' && !Array.isArray(reqData)) {
+          reqData = { ...reqData, _method: method };
+        }
+      }
+      
       const response = await axios({
-        method,
+        method: reqMethod,
         url: endpoint,
-        data,
+        data: reqData,
         params,
+        headers: reqHeaders,
       });
       if (response.data.message) {
         FlashMessage({
@@ -17,13 +30,26 @@ const useApi = () => {
       }
       return response.data;
     } catch (error) {
-      if (error.response.data.message) {
+      if (error.response?.data?.message) {
         FlashMessage({
           message: error.response.data.message,
           type: 'danger',
         });
+      } else {
+        FlashMessage({
+          message: error.message || 'Something went wrong',
+          type: 'danger',
+        });
       }
-      console.log('useapi error', error.response.data);
+      console.log('useapi error', error.response?.data || error.message);
+      console.log('failed request config:', {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        data: error.config?.data,
+      });
+      throw error;
     }
   };
 

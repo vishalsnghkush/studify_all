@@ -20,10 +20,8 @@ export default function BottomNavigation() {
         activeColor={theme.colors.primary}
         inactiveColor={theme.colors.onSurfaceVariant}
         barStyle={{
-          paddingBottom: bottom || 0,
-          height: 55,
-          justifyContent: 'center',
           backgroundColor: theme.colors.background,
+          paddingBottom: bottom,
         }}
         screenOptions={{
           tabBarHideOnKeyboard: true,

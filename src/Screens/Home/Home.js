@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useTheme} from 'react-native-paper';
+import notifee, {AndroidImportance} from '@notifee/react-native';
 
 const Home = () => {
   const navigation = useNavigation();
@@ -121,6 +122,27 @@ const Home = () => {
   }, [startFloat, startCloudFloat, startStreakPulse]);
 
   useEffect(() => {
+    const triggerNotification = async () => {
+      try {
+        const channelId = await notifee.createChannel({
+          id: 'test-channel',
+          name: 'Test Channel',
+          importance: AndroidImportance.HIGH,
+        });
+        await notifee.displayNotification({
+          title: 'Test Notification',
+          body: 'Studifysuccess local notification is working correctly!',
+          android: {
+            channelId,
+            importance: AndroidImportance.HIGH,
+          },
+        });
+      } catch (err) {
+        console.log('Error showing test notification', err);
+      }
+    };
+    triggerNotification();
+
     const interval = setInterval(() => {
       // Fade out current phrase
       Animated.timing(textOpacity, {
@@ -857,6 +879,59 @@ const Home = () => {
           />
         </BouncyButton>
 
+        {/* Activities Banner Card */}
+        <BouncyButton
+          onPress={() =>
+            navigation.navigate('WebView', {
+              url: 'https://activities.studifysuccess.com/',
+            })
+          }
+          style={[
+            styles.activitiesBanner,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
+          <View style={styles.activitiesTextContainer}>
+            <Text
+              style={[
+                styles.activitiesSubtitle,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              <Text
+                style={[
+                  styles.subtitleBoldActivities,
+                  dark && {color: colors.primary},
+                ]}>
+                Explore
+              </Text>{' '}
+              extracurricular events
+            </Text>
+            <Text
+              style={[styles.activitiesTitle, dark && {color: colors.onSurface}]}>
+              Activities
+            </Text>
+            <View
+              style={[
+                styles.activitiesBtn,
+                dark && {backgroundColor: colors.primary},
+              ]}>
+              <Text style={styles.activitiesBtnText}>View Activities</Text>
+              <Icon
+                name="chevron-right"
+                size={13}
+                color="#ffffff"
+                style={styles.chevronIcon}
+              />
+            </View>
+          </View>
+          <Image
+            source={require('../../Assets/Images/activities.jpg')}
+            style={styles.activitiesImage}
+          />
+        </BouncyButton>
+
         {/* Internship Banner */}
         <BouncyButton
           onPress={() => navigation.navigate('Internship')}
@@ -1369,6 +1444,63 @@ const styles = StyleSheet.create({
     height: 90,
     width: 90,
     resizeMode: 'contain',
+  },
+  activitiesBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  activitiesTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  activitiesSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  activitiesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  activitiesBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  activitiesBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  activitiesImage: {
+    flex: 0.8,
+    height: 90,
+    width: 90,
+    resizeMode: 'contain',
+  },
+  subtitleBoldActivities: {
+    fontWeight: 'bold',
   },
   personalBanner: {
     marginHorizontal: 15,

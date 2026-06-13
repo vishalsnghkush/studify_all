@@ -34,7 +34,7 @@ export default function CheckAuth() {
   axios.interceptors.response.use(
     res => res,
     err => {
-      if (err.response.status === 401) {
+      if (err.response?.status === 401) {
         dispatch(setUserLogout());
         removeFcmToken();
         console.log('invalid token');
