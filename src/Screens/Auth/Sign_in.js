@@ -101,6 +101,7 @@ const StaggeredEntrance = ({ children, delay, index }) => {
 const Sign_in = ({navigation}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const [selectedRole, setSelectedRole] = useState('student');
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -137,11 +138,18 @@ const Sign_in = ({navigation}) => {
   const {mutate, isPending} = useMutation({
     mutationFn: data => useApi().post('/auth', data),
     onSuccess: res => {
-      if (res.message) navigation.navigate('Otp', {email: form.email, type: 1});
+      if (res.message) {
+        navigation.navigate('Otp', {email: form.email.trim().toLowerCase(), type: 1});
+        return;
+      }
+      const updatedUser = {
+        ...res.data.user,
+        is_intern: selectedRole === 'intern',
+      };
       dispatch(
         setUserLogin({
           token: res.data.token,
-          user: res.data.user,
+          user: updatedUser,
         }),
       );
     },
@@ -164,7 +172,10 @@ const Sign_in = ({navigation}) => {
 
     if (!Object.values(newErrors).some(error => error)) {
       try {
-        mutate(form);
+        mutate({
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+        });
       } catch (error) {}
     }
   }, [form, mutate]);
@@ -201,6 +212,55 @@ const Sign_in = ({navigation}) => {
               <Text style={styles.subtitle}>Welcome back, you've been missed!</Text>
             </StaggeredEntrance>
           </View>
+
+          <StaggeredEntrance delay={100} index={1.5}>
+            <View style={styles.roleSelectorContainer}>
+              <Pressable
+                style={[
+                  styles.roleTab,
+                  selectedRole === 'student' && styles.activeRoleTab,
+                ]}
+                onPress={() => setSelectedRole('student')}
+              >
+                <Icon
+                  name="book-open"
+                  size={18}
+                  color={selectedRole === 'student' ? '#FFF' : '#666'}
+                  style={{marginRight: 8}}
+                />
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === 'student' && styles.activeRoleTabText,
+                  ]}
+                >
+                  Student
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.roleTab,
+                  selectedRole === 'intern' && styles.activeRoleTab,
+                ]}
+                onPress={() => setSelectedRole('intern')}
+              >
+                <Icon
+                  name="briefcase"
+                  size={18}
+                  color={selectedRole === 'intern' ? '#FFF' : '#666'}
+                  style={{marginRight: 8}}
+                />
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === 'intern' && styles.activeRoleTabText,
+                  ]}
+                >
+                  Intern
+                </Text>
+              </Pressable>
+            </View>
+          </StaggeredEntrance>
 
           <View style={styles.formContainer}>
             <StaggeredEntrance delay={100} index={2}>
@@ -248,7 +308,7 @@ const Sign_in = ({navigation}) => {
             </StaggeredEntrance>
             
             <StaggeredEntrance delay={100} index={6}>
-              <Google />
+              <Google selectedRole={selectedRole} />
             </StaggeredEntrance>
 
             <StaggeredEntrance delay={100} index={7}>
@@ -393,6 +453,39 @@ const styles = StyleSheet.create({
     color: '#D81B60',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  roleSelectorContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 25,
+    padding: 4,
+    marginBottom: 35,
+    marginTop: -20,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+  },
+  activeRoleTab: {
+    backgroundColor: '#D81B60',
+    shadowColor: '#D81B60',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  roleTabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeRoleTabText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   },
 });
 

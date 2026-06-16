@@ -2,30 +2,53 @@ import {View, Switch} from 'react-native';
 import {useState} from 'react';
 import {Text} from '../../../Components/Input';
 import {Screen, CardHorizontal} from '../../../Components/Screen';
-import {Avatar} from 'react-native-paper';
+import {Avatar, useTheme} from 'react-native-paper';
 import {useDispatch, useSelector} from 'react-redux';
-import {setUserLogout, setTheme} from '../../../Redux/Slices/InitialSlice';
+import {setUserLogout, setTheme, setUser} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import InAppReview from '../../../Components/Screen/InAppReview';
 import {removeFcmToken} from '../../../Components/Api/CheckAuth';
 
 const Profile = ({navigation}) => {
   const dispatch = useDispatch();
+  const {colors} = useTheme();
   const {isDark, user} = useSelector(state => state.initial);
   const [isSwitchOn, setIsSwitchOn] = useState(isDark);
   const onToggleSwitch = () => {
     dispatch(setTheme());
     setIsSwitchOn(!isSwitchOn);
   };
+  const onToggleIntern = () => {
+    const updatedUser = {
+      ...user,
+      is_intern: !user?.is_intern,
+    };
+    dispatch(setUser(updatedUser));
+  };
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>
       <InAppReview />
-      <View style={{alignItems: 'center'}}>
-        <Avatar.Text size={100} label={user?.fname[0] + user?.lname[0]} />
-        <Text size="medium" style={{marginTop: 10, fontWeight: 'bold'}}>
-          {user?.fname + ' ' + user?.lname}
+      <View 
+        style={{
+          alignItems: 'center', 
+          backgroundColor: isDark ? colors.elevation.level1 : 'rgba(216, 27, 96, 0.04)',
+          margin: 16,
+          padding: 24,
+          borderRadius: 24,
+          borderWidth: 1,
+          borderColor: isDark ? colors.outlineVariant : 'rgba(216, 27, 96, 0.1)',
+        }}
+      >
+        <Avatar.Text 
+          size={100} 
+          label={(user?.fname?.[0] || '') + (user?.lname?.[0] || '')} 
+          style={{backgroundColor: colors.primary}}
+          color={colors.onPrimary}
+        />
+        <Text size="medium" style={{marginTop: 14, fontWeight: 'bold', color: colors.onSurface}}>
+          {(user?.fname || '') + ' ' + (user?.lname || '')}
         </Text>
-        <Text>{user?.email}</Text>
+        <Text style={{color: colors.onSurfaceVariant, marginTop: 4}}>{user?.email}</Text>
       </View>
       <View style={{marginTop: 10}}>
         <CardHorizontal
@@ -61,6 +84,18 @@ const Profile = ({navigation}) => {
             />
           }
           onPress={onToggleSwitch}
+        />
+        <CardHorizontal
+          title="Intern Role"
+          leftIcon="briefcase"
+          rightIcon={
+            <Switch
+              value={user?.is_intern || false}
+              onValueChange={onToggleIntern}
+              trackColor={{false: '#afafaf81'}}
+            />
+          }
+          onPress={onToggleIntern}
         />
         <CardHorizontal
           title="Terms & Conditions"

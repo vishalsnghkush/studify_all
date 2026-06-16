@@ -98,7 +98,13 @@ const Sign_up = ({navigation}) => {
           type: 'danger',
         });
       }
-      mutate(form);
+      mutate({
+        ...form,
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        fname: form.fname.trim(),
+        lname: form.lname.trim(),
+      });
     }
   };
 

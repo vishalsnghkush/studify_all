@@ -1,38 +1,59 @@
-import {View} from 'react-native';
+import {View, Keyboard} from 'react-native';
 import {useState, useEffect} from 'react';
 import {Screen} from '../../../Components/Screen';
 import {TextInput, Button} from '../../../Components/Input';
 import useApi from '../../../Components/Api/Api';
-import {ActivityIndicator} from 'react-native-paper';
+import {ActivityIndicator, useTheme} from 'react-native-paper';
 import {useDispatch} from 'react-redux';
-import {updateUserName} from '../../../Redux/Slices/InitialSlice';
+import {setUser} from '../../../Redux/Slices/InitialSlice';
 import {useMutation} from '@tanstack/react-query';
+import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import DropDown from 'react-native-paper-dropdown';
 const EditProfile = ({navigation}) => {
+  const {colors} = useTheme();
   const {get, put, post} = useApi();
-  const [user, setUser] = useState();
+  const [user, setUserState] = useState();
   const dispatch = useDispatch();
+  const [dropdown, setDropdown] = useState(false);
   const [form, setForm] = useState({
     fname: '',
     lname: '',
     phone: '',
+    dob: '',
+    gender: '',
   });
   const [errors, setErrors] = useState({
     fname: false,
     lname: false,
     phone: false,
+    dob: false,
+    gender: false,
   });
+
   useEffect(() => {
     const getUser = async () => {
       const res = await get('/user');
-      setUser(res.data);
+      setUserState(res.data);
       setForm({
         fname: res.data.fname || '',
         lname: res.data.lname || '',
         phone: res.data.phone || '',
+        dob: res.data.dob || '',
+        gender: res.data.gender || '',
       });
     };
     getUser();
   }, []);
+
+  const showCalender = () => {
+    DateTimePickerAndroid.open({
+      value: new Date(),
+      onChange: (e, date) => {
+        Keyboard.dismiss();
+        updateFormValue({name: 'dob', value: date.toLocaleDateString('en-GB')});
+      },
+    });
+  };
 
   const updateFormValue = ({name, value}) => {
     setForm({...form, [name]: value});
@@ -43,7 +64,15 @@ const EditProfile = ({navigation}) => {
     mutationFn: data => post('/user', data),
     onSuccess: res => {
       if (res.status === 200) {
-        dispatch(updateUserName({fname: form.fname, lname: form.lname}));
+        const updatedUser = res.data?.fname ? res.data : {
+          ...user,
+          fname: form.fname,
+          lname: form.lname,
+          phone: form.phone,
+          dob: form.dob,
+          gender: form.gender,
+        };
+        dispatch(setUser(updatedUser));
       }
       navigation.goBack();
     },
@@ -70,6 +99,7 @@ const EditProfile = ({navigation}) => {
       } catch (error) {}
     }
   };
+
   return (
     <Screen>
       {user ? (
@@ -103,8 +133,33 @@ const EditProfile = ({navigation}) => {
               error={errors.phone}
             />
             <TextInput label="Email" defaultValue={user?.email} disabled />
-            <TextInput label="DOB" defaultValue={user?.dob} disabled />
-            <TextInput label="Gender" defaultValue={user?.gender} disabled />
+            <TextInput
+              label="DOB"
+              name="dob"
+              onPress={() => showCalender()}
+              defaultValue={form.dob}
+              error={errors.dob}
+            />
+            <View style={{marginBottom: 15}}>
+              <DropDown
+                label="Gender"
+                mode="outlined"
+                visible={dropdown}
+                showDropDown={() => setDropdown(true)}
+                onDismiss={() => setDropdown(false)}
+                value={form.gender}
+                setValue={value => {
+                  updateFormValue({name: 'gender', value});
+                }}
+                list={[
+                  {label: 'Male', value: 'Male'},
+                  {label: 'Female', value: 'Female'},
+                  {label: 'Other', value: 'Other'},
+                ]}
+                dropDownItemTextStyle={{color: colors.onBackground}}
+                error={errors.gender}
+              />
+            </View>
           </View>
           <Button name="Update Profile" onPress={submit} loading={isPending} />
         </View>

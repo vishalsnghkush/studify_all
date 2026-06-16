@@ -1,7 +1,7 @@
 import React from 'react';
-import {Screen} from '../../../Components/Screen';
+import {Screen, BouncyButton} from '../../../Components/Screen';
 import {Text} from '../../../Components/Input';
-import {TouchableOpacity, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
 
@@ -132,7 +132,7 @@ const Notes = ({navigation}) => {
   };
 
   const renderCard = (item, index) => (
-    <TouchableOpacity
+    <BouncyButton
       key={index}
       onPress={() => handlePress(item)}
       style={[
@@ -198,7 +198,7 @@ const Notes = ({navigation}) => {
           <Text style={styles.gridBadgeText}>{item.badge}</Text>
         </View>
       )}
-    </TouchableOpacity>
+    </BouncyButton>
   );
 
   const freeItems = noteTypes.filter(item => item.category === 'free');

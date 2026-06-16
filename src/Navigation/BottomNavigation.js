@@ -7,6 +7,7 @@ import {useTheme} from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
 import Groups from '../Screens/Home/Chat/Groups';
+import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
 
 export default function BottomNavigation() {
   const Tab = createMaterialBottomTabNavigator();
@@ -78,7 +79,26 @@ export default function BottomNavigation() {
               ),
             }}
           />
-        ) : null}
+        ) : (
+          <Tab.Screen
+            name="OnlineQuiz"
+            component={OnlineQuiz}
+            options={{
+              title: 'Quiz',
+              tabBarIcon: ({focused}) => (
+                <Micon
+                  name={focused ? 'chat-question' : 'chat-question-outline'}
+                  size={23}
+                  color={
+                    focused
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceVariant
+                  }
+                />
+              ),
+            }}
+          />
+        )}
         <Tab.Screen
           name="OnlineTuitions"
           component={OnlineTuitions}

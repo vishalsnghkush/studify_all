@@ -15,7 +15,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useTheme} from 'react-native-paper';
-import notifee, {AndroidImportance} from '@notifee/react-native';
 
 const Home = () => {
   const navigation = useNavigation();
@@ -122,27 +121,6 @@ const Home = () => {
   }, [startFloat, startCloudFloat, startStreakPulse]);
 
   useEffect(() => {
-    const triggerNotification = async () => {
-      try {
-        const channelId = await notifee.createChannel({
-          id: 'test-channel',
-          name: 'Test Channel',
-          importance: AndroidImportance.HIGH,
-        });
-        await notifee.displayNotification({
-          title: 'Test Notification',
-          body: 'Studifysuccess local notification is working correctly!',
-          android: {
-            channelId,
-            importance: AndroidImportance.HIGH,
-          },
-        });
-      } catch (err) {
-        console.log('Error showing test notification', err);
-      }
-    };
-    triggerNotification();
-
     const interval = setInterval(() => {
       // Fade out current phrase
       Animated.timing(textOpacity, {

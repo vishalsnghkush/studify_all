@@ -31,17 +31,24 @@ export default function CheckAuth() {
   axios.defaults.headers.common['Content-Type'] = 'application/json';
   axios.defaults.baseURL = BASE_URL;
   console.log('auth rerender token', axios.defaults.baseURL);
-  axios.interceptors.response.use(
-    res => res,
-    err => {
-      if (err.response?.status === 401) {
-        dispatch(setUserLogout());
-        removeFcmToken();
-        console.log('invalid token');
-      }
-      return Promise.reject(err);
-    },
-  );
+  
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      res => res,
+      err => {
+        if (err.response?.status === 401) {
+          dispatch(setUserLogout());
+          removeFcmToken();
+          console.log('invalid token');
+        }
+        return Promise.reject(err);
+      },
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [dispatch]);
 
   const onContinue = async () => {
     if (!contactPermission) {
@@ -136,4 +143,6 @@ export default function CheckAuth() {
       console.log('err', err);
     }
   };
+
+  return null;
 }
