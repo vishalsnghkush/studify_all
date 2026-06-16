@@ -31,6 +31,8 @@ function InputText({
     <TextInput
       mode="outlined"
       onPressIn={onPress}
+      onTouchStart={onPress}
+      showSoftInputOnFocus={onPress ? false : true}
       maxLength={maxLength}
       keyboardType={keyboard}
       label={label}

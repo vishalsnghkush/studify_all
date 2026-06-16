@@ -79,18 +79,13 @@ const EditProfile = ({navigation}) => {
   });
 
   const submit = async () => {
-    const newErrors = {};
-    Object.keys(form).forEach(key => {
-      if (!form[key]) {
-        newErrors[key] = true;
-      } else {
-        newErrors[key] = false;
-      }
-    });
-
-    newErrors.fname = (form.fname || '').length < 3;
-    newErrors.lname = (form.lname || '').length < 3;
-    newErrors.phone = (form.phone || '').toString().length <= 9;
+    const newErrors = {
+      fname: (form.fname || '').length < 3,
+      lname: (form.lname || '').length < 3,
+      phone: (form.phone || '').toString().length <= 9,
+      dob: false,
+      gender: false,
+    };
     setErrors(newErrors);
 
     if (!Object.values(newErrors).some(error => error)) {
@@ -150,6 +145,7 @@ const EditProfile = ({navigation}) => {
                 value={form.gender}
                 setValue={value => {
                   updateFormValue({name: 'gender', value});
+                  setDropdown(false);
                 }}
                 list={[
                   {label: 'Male', value: 'Male'},
