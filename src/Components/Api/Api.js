@@ -13,6 +13,7 @@ const useApi = () => {
       let reqHeaders = {};
       if (token) {
         reqHeaders['x-auth-token'] = token;
+        reqHeaders['Authorization'] = `Bearer ${token}`;
       }
       let reqData = data;
       
