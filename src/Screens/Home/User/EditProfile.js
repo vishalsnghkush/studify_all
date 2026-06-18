@@ -4,7 +4,7 @@ import {Screen} from '../../../Components/Screen';
 import {TextInput, Button} from '../../../Components/Input';
 import useApi from '../../../Components/Api/Api';
 import {ActivityIndicator, useTheme} from 'react-native-paper';
-import {useDispatch} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
 import {setUser} from '../../../Redux/Slices/InitialSlice';
 import {useMutation} from '@tanstack/react-query';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
@@ -13,6 +13,7 @@ const EditProfile = ({navigation}) => {
   const {colors} = useTheme();
   const {get, put, post} = useApi();
   const [user, setUserState] = useState();
+  const {user: reduxUser} = useSelector(state => state.initial);
   const dispatch = useDispatch();
   const [dropdown, setDropdown] = useState(false);
   const [form, setForm] = useState({
@@ -32,15 +33,35 @@ const EditProfile = ({navigation}) => {
 
   useEffect(() => {
     const getUser = async () => {
-      const res = await get('/user');
-      setUserState(res.data);
-      setForm({
-        fname: res.data.fname || '',
-        lname: res.data.lname || '',
-        phone: res.data.phone || '',
-        dob: res.data.dob || '',
-        gender: res.data.gender || '',
-      });
+      try {
+        const res = await get('/user');
+        if (res && res.data) {
+          setUserState(res.data);
+          setForm({
+            fname: res.data.fname || '',
+            lname: res.data.lname || '',
+            phone: res.data.phone || '',
+            dob: res.data.dob || '',
+            gender: res.data.gender || '',
+          });
+        } else {
+          fallbackToRedux();
+        }
+      } catch (err) {
+        fallbackToRedux();
+      }
+    };
+    const fallbackToRedux = () => {
+      if (reduxUser) {
+        setUserState(reduxUser);
+        setForm({
+          fname: reduxUser.fname || '',
+          lname: reduxUser.lname || '',
+          phone: reduxUser.phone || '',
+          dob: reduxUser.dob || '',
+          gender: reduxUser.gender || '',
+        });
+      }
     };
     getUser();
   }, []);
