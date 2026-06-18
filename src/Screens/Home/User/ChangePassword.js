@@ -31,7 +31,7 @@ const ChangePassword = ({navigation}) => {
         }),
       ),
     onSuccess: res => {
-      if (res.status === 200) navigation.goBack();
+      if (res) navigation.goBack();
     },
   });
 
