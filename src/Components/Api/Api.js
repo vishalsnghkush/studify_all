@@ -1,12 +1,14 @@
 import axios from 'axios';
 import FlashMessage from '../Screen/FlashMessage';
-import { useSelector } from 'react-redux';
+import { Store } from '../../Utils/Store';
 
 const useApi = () => {
-  const { token } = useSelector(state => state.initial) || {};
 
   const request = async (method, endpoint, data = {}, params = {}) => {
     try {
+      const state = Store.getState();
+      const token = state.initial?.token;
+      
       let reqMethod = method;
       let reqHeaders = {};
       if (token) {

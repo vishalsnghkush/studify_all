@@ -82,7 +82,7 @@ const EditProfile = ({navigation}) => {
   };
 
   const {mutate, isPending} = useMutation({
-    mutationFn: data => post('/user', data),
+    mutationFn: data => put('/user', data),
     onSuccess: res => {
       if (res) {
         const updatedUser = res.data?.fname ? res.data : {
