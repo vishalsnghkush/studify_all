@@ -25,8 +25,11 @@ function InputText({
 
   const updateInputValue = val => {
     setValue(val);
-    updateFormValue({name, value: val});
-  };
+    if (updateFormValue) {
+        updateFormValue({name, value: val});
+    }
+};
+
   return (
     <TextInput
       mode="outlined"
