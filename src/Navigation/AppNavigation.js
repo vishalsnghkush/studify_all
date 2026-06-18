@@ -35,8 +35,9 @@ import Internship from '../Screens/Home/User/Internship';
 const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
 const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
 
+const Stack = createStackNavigator();
+
 const AppNavigation = () => {
-  const Stack = createStackNavigator();
   return (
     <Stack.Navigator
       screenOptions={{
