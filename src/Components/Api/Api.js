@@ -1,10 +1,17 @@
 import axios from 'axios';
 import FlashMessage from '../Screen/FlashMessage';
+import { useSelector } from 'react-redux';
+
 const useApi = () => {
+  const { token } = useSelector(state => state.initial) || {};
+
   const request = async (method, endpoint, data = {}, params = {}) => {
     try {
       let reqMethod = method;
       let reqHeaders = {};
+      if (token) {
+        reqHeaders['x-auth-token'] = token;
+      }
       let reqData = data;
       
       if (method === 'PUT' || method === 'DELETE') {
