@@ -182,7 +182,7 @@ const App = () => {
         unsubscribeFore?.();
       } catch (e) {}
     };
-  }, [isUserLoggedIn]);
+  }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
     if (data?.screen === 'Chat') {

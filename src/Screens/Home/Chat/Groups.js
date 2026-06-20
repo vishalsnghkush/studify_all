@@ -19,12 +19,37 @@ const Groups = () => {
   const {groups} = useSelector(state => state.chat);
   const [query, setQuery] = useState('');
   const dispatch = useDispatch();
+
+  const displayGroups = useMemo(() => {
+    if (!groups || groups.length === 0) {
+      return [
+        {
+          chat_group_id: 'mock_group_1',
+          display_name: 'Test Student: Shreya Agarwal',
+          lastMessage: 'Hello, I have a doubt in Physics Chapter 2.',
+          unread_count: 1,
+          is_group: 0,
+          receiver_id: 'student_123',
+        },
+        {
+          chat_group_id: 'mock_group_2',
+          display_name: 'Grade 10 Maths Batch',
+          lastMessage: 'Ankit Budhori: Homework has been uploaded.',
+          unread_count: 0,
+          is_group: 1,
+          receiver_id: 'group_456',
+        }
+      ];
+    }
+    return groups;
+  }, [groups]);
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return groups;
-    return groups.filter(c =>
+    if (!query.trim()) return displayGroups;
+    return displayGroups.filter(c =>
       c.display_name.toLowerCase().includes(query.trim().toLowerCase()),
     );
-  }, [query, groups]);
+  }, [query, displayGroups]);
 
   const handlePress = item => {
     navigation.navigate('Chat', {

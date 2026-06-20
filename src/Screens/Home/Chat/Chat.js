@@ -54,7 +54,9 @@ const Chat = ({route}) => {
       fetchChats();
       newTopic = `chat/${[currentUserId, data.receiver_id].sort().join('-')}`;
     }
-    client.subscribe(newTopic);
+    if (client) {
+      client.subscribe(newTopic);
+    }
     if (unreadRef.current > 0) {
       setTimeout(() => {
         try {
@@ -63,7 +65,9 @@ const Chat = ({route}) => {
       }, 1000);
     }
     return () => {
-      client.unsubscribe(newTopic);
+      if (client) {
+        client.unsubscribe(newTopic);
+      }
     };
   }, []);
 
@@ -75,6 +79,29 @@ const Chat = ({route}) => {
         }
         loadingMoreRef.current = true;
         setLoadingMore(true);
+      }
+
+      if (data?.chat_group_id?.toString().startsWith('mock_')) {
+        const mockChats = [
+          {
+            id: 'mock_msg_1',
+            created_at: new Date(Date.now() - 3600000).toISOString(),
+            message: 'Hello! I am having some doubts in Chapter 2 Physics.',
+            media_url: '',
+            message_type: 'text',
+            sender_id: 'student_123',
+          },
+          {
+            id: 'mock_msg_2',
+            created_at: new Date(Date.now() - 1800000).toISOString(),
+            message: 'Could you please help me solve question 5 of the exercise?',
+            media_url: '',
+            message_type: 'text',
+            sender_id: 'student_123',
+          }
+        ];
+        dispatch(setMessage(mockChats));
+        return;
       }
 
       const res = await useApi().get(
@@ -115,6 +142,13 @@ const Chat = ({route}) => {
 
   const fetchMembers = async () => {
     try {
+      if (data?.chat_group_id?.toString().startsWith('mock_')) {
+        setMembers({
+          'student_123': 'Shreya Agarwal',
+          [user?.user_id]: 'You (Intern)',
+        });
+        return;
+      }
       const res = await useApi().get(
         `/chat/groups/members/${data?.chat_group_id}`,
       );
