@@ -190,7 +190,11 @@ const App = () => {
     client.connect({
       onSuccess: () => {
         console.log('Connected to MQTT');
-        client.subscribe(`notification/${user?.user_id}`);
+        try {
+          client.subscribe(`notification/${user?.user_id}`);
+        } catch (e) {
+          console.log('MQTT notification subscribe error:', e);
+        }
       },
       useSSL: true, // false for localHost
       onFailure: onFailure,
@@ -201,7 +205,7 @@ const App = () => {
 
     return () => {
       try {
-        mqttClient?.disconnect();
+        client.disconnect();
       } catch (e) {
         console.log('MQTT disconnect error:', e);
       }
