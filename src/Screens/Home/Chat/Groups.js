@@ -1,5 +1,5 @@
 import React, {useMemo, useState, useEffect} from 'react';
-import {FlatList, View} from 'react-native';
+import {FlatList, View, Modal, StyleSheet} from 'react-native';
 import {
   Avatar,
   Badge,
@@ -7,9 +7,13 @@ import {
   useTheme,
   List,
   Divider,
+  FAB,
+  TextInput,
+  Button,
 } from 'react-native-paper';
 import {useSelector, useDispatch} from 'react-redux';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Screen} from '../../../Components/Screen';
 import Text from '../../../Components/Input/Text';
 
@@ -19,30 +23,47 @@ const Groups = () => {
   const {groups} = useSelector(state => state.chat);
   const [query, setQuery] = useState('');
   const dispatch = useDispatch();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newChatName, setNewChatName] = useState('');
+  const [customGroups, setCustomGroups] = useState([]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadCustomGroups = async () => {
+        try {
+          const saved = await AsyncStorage.getItem('custom_groups');
+          if (saved) {
+            setCustomGroups(JSON.parse(saved));
+          }
+        } catch (e) {
+          console.log('Error loading custom groups', e);
+        }
+      };
+      loadCustomGroups();
+    }, [])
+  );
 
   const displayGroups = useMemo(() => {
-    if (!groups || groups.length === 0) {
-      return [
-        {
-          chat_group_id: 'mock_group_1',
-          display_name: 'Test Student: Shreya Agarwal',
-          lastMessage: 'Hello, I have a doubt in Physics Chapter 2.',
-          unread_count: 1,
-          is_group: 0,
-          receiver_id: 'student_123',
-        },
-        {
-          chat_group_id: 'mock_group_2',
-          display_name: 'Grade 10 Maths Batch',
-          lastMessage: 'Ankit Budhori: Homework has been uploaded.',
-          unread_count: 0,
-          is_group: 1,
-          receiver_id: 'group_456',
-        }
-      ];
-    }
-    return groups;
-  }, [groups]);
+    const baseGroups = groups && groups.length > 0 ? groups : [
+      {
+        chat_group_id: 'mock_group_1',
+        display_name: 'Test Student: Shreya Agarwal',
+        lastMessage: 'Hello, I have a doubt in Physics Chapter 2.',
+        unread_count: 1,
+        is_group: 0,
+        receiver_id: 'student_123',
+      },
+      {
+        chat_group_id: 'mock_group_2',
+        display_name: 'Grade 10 Maths Batch',
+        lastMessage: 'Ankit Budhori: Homework has been uploaded.',
+        unread_count: 0,
+        is_group: 1,
+        receiver_id: 'group_456',
+      }
+    ];
+    return [...customGroups, ...baseGroups];
+  }, [groups, customGroups]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return displayGroups;
@@ -50,6 +71,30 @@ const Groups = () => {
       c.display_name.toLowerCase().includes(query.trim().toLowerCase()),
     );
   }, [query, displayGroups]);
+
+  const handleStartChat = async () => {
+    if (!newChatName.trim()) return;
+    const newChat = {
+      chat_group_id: `mock_custom_${Date.now()}`,
+      display_name: newChatName.trim(),
+      lastMessage: 'Chat started',
+      unread_count: 0,
+      is_group: 0,
+      receiver_id: `user_${Date.now()}`,
+    };
+    const updated = [newChat, ...customGroups];
+    setCustomGroups(updated);
+    try {
+      await AsyncStorage.setItem('custom_groups', JSON.stringify(updated));
+    } catch (e) {
+      console.log('Error saving custom groups', e);
+    }
+    setNewChatName('');
+    setModalVisible(false);
+    navigation.navigate('Chat', {
+      data: newChat,
+    });
+  };
 
   const handlePress = item => {
     navigation.navigate('Chat', {
@@ -104,7 +149,7 @@ const Groups = () => {
         data={filtered}
         keyExtractor={item => item.chat_group_id.toString()}
         renderItem={renderItem}
-        contentContainerStyle={{paddingBottom: 40}}
+        contentContainerStyle={{paddingBottom: 80}}
         ListEmptyComponent={() => (
           <View style={{marginTop: 60, alignItems: 'center'}}>
             <Text size="medium" style={{color: colors.onSurfaceVariant}}>
@@ -114,8 +159,78 @@ const Groups = () => {
         )}
         showsVerticalScrollIndicator={false}
       />
+      <FAB
+        icon="plus"
+        style={{
+          position: 'absolute',
+          margin: 16,
+          right: 0,
+          bottom: 0,
+          backgroundColor: colors.primary,
+        }}
+        color={colors.onPrimary}
+        onPress={() => setModalVisible(true)}
+      />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.elevation.level3}]}>
+            <Text size="medium" style={{fontWeight: 'bold', color: colors.onSurface, marginBottom: 15}}>
+              Start New Conversation
+            </Text>
+            <TextInput
+              label="Student or Group Name"
+              value={newChatName}
+              onChangeText={setNewChatName}
+              mode="outlined"
+              style={{width: '100%', marginBottom: 20}}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <Button mode="text" onPress={() => { setModalVisible(false); setNewChatName(''); }}>
+                Cancel
+              </Button>
+              <Button mode="contained" onPress={handleStartChat} disabled={!newChatName.trim()}>
+                Start Chat
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    width: '100%',
+    gap: 10,
+  },
+});
 
 export default Groups;

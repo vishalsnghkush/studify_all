@@ -22,6 +22,7 @@ import {
   onSelectGroup,
 } from '../../../Redux/Slices/ChatSlice';
 import Notifee from '@notifee/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Chat = ({route}) => {
   const {data} = route?.params || {};
@@ -54,7 +55,7 @@ const Chat = ({route}) => {
       fetchChats();
       newTopic = `chat/${[currentUserId, data.receiver_id].sort().join('-')}`;
     }
-    if (client) {
+    if (client && client.isConnected()) {
       client.subscribe(newTopic);
     }
     if (unreadRef.current > 0) {
@@ -65,7 +66,7 @@ const Chat = ({route}) => {
       }, 1000);
     }
     return () => {
-      if (client) {
+      if (client && client.isConnected()) {
         client.unsubscribe(newTopic);
       }
     };
@@ -82,25 +83,49 @@ const Chat = ({route}) => {
       }
 
       if (data?.chat_group_id?.toString().startsWith('mock_')) {
-        const mockChats = [
-          {
-            id: 'mock_msg_1',
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-            message: 'Hello! I am having some doubts in Chapter 2 Physics.',
-            media_url: '',
-            message_type: 'text',
-            sender_id: 'student_123',
-          },
-          {
-            id: 'mock_msg_2',
-            created_at: new Date(Date.now() - 1800000).toISOString(),
-            message: 'Could you please help me solve question 5 of the exercise?',
-            media_url: '',
-            message_type: 'text',
-            sender_id: 'student_123',
+        try {
+          const savedChatsStr = await AsyncStorage.getItem(`chat_history_${data.chat_group_id}`);
+          if (savedChatsStr) {
+            dispatch(setMessage(JSON.parse(savedChatsStr)));
+          } else {
+            let defaultChats = [];
+            if (data.chat_group_id === 'mock_group_1') {
+              defaultChats = [
+                {
+                  id: 'mock_msg_1',
+                  created_at: new Date(Date.now() - 3600000).toISOString(),
+                  message: 'Hello! I am having some doubts in Chapter 2 Physics.',
+                  media_url: '',
+                  message_type: 'text',
+                  sender_id: 'student_123',
+                },
+                {
+                  id: 'mock_msg_2',
+                  created_at: new Date(Date.now() - 1800000).toISOString(),
+                  message: 'Could you please help me solve question 5 of the exercise?',
+                  media_url: '',
+                  message_type: 'text',
+                  sender_id: 'student_123',
+                }
+              ];
+            } else if (data.chat_group_id === 'mock_group_2') {
+              defaultChats = [
+                {
+                  id: 'mock_msg_3',
+                  created_at: new Date(Date.now() - 3600000).toISOString(),
+                  message: 'Welcome to the Grade 10 Maths Batch! Please check the syllabus in the documents section.',
+                  media_url: '',
+                  message_type: 'text',
+                  sender_id: 'group_456',
+                }
+              ];
+            }
+            dispatch(setMessage(defaultChats));
+            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify(defaultChats));
           }
-        ];
-        dispatch(setMessage(mockChats));
+        } catch (e) {
+          console.log('Error loading mock history', e);
+        }
         return;
       }
 
@@ -245,6 +270,31 @@ const Chat = ({route}) => {
         };
         dispatch(addMessage(optimistic));
         messageIdsRef.current.add(tempId);
+
+        if (data?.chat_group_id?.toString().startsWith('mock_')) {
+          try {
+            const savedChatsStr = await AsyncStorage.getItem(`chat_history_${data.chat_group_id}`);
+            const savedChats = savedChatsStr ? JSON.parse(savedChatsStr) : [];
+            const updatedChats = [optimistic, ...savedChats];
+            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify(updatedChats));
+
+            // Update the lastMessage in custom_groups list
+            const savedGroupsStr = await AsyncStorage.getItem('custom_groups');
+            if (savedGroupsStr) {
+              const savedGroups = JSON.parse(savedGroupsStr);
+              const updatedGroups = savedGroups.map(g => {
+                if (g.chat_group_id === data.chat_group_id) {
+                  return { ...g, lastMessage: trimmed || '[Media]' };
+                }
+                return g;
+              });
+              await AsyncStorage.setItem('custom_groups', JSON.stringify(updatedGroups));
+            }
+          } catch (e) {
+            console.log('Error saving mock message', e);
+          }
+        }
+
         if (client?.isConnected()) {
           const payload = JSON.stringify({
             chat_group_id: data?.chat_group_id,
