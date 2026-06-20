@@ -8,6 +8,7 @@ import {setUserLogout, setTheme, setUser} from '../../../Redux/Slices/InitialSli
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import InAppReview from '../../../Components/Screen/InAppReview';
 import {removeFcmToken} from '../../../Components/Api/CheckAuth';
+import useApi from '../../../Components/Api/Api';
 
 const Profile = ({navigation}) => {
   const dispatch = useDispatch();
@@ -18,12 +19,19 @@ const Profile = ({navigation}) => {
     dispatch(setTheme());
     setIsSwitchOn(!isSwitchOn);
   };
-  const onToggleIntern = () => {
-    const updatedUser = {
-      ...user,
-      is_intern: !user?.is_intern,
-    };
-    dispatch(setUser(updatedUser));
+  const onToggleIntern = async () => {
+    const nextValue = !user?.is_intern;
+    try {
+      // Optimistically update the UI locally
+      dispatch(setUser({ ...user, is_intern: nextValue }));
+      
+      // Update the database remotely
+      await useApi().post('/user', { is_intern: nextValue });
+    } catch (err) {
+      console.log('Failed to update intern role in DB, reverting changes', err);
+      // Revert the local changes on failure
+      dispatch(setUser({ ...user, is_intern: !nextValue }));
+    }
   };
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>

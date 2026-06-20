@@ -151,8 +151,24 @@ const Sign_up = ({navigation}) => {
   }, []);
 
   const showCalender = () => {
+    let initialDate = new Date();
+    if (form.dob) {
+      const parts = form.dob.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          initialDate = new Date(year, month, day);
+        }
+      }
+    } else {
+      // Default to 18 years ago if no DOB has been entered yet
+      initialDate.setFullYear(initialDate.getFullYear() - 18);
+    }
+
     DateTimePickerAndroid.open({
-      value: new Date(),
+      value: initialDate,
       onChange: (e, date) => {
         Keyboard.dismiss();
         if (date) {
