@@ -57,13 +57,14 @@ const Groups = () => {
 
   const handleStartChat = async () => {
     if (!newChatName.trim()) return;
+    const sanitizedName = newChatName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
     const newChat = {
-      chat_group_id: `mock_custom_${Date.now()}`,
+      chat_group_id: `mock_custom_${sanitizedName}`,
       display_name: newChatName.trim(),
       lastMessage: 'Chat started',
       unread_count: 0,
-      is_group: 0,
-      receiver_id: `user_${Date.now()}`,
+      is_group: 1,
+      receiver_id: `group_${sanitizedName}`,
     };
     const updated = [newChat, ...customGroups];
     setCustomGroups(updated);

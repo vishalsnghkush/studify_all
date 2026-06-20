@@ -170,14 +170,10 @@ const Chat = ({route}) => {
       const isCurrentUser = senderId === currentUserId;
 
       let displayName = 'User';
-      if (data?.is_group) {
-        displayName = isCurrentUser
-          ? user?.fname || user?.email || 'You'
-          : members?.[senderId] || 'Member';
+      if (isCurrentUser) {
+        displayName = user?.fname || user?.email || 'You';
       } else {
-        displayName = isCurrentUser
-          ? user?.fname || user?.email || 'You'
-          : data?.display_name || 'User';
+        displayName = c.sender_name || data?.display_name || 'Member';
       }
       return {
         _id: c.id,
@@ -267,6 +263,7 @@ const Chat = ({route}) => {
           const payload = JSON.stringify({
             chat_group_id: data?.chat_group_id,
             sender_id: currentUserId,
+            sender_name: user?.fname || user?.email || 'Intern',
             receiver_id: data?.receiver_id,
             message: text ? trimmed : ' ',
             message_type: type,

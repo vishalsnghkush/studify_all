@@ -63,16 +63,12 @@ export default function BottomNavigation() {
         />
         <Tab.Screen
           name="GroupsOrQuiz"
-          component={user?.is_intern ? Groups : OnlineQuiz}
+          component={Groups}
           options={{
-            title: user?.is_intern ? 'Chat' : 'Quiz',
+            title: 'Chat',
             tabBarIcon: ({focused}) => (
               <Micon
-                name={
-                  user?.is_intern
-                    ? (focused ? 'chat' : 'chat-outline')
-                    : (focused ? 'chat-question' : 'chat-question-outline')
-                }
+                name={focused ? 'chat' : 'chat-outline'}
                 size={23}
                 color={
                   focused ? theme.colors.primary : theme.colors.onSurfaceVariant
