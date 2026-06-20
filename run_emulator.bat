@@ -1,5 +1,5 @@
 @echo off
 cd /d "%LOCALAPPDATA%\Android\Sdk\emulator"
-echo Starting Android Emulator: Medium_Phone_API_36.1 (SwiftShader)...
-emulator -avd Medium_Phone_API_36.1 -no-snapshot-load -gpu swiftshader
+echo Starting Android Emulator: Pixel_9_api35 (SwiftShader)...
+emulator -avd Pixel_9_api35 -no-snapshot-load -gpu swiftshader
 pause

@@ -15,10 +15,12 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useTheme} from 'react-native-paper';
+import {useSelector} from 'react-redux';
 
 const Home = () => {
   const navigation = useNavigation();
   const {colors, dark} = useTheme();
+  const {user} = useSelector(state => state.initial);
 
   // Animations for AI Bot
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -581,7 +583,10 @@ const Home = () => {
             </View>
             <View style={styles.statTextContainer}>
               <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
-                5 Days
+                {(() => {
+                  const count = user?.streak_count || user?.streak || user?.login_streak || 1;
+                  return `${count} ${count === 1 ? 'Day' : 'Days'}`;
+                })()}
               </Text>
               <Text
                 style={[
