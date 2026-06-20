@@ -22,7 +22,6 @@ import {
   onSelectGroup,
 } from '../../../Redux/Slices/ChatSlice';
 import Notifee from '@notifee/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Chat = ({route}) => {
   const {data} = route?.params || {};
@@ -90,21 +89,6 @@ const Chat = ({route}) => {
         setLoadingMore(true);
       }
 
-      if (data?.chat_group_id?.toString().startsWith('mock_')) {
-        try {
-          const savedChatsStr = await AsyncStorage.getItem(`chat_history_${data.chat_group_id}`);
-          if (savedChatsStr) {
-            dispatch(setMessage(JSON.parse(savedChatsStr)));
-          } else {
-            dispatch(setMessage([]));
-            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify([]));
-          }
-        } catch (e) {
-          console.log('Error loading mock history', e);
-        }
-        return;
-      }
-
       const res = await useApi().get(
         `/chat/chats/${data?.chat_group_id}?offset=${offsetRef.current}`,
       );
@@ -143,13 +127,6 @@ const Chat = ({route}) => {
 
   const fetchMembers = async () => {
     try {
-      if (data?.chat_group_id?.toString().startsWith('mock_')) {
-        setMembers({
-          'student_123': 'Shreya Agarwal',
-          [user?.user_id]: 'You (Intern)',
-        });
-        return;
-      }
       const res = await useApi().get(
         `/chat/groups/members/${data?.chat_group_id}`,
       );
@@ -178,10 +155,14 @@ const Chat = ({route}) => {
       const isCurrentUser = senderId === currentUserId;
 
       let displayName = 'User';
-      if (isCurrentUser) {
-        displayName = user?.fname || user?.email || 'You';
+      if (data?.is_group) {
+        displayName = isCurrentUser
+          ? user?.fname || user?.email || 'You'
+          : members?.[senderId] || 'Member';
       } else {
-        displayName = c.sender_name || data?.display_name || 'Member';
+        displayName = isCurrentUser
+          ? user?.fname || user?.email || 'You'
+          : data?.display_name || 'User';
       }
       return {
         _id: c.id,
@@ -242,30 +223,6 @@ const Chat = ({route}) => {
         };
         dispatch(addMessage(optimistic));
         messageIdsRef.current.add(tempId);
-
-        if (data?.chat_group_id?.toString().startsWith('mock_')) {
-          try {
-            const savedChatsStr = await AsyncStorage.getItem(`chat_history_${data.chat_group_id}`);
-            const savedChats = savedChatsStr ? JSON.parse(savedChatsStr) : [];
-            const updatedChats = [optimistic, ...savedChats];
-            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify(updatedChats));
-
-            // Update the lastMessage in custom_groups list
-            const savedGroupsStr = await AsyncStorage.getItem('custom_groups');
-            if (savedGroupsStr) {
-              const savedGroups = JSON.parse(savedGroupsStr);
-              const updatedGroups = savedGroups.map(g => {
-                if (g.chat_group_id === data.chat_group_id) {
-                  return { ...g, lastMessage: trimmed || '[Media]' };
-                }
-                return g;
-              });
-              await AsyncStorage.setItem('custom_groups', JSON.stringify(updatedGroups));
-            }
-          } catch (e) {
-            console.log('Error saving mock message', e);
-          }
-        }
 
         if (client?.isConnected()) {
           const payload = JSON.stringify({

@@ -127,46 +127,17 @@ const App = () => {
         currentScreen?.params?.data?.chat_group_id,
       );
       if (topic !== `notification/${user?.user_id}`) {
-        const receivedMsg = {
-          id: data.id || `msg-${Date.now()}`,
-          created_at: data.created_at || new Date().toISOString(),
-          message_type: data.message_type || 'text',
-          message: data.message,
-          media_url: data.media_url,
-          sender_id: data.sender_id,
-          sender_name: data.sender_name,
-        };
-        dispatch(addMessage(receivedMsg));
-
-        if (topic.startsWith('chat/mock_')) {
-          const groupId = topic.replace('chat/', '');
-          const saveReceivedMsg = async () => {
-            try {
-              const savedChatsStr = await AsyncStorage.getItem(`chat_history_${groupId}`);
-              const savedChats = savedChatsStr ? JSON.parse(savedChatsStr) : [];
-              if (!savedChats.some(c => c.id === receivedMsg.id)) {
-                const updatedChats = [receivedMsg, ...savedChats];
-                await AsyncStorage.setItem(`chat_history_${groupId}`, JSON.stringify(updatedChats));
-
-                // Update the lastMessage in custom_groups list
-                const savedGroupsStr = await AsyncStorage.getItem('custom_groups');
-                if (savedGroupsStr) {
-                  const savedGroups = JSON.parse(savedGroupsStr);
-                  const updatedGroups = savedGroups.map(g => {
-                    if (g.chat_group_id === groupId) {
-                      return { ...g, lastMessage: data.message || '[Media]' };
-                    }
-                    return g;
-                  });
-                  await AsyncStorage.setItem('custom_groups', JSON.stringify(updatedGroups));
-                }
-              }
-            } catch (e) {
-              console.log('Error saving received message', e);
-            }
-          };
-          saveReceivedMsg();
-        }
+        dispatch(
+          addMessage({
+            id: data.id || Date.now(),
+            created_at: data.created_at || new Date().toISOString(),
+            message_type: data.message_type || 'text',
+            message: data.message,
+            media_url: data.media_url,
+            sender_id: data.sender_id,
+            sender_name: data.sender_name,
+          }),
+        );
       } else {
         if (currentScreen?.params?.data?.chat_group_id == data?.chat_group_id)
           return;
