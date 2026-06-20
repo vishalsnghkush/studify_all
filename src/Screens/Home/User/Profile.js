@@ -25,8 +25,42 @@ const Profile = ({navigation}) => {
       // Optimistically update the UI locally
       dispatch(setUser({ ...user, is_intern: nextValue }));
       
-      // Update the database remotely
-      await useApi().post('/user', { is_intern: nextValue });
+      // Update the database remotely by trying candidate endpoints
+      const endpoints = [
+        { method: 'PUT', url: '/user' },
+        { method: 'POST', url: '/user/update' },
+        { method: 'POST', url: '/user/updateProfile' },
+        { method: 'POST', url: '/user/update_profile' },
+        { method: 'PUT', url: '/user/update' },
+        { method: 'PUT', url: '/user/updateProfile' },
+        { method: 'POST', url: '/user/edit' },
+        { method: 'POST', url: '/user/editProfile' },
+        { method: 'POST', url: '/auth/updateProfile' },
+        { method: 'POST', url: '/user' }
+      ];
+      
+      let success = false;
+      for (const ep of endpoints) {
+        try {
+          if (ep.method === 'PUT') {
+            await useApi().put(ep.url, { is_intern: nextValue }, { skipErrorFlash: true, skipSuccessFlash: true });
+          } else {
+            await useApi().post(ep.url, { is_intern: nextValue }, { skipErrorFlash: true, skipSuccessFlash: true });
+          }
+          success = true;
+          console.log(`Successfully updated intern status via ${ep.method} ${ep.url}`);
+          break;
+        } catch (err) {
+          if (err.response?.status === 404 || err.response?.status === 405) {
+            continue; // Try next endpoint
+          }
+          throw err; // Real error, propagate
+        }
+      }
+      
+      if (!success) {
+        throw new Error('All candidate endpoints returned 404 or 405');
+      }
     } catch (err) {
       console.log('Failed to update intern role in DB, reverting changes', err);
       // Revert the local changes on failure
@@ -85,11 +119,12 @@ const Profile = ({navigation}) => {
           title="Dark Mode"
           leftIcon="weather-night"
           rightIcon={
-            <Switch
-              value={isSwitchOn}
-              onValueChange={onToggleSwitch}
-              trackColor={{false: '#afafaf81'}}
-            />
+            <View pointerEvents="none">
+              <Switch
+                value={isSwitchOn}
+                trackColor={{false: '#afafaf81'}}
+              />
+            </View>
           }
           onPress={onToggleSwitch}
         />
@@ -97,11 +132,12 @@ const Profile = ({navigation}) => {
           title="Intern Role"
           leftIcon="briefcase"
           rightIcon={
-            <Switch
-              value={user?.is_intern || false}
-              onValueChange={onToggleIntern}
-              trackColor={{false: '#afafaf81'}}
-            />
+            <View pointerEvents="none">
+              <Switch
+                value={user?.is_intern || false}
+                trackColor={{false: '#afafaf81'}}
+              />
+            </View>
           }
           onPress={onToggleIntern}
         />

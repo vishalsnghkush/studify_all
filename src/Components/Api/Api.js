@@ -5,6 +5,8 @@ import { Store } from '../../Utils/Store';
 const useApi = () => {
 
   const request = async (method, endpoint, data = {}, params = {}) => {
+    const skipErrorFlash = params?.skipErrorFlash;
+    const skipSuccessFlash = params?.skipSuccessFlash;
     try {
       const state = Store.getState();
       const token = state.initial?.token;
@@ -25,14 +27,16 @@ const useApi = () => {
         }
       }
       
+      const { skipErrorFlash: _, skipSuccessFlash: __, ...axiosParams } = params;
+      
       const response = await axios({
         method: reqMethod,
         url: endpoint,
         data: reqData,
-        params,
+        params: axiosParams,
         headers: reqHeaders,
       });
-      if (response.data.message) {
+      if (response.data.message && !skipSuccessFlash) {
         FlashMessage({
           message: response.data.message,
           type: 'success',
@@ -40,16 +44,18 @@ const useApi = () => {
       }
       return response.data;
     } catch (error) {
-      if (error.response?.data?.message) {
-        FlashMessage({
-          message: error.response.data.message,
-          type: 'danger',
-        });
-      } else {
-        FlashMessage({
-          message: error.message || 'Something went wrong',
-          type: 'danger',
-        });
+      if (!skipErrorFlash) {
+        if (error.response?.data?.message) {
+          FlashMessage({
+            message: error.response.data.message,
+            type: 'danger',
+          });
+        } else {
+          FlashMessage({
+            message: error.message || 'Something went wrong',
+            type: 'danger',
+          });
+        }
       }
       console.log('useapi error', error.response?.data || error.message);
       console.log('failed request config:', {

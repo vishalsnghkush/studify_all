@@ -2,8 +2,8 @@ import {createDrawerNavigator} from '@react-navigation/drawer';
 import {BottomNavigation} from './index';
 import {DrawerComponent} from '../Components/Navigation';
 import {useTheme, Icon} from 'react-native-paper';
+const Drawer = createDrawerNavigator();
 const DrawerNavigation = () => {
-  const Drawer = createDrawerNavigator();
   const theme = useTheme();
   return (
     <Drawer.Navigator

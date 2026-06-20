@@ -9,8 +9,9 @@ import {useSelector} from 'react-redux';
 import Groups from '../Screens/Home/Chat/Groups';
 import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
 
+const Tab = createMaterialBottomTabNavigator();
+
 export default function BottomNavigation() {
-  const Tab = createMaterialBottomTabNavigator();
   const theme = useTheme();
   const {bottom} = useSafeAreaInsets();
   const {user} = useSelector(state => state.initial);
@@ -60,45 +61,26 @@ export default function BottomNavigation() {
             ),
           }}
         />
-        {user?.is_intern ? (
-          <Tab.Screen
-            name="Groups"
-            component={Groups}
-            options={{
-              title: 'Chat',
-              tabBarIcon: ({focused}) => (
-                <Micon
-                  name={focused ? 'chat' : 'chat-outline'}
-                  size={23}
-                  color={
-                    focused
-                      ? theme.colors.primary
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              ),
-            }}
-          />
-        ) : (
-          <Tab.Screen
-            name="OnlineQuiz"
-            component={OnlineQuiz}
-            options={{
-              title: 'Quiz',
-              tabBarIcon: ({focused}) => (
-                <Micon
-                  name={focused ? 'chat-question' : 'chat-question-outline'}
-                  size={23}
-                  color={
-                    focused
-                      ? theme.colors.primary
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              ),
-            }}
-          />
-        )}
+        <Tab.Screen
+          name="GroupsOrQuiz"
+          component={user?.is_intern ? Groups : OnlineQuiz}
+          options={{
+            title: user?.is_intern ? 'Chat' : 'Quiz',
+            tabBarIcon: ({focused}) => (
+              <Micon
+                name={
+                  user?.is_intern
+                    ? (focused ? 'chat' : 'chat-outline')
+                    : (focused ? 'chat-question' : 'chat-question-outline')
+                }
+                size={23}
+                color={
+                  focused ? theme.colors.primary : theme.colors.onSurfaceVariant
+                }
+              />
+            ),
+          }}
+        />
         <Tab.Screen
           name="OnlineTuitions"
           component={OnlineTuitions}
