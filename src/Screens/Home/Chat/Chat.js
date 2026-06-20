@@ -88,40 +88,8 @@ const Chat = ({route}) => {
           if (savedChatsStr) {
             dispatch(setMessage(JSON.parse(savedChatsStr)));
           } else {
-            let defaultChats = [];
-            if (data.chat_group_id === 'mock_group_1') {
-              defaultChats = [
-                {
-                  id: 'mock_msg_1',
-                  created_at: new Date(Date.now() - 3600000).toISOString(),
-                  message: 'Hello! I am having some doubts in Chapter 2 Physics.',
-                  media_url: '',
-                  message_type: 'text',
-                  sender_id: 'student_123',
-                },
-                {
-                  id: 'mock_msg_2',
-                  created_at: new Date(Date.now() - 1800000).toISOString(),
-                  message: 'Could you please help me solve question 5 of the exercise?',
-                  media_url: '',
-                  message_type: 'text',
-                  sender_id: 'student_123',
-                }
-              ];
-            } else if (data.chat_group_id === 'mock_group_2') {
-              defaultChats = [
-                {
-                  id: 'mock_msg_3',
-                  created_at: new Date(Date.now() - 3600000).toISOString(),
-                  message: 'Welcome to the Grade 10 Maths Batch! Please check the syllabus in the documents section.',
-                  media_url: '',
-                  message_type: 'text',
-                  sender_id: 'group_456',
-                }
-              ];
-            }
-            dispatch(setMessage(defaultChats));
-            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify(defaultChats));
+            dispatch(setMessage([]));
+            await AsyncStorage.setItem(`chat_history_${data.chat_group_id}`, JSON.stringify([]));
           }
         } catch (e) {
           console.log('Error loading mock history', e);
