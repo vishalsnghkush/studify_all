@@ -62,7 +62,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.is_intern) return;
     dispatch(fetchChatGroups());
 
     messaging()
@@ -212,7 +212,7 @@ const App = () => {
         unsubscribeFore?.();
       } catch (e) {}
     };
-  }, [isUserLoggedIn, user]);
+  }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
     if (data?.screen === 'Chat') {
