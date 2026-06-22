@@ -1,0 +1,4 @@
+# Enforce mandatory code reviews for critical layout and configuration files
+/src/Components/Navigation/Drawer.js @aditi-malviya666
+/android/app/build.gradle @aditi-malviya666
+/src/app.js @aditi-malviya666

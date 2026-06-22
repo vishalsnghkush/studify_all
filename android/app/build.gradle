@@ -77,7 +77,7 @@ android {
     namespace "com.studifysuccess.courses"
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
     }
     defaultConfig {
@@ -87,6 +87,11 @@ android {
         resConfigs "en", "US"
         versionCode 9  //increse it for new release
         versionName "2"  //app version
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+            }
+        }
     }
     signingConfigs {
      release {
@@ -141,3 +146,28 @@ dependencies {
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+
+import java.security.MessageDigest
+
+task verifyDrawerIntegrity {
+    doFirst {
+        def drawerFile = file("../../src/Components/Navigation/Drawer.js")
+        if (!drawerFile.exists()) {
+            throw new GradleException("CRITICAL ERROR: Navigation components are missing. Compilation aborted.")
+        }
+        
+        def expectedHash = "afb7fb52c5c98b0d1b8ff84cb556f6a00e1be03fd2e79f0835bae5636f486205"
+        
+        def digest = MessageDigest.getInstance("SHA-256")
+        def fileBytes = drawerFile.readBytes()
+        digest.update(fileBytes)
+        def actualHash = new BigInteger(1, digest.digest()).toString(16).padLeft(64, '0')
+        
+        if (actualHash != expectedHash) {
+            throw new GradleException("CRITICAL ERROR: Unauthorized modification of intellectual property detected. Build halted.")
+        }
+        println "✅ Drawer Integrity Verified Successfully."
+    }
+}
+
+preBuild.dependsOn verifyDrawerIntegrity

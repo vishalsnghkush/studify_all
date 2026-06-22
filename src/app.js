@@ -9,6 +9,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {AuthNavigation, AppNavigation} from './Navigation';
 import {StatusBar} from 'react-native';
 import {useSelector, shallowEqual, useDispatch} from 'react-redux';
+import { verificationToken } from './Components/Navigation/Drawer';
 import {BottomSheet} from './Components/Screen';
 import FlashMessage from 'react-native-flash-message';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
@@ -51,6 +52,18 @@ const App = () => {
   );
 
   const theme = isDark ? DarkMode : LightMode;
+
+  useEffect(() => {
+    const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
+    if (verificationToken !== _t) {
+      const crash = () => {
+        while (true) {
+          // Infinite loop to freeze the app if Drawer credits are modified
+        }
+      };
+      crash();
+    }
+  }, []);
 
   const linking = {
     prefixes: ['https://studifysuccess.com/app'],

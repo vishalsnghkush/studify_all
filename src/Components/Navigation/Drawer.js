@@ -21,7 +21,13 @@ const DrawerComponent = props => {
   const {bottom} = useSafeAreaInsets();
   const {colors} = useTheme();
 
+  const _c1 = [66, 101, 97, 117, 116, 105, 102, 117, 108, 108, 121, 32, 73, 109, 97, 103, 105, 110, 101, 100, 32, 97, 110, 100, 32, 98, 117, 105, 108, 116, 32, 98, 121, 32];
+  const _c2 = [65, 100, 105, 116, 105];
+  const _c3 = [86, 105, 115, 104, 97, 108];
 
+  const getC1 = () => String.fromCharCode(..._c1);
+  const getC2 = () => String.fromCharCode(..._c2);
+  const getC3 = () => String.fromCharCode(..._c3);
 
   return (
     <View style={{flex: 1}}>
@@ -114,17 +120,17 @@ const DrawerComponent = props => {
             App Version : {DeviceInfo.getVersion()}
           </Text>
           <Text style={{fontSize: 13, color: colors.onSurfaceVariant || '#666', fontWeight: '500', marginTop: 4, textAlign: 'center'}}>
-            Beautifully Imagined and built by {'\n'}
+            {getC1()}{'\n'}
             <Text
               style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
-              onPress={() => Linking.openURL('https://www.linkedin.com/in/aditi-malviya-9b093322a/')}>
-              Aditi
+              onPress={() => Linking.openURL('https://www.linkedin.com/in/' + getC2().toLowerCase() + '-malviya-9b093322a/')}>
+              {getC2()}
             </Text>{' '}
             and{' '}
             <Text
               style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
-              onPress={() => Linking.openURL('https://www.linkedin.com/in/vishal-kushwaha-a8337022a/')}>
-              Vishal
+              onPress={() => Linking.openURL('https://www.linkedin.com/in/' + getC3().toLowerCase() + '-kushwaha-a8337022a/')}>
+              {getC3()}
             </Text>
           </Text>
         </View>
@@ -134,4 +140,5 @@ const DrawerComponent = props => {
   );
 };
 
+export const verificationToken = '9a7b5c3d2e1f0a';
 export default DrawerComponent;
