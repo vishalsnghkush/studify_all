@@ -11,6 +11,11 @@ const DrawerComponent = props => {
     props.navigation.navigate(nav);
     props.navigation.closeDrawer();
   };
+  const navigateWithParams = (nav, params) => {
+    props.navigation.navigate(nav, params);
+    props.navigation.closeDrawer();
+  };
+
   const {user} = useSelector(state => state.initial);
   const {bottom} = useSafeAreaInsets();
 
@@ -48,6 +53,14 @@ const DrawerComponent = props => {
             label="AI Test Generator"
             icon="brain"
             onPress={() => navigate('TestGenerator')}
+          />
+          <Drawer.Item
+            label="Activities"
+            icon="layers"
+            onPress={() => navigateWithParams('WebView', {
+              url: 'https://activities.studifysuccess.com/',
+              title: 'Activities',
+            })}
           />
           <Drawer.Item
             label="Report Issue or Bug"

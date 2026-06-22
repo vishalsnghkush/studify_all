@@ -13,8 +13,8 @@ const App = () => {
   useEffect(() => {
     SplashScreen.hide();
 
-    // const unsubscribe = messaging().onMessage(onMessageReceived);
-    // return unsubscribe;
+    const unsubscribe = messaging().onMessage(onMessageReceived);
+    return unsubscribe;
   }, []);
 
   return (
