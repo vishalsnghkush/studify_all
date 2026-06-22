@@ -915,6 +915,62 @@ const Home = () => {
           />
         </BouncyButton>
 
+        {/* Counseling System Banner */}
+        <BouncyButton
+          onPress={() =>
+            navigation.navigate('WebView', {
+              url: 'https://counselling.studifysuccess.com/',
+              title: 'Counseling System',
+            })
+          }
+          style={[
+            styles.counselingBanner,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
+          <View style={styles.counselingTextContainer}>
+            <Text
+              style={[
+                styles.counselingSubtitle,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              <Text
+                style={[
+                  styles.subtitleBoldCounseling,
+                  dark && {color: colors.primary},
+                ]}>
+                Guided
+              </Text>{' '}
+              academic & career path
+            </Text>
+            <Text
+              style={[styles.counselingTitle, dark && {color: colors.onSurface}]}>
+              Counseling System
+            </Text>
+            <View
+              style={[
+                styles.counselingBtn,
+                dark && {backgroundColor: colors.primary},
+              ]}>
+              <Text style={styles.counselingBtnText}>Book Session</Text>
+              <Icon
+                name="chevron-right"
+                size={13}
+                color="#ffffff"
+                style={styles.chevronIcon}
+              />
+            </View>
+          </View>
+          <Icon 
+            name="account-voice" 
+            size={48} 
+            color={colors.primary} 
+            style={styles.counselingIcon} 
+          />
+        </BouncyButton>
+
         {/* Internship Banner */}
         <BouncyButton
           onPress={() => navigation.navigate('Internship')}
@@ -972,6 +1028,30 @@ const Home = () => {
                   dark && {color: colors.onSurfaceVariant},
                 ]}>
                 FAQ Center
+              </Text>
+            </BouncyButton>
+
+            <BouncyButton
+              onPress={() =>
+                navigation.navigate('WebView', {
+                  url: 'https://support.studifysuccess.com/',
+                  title: 'Support Portal',
+                })
+              }
+              style={styles.supportIconCol}>
+              <View
+                style={[
+                  styles.supportIconCircle,
+                  dark && {backgroundColor: '#1c2d2d'},
+                ]}>
+                <Icon name="web" size={22} color={colors.primary} />
+              </View>
+              <Text
+                style={[
+                  styles.supportIconText,
+                  dark && {color: colors.onSurfaceVariant},
+                ]}>
+                Web Support
               </Text>
             </BouncyButton>
 
@@ -1651,6 +1731,60 @@ const styles = StyleSheet.create({
   },
   impactRingDark: {
     borderColor: '#00b4b4',
+  },
+  counselingBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#f3e5f5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e1bee7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  counselingTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  counselingSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  counselingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  counselingBtn: {
+    backgroundColor: '#007171',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  counselingBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  counselingIcon: {
+    marginRight: 10,
+  },
+  subtitleBoldCounseling: {
+    fontWeight: 'bold',
   },
 });
 

@@ -63,6 +63,22 @@ const DrawerComponent = props => {
             })}
           />
           <Drawer.Item
+            label="Counseling System"
+            icon="account-group"
+            onPress={() => navigateWithParams('WebView', {
+              url: 'https://counselling.studifysuccess.com/',
+              title: 'Counseling System',
+            })}
+          />
+          <Drawer.Item
+            label="Support Portal"
+            icon="help-circle"
+            onPress={() => navigateWithParams('WebView', {
+              url: 'https://support.studifysuccess.com/',
+              title: 'Support Portal',
+            })}
+          />
+          <Drawer.Item
             label="Report Issue or Bug"
             icon="bug"
             onPress={() => navigate('Appreport')}

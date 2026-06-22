@@ -84,9 +84,10 @@ const AppNavigation = () => {
       <Stack.Screen
         name="WebView"
         component={WebView}
-        options={{
-          headerShown: false,
-        }}
+        options={({route}) => ({
+          title: route?.params?.title || '',
+          headerShown: route?.params?.title ? true : false,
+        })}
       />
       <Stack.Screen
         name="ChangePassword"

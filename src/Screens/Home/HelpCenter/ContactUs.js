@@ -6,6 +6,16 @@ const ContactUs = ({navigation}) => {
     <Screen>
       <View style={{marginTop: 15}}>
         <CardHorizontal
+          title="Support Portal"
+          leftIcon="help-circle"
+          onPress={() => {
+            navigation.navigate('WebView', {
+              url: 'https://support.studifysuccess.com/',
+              title: 'Support Portal',
+            });
+          }}
+        />
+        <CardHorizontal
           title="Customer Service"
           leftIcon="headset"
           onPress={() => {
