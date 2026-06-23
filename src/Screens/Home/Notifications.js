@@ -12,6 +12,7 @@ import {
   markAsRead,
   deleteNotification,
   clearAllNotifications,
+  addNotification,
 } from '../../Utils/NotificationStorage';
 
 const formatTimeElapsed = (timestamp) => {
@@ -101,8 +102,9 @@ const Notifications = () => {
           importance: AndroidImportance.HIGH,
           sound: 'default',
         });
+        const notifId = Date.now().toString();
         await notifee.displayNotification({
-          id: Date.now().toString(),
+          id: notifId,
           title: '👋 hye intern',
           body: 'This is a test notification for the intern.',
           data: {
@@ -121,6 +123,17 @@ const Notifications = () => {
             color: 'teal',
           },
         });
+
+        // Add to local notification storage so it is added to the list in the UI
+        await addNotification({
+          id: notifId,
+          title: '👋 hye intern',
+          body: 'Premium Science Notes for Chapter 4 are now available. Tap to study now!',
+          timestamp: Date.now(),
+          screen: 'ClassNotesSelector',
+          url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
+        });
+
         setTimeout(() => {
           loadNotifications();
         }, 1000);

@@ -12,6 +12,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // App Custom Components
 import {Screen} from '../../Components/Screen';
+import {useDispatch} from 'react-redux';
+import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 import {Text, TextInput, Button} from '../../Components/Input';
 import Dropdown from '../../Components/Input/Dropdown';
 import {Confetti} from '../../Components/Screen/Confetti';
@@ -38,8 +40,12 @@ const isAnswerCorrect = (q, uA) => {
   }
 
   // Find index of selected option in options array
-  const uIndex = q.options ? q.options.findIndex(opt => opt.trim() === cleanUA) : -1;
-  const cIndex = q.options ? q.options.findIndex(opt => opt.trim() === cleanCA) : -1;
+  const uIndex = q.options
+    ? q.options.findIndex(opt => opt.trim() === cleanUA)
+    : -1;
+  const cIndex = q.options
+    ? q.options.findIndex(opt => opt.trim() === cleanCA)
+    : -1;
 
   // If both exist in options and refer to the same index
   if (uIndex !== -1 && cIndex !== -1 && uIndex === cIndex) {
@@ -88,7 +94,10 @@ const isAnswerCorrect = (q, uA) => {
   }
 
   // Fallback containment
-  if (cleanUA.toLowerCase().includes(cleanCA.toLowerCase()) || cleanCA.toLowerCase().includes(cleanUA.toLowerCase())) {
+  if (
+    cleanUA.toLowerCase().includes(cleanCA.toLowerCase()) ||
+    cleanCA.toLowerCase().includes(cleanUA.toLowerCase())
+  ) {
     if (cleanCA.length > 2 && cleanUA.length > 2) {
       return true;
     }
@@ -182,6 +191,7 @@ const getSubjectsList = exam => {
 
 export default function TestGenerator() {
   const theme = useTheme();
+  const dispatch = useDispatch();
   // Form State
   const [examName, setExamName] = useState('JEE');
   const [generationType, setGenerationType] = useState('Topic Wise');
@@ -288,7 +298,9 @@ export default function TestGenerator() {
     questions.forEach((q, idx) => {
       const uA = userAnswers[idx];
       const isCorrect = isAnswerCorrect(q, uA);
-      console.log(`ST_DEBUG: Q${idx} userAnswer: "${uA}", correctAnswer: "${q.correctAnswer}", isCorrect: ${isCorrect}`);
+      console.log(
+        `ST_DEBUG: Q${idx} userAnswer: "${uA}", correctAnswer: "${q.correctAnswer}", isCorrect: ${isCorrect}`,
+      );
 
       if (!uA) {
         unattempted++;
@@ -312,7 +324,10 @@ export default function TestGenerator() {
       unattempted,
       maxMarks: questions.length * correctMark,
     };
-    console.log('ST_DEBUG: Calculated score data:', JSON.stringify(calculatedScoreData));
+    console.log(
+      'ST_DEBUG: Calculated score data:',
+      JSON.stringify(calculatedScoreData),
+    );
 
     setScoreData(calculatedScoreData);
     setAppState('results');
@@ -535,6 +550,7 @@ export default function TestGenerator() {
 
       setQuestions(parsedQuestions);
       setAppState('ready');
+      dispatch(triggerActivity('test_generated'));
     } catch (err) {
       console.log('Test generation error', err);
       setError(err.message || 'Failed to generate test. Please try again.');
@@ -902,10 +918,20 @@ export default function TestGenerator() {
   // Results State
   if (appState === 'results') {
     try {
-      console.log('ST_DEBUG: rendering results screen, scoreData:', JSON.stringify(scoreData), 'displayedScore:', displayedScore, 'showConfetti:', showConfetti);
+      console.log(
+        'ST_DEBUG: rendering results screen, scoreData:',
+        JSON.stringify(scoreData),
+        'displayedScore:',
+        displayedScore,
+        'showConfetti:',
+        showConfetti,
+      );
       return (
         <Screen list style={{flex: 1, paddingBottom: 40}}>
-          <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 40}} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={{flex: 1}}
+            contentContainerStyle={{paddingBottom: 40}}
+            keyboardShouldPersistTaps="handled">
             <Text
               style={[styles.title, {color: theme.colors.onBackground}]}
               size="large">
@@ -929,7 +955,10 @@ export default function TestGenerator() {
                     justifyContent: 'center',
                   }}>
                   <RNText
-                    style={[styles.scoreMarksText, {color: theme.colors.primary}]}>
+                    style={[
+                      styles.scoreMarksText,
+                      {color: theme.colors.primary},
+                    ]}>
                     {displayedScore}
                   </RNText>
                   <RNText
@@ -967,7 +996,11 @@ export default function TestGenerator() {
                       Correct
                     </Text>
                     <Text
-                      style={{fontSize: 20, fontWeight: 'bold', color: '#2e7d32'}}>
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: '#2e7d32',
+                      }}>
                       {scoreData.correct}
                     </Text>
                   </View>
@@ -986,7 +1019,11 @@ export default function TestGenerator() {
                       Incorrect
                     </Text>
                     <Text
-                      style={{fontSize: 20, fontWeight: 'bold', color: '#c62828'}}>
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: '#c62828',
+                      }}>
                       {scoreData.incorrect}
                     </Text>
                   </View>
@@ -1047,7 +1084,9 @@ export default function TestGenerator() {
                     {
                       borderColor: isCorrect ? '#81c784' : '#e57373',
                       borderWidth: 2,
-                      backgroundColor: theme.dark ? theme.colors.surface : 'white',
+                      backgroundColor: theme.dark
+                        ? theme.colors.surface
+                        : 'white',
                     },
                   ]}>
                   <Card.Content>
@@ -1079,7 +1118,10 @@ export default function TestGenerator() {
                     </View>
 
                     <Text
-                      style={[styles.questionText, {color: theme.colors.onSurface}]}
+                      style={[
+                        styles.questionText,
+                        {color: theme.colors.onSurface},
+                      ]}
                       size="medium">
                       {q.question}
                     </Text>
@@ -1119,7 +1161,8 @@ export default function TestGenerator() {
                                 style={[
                                   styles.letterCircle,
                                   theme.dark && {
-                                    backgroundColor: theme.colors.elevation.level3,
+                                    backgroundColor:
+                                      theme.colors.elevation.level3,
                                   },
                                   isActualCorrect
                                     ? {backgroundColor: '#2e7d32'}
@@ -1180,10 +1223,13 @@ export default function TestGenerator() {
       console.error('ST_DEBUG: Error rendering results screen:', e);
       return (
         <Screen style={{paddingBottom: 40}}>
-          <Text style={{color: 'red', fontWeight: 'bold', marginBottom: 10}} size="large">
+          <Text
+            style={{color: 'red', fontWeight: 'bold', marginBottom: 10}}
+            size="large">
             Rendering Error: {e.message}
           </Text>
-          <RNText style={{color: 'gray', fontSize: 12, fontFamily: 'monospace'}}>
+          <RNText
+            style={{color: 'gray', fontSize: 12, fontFamily: 'monospace'}}>
             {e.stack}
           </RNText>
           <Button

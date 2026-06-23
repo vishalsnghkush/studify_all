@@ -20,6 +20,8 @@ import {Screen} from '../../Components/Screen';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
+import {useDispatch} from 'react-redux';
+import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 
 // Helper: Format date key for storage (YYYY-MM-DD)
 const formatDateKey = date => {
@@ -75,6 +77,7 @@ const timeStringToMinutes = timeStr => {
 
 const StudyPlanner = () => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('planner'); // 'planner' | 'tasks'
 
   // Selected Date state
@@ -158,6 +161,7 @@ const StudyPlanner = () => {
             return s;
           });
           saveSlots(updated);
+          dispatch(triggerActivity('task_completed'));
 
           // Check if all today's slots are now completed
           const todaySlots = updated.filter(s => {

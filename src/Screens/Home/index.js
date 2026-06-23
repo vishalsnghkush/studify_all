@@ -15,6 +15,7 @@ import StudyPlanner from './StudyPlanner';
 import OnlineTuitions from './OnlineTuitions';
 import ClassNotesSelector from './ClassNotesSelector';
 import PersonalizedLearning from './PersonalizedLearning';
+import GamificationDashboard from './GamificationDashboard';
 
 export {
   Home,
@@ -34,4 +35,5 @@ export {
   OnlineTuitions,
   ClassNotesSelector,
   PersonalizedLearning,
+  GamificationDashboard,
 };

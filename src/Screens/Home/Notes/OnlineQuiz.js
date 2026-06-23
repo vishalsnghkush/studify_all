@@ -11,6 +11,8 @@ import {Text} from '../../../Components/Input';
 import {useNavigation} from '@react-navigation/native';
 import {useTheme} from 'react-native-paper';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {useDispatch} from 'react-redux';
+import {triggerActivity} from '../../../Redux/Slices/GamificationSlice';
 
 const {width} = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 column layout with padding
@@ -18,6 +20,7 @@ const cardWidth = (width - 48) / 2; // 2 column layout with padding
 const OnlineQuiz = () => {
   const navigation = useNavigation();
   const {colors, dark} = useTheme();
+  const dispatch = useDispatch();
 
   const classes = [
     {
@@ -72,6 +75,7 @@ const OnlineQuiz = () => {
   ];
 
   const handlePress = url => {
+    dispatch(triggerActivity('quiz_started'));
     navigation.navigate('WebView', {url});
   };
 

@@ -18,6 +18,7 @@ import {
   OnlineTuitions,
   ClassNotesSelector,
   PersonalizedLearning,
+  GamificationDashboard,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -177,6 +178,11 @@ const AppNavigation = () => {
       <Stack.Screen
         name="Groups"
         component={Groups}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="GamificationDashboard"
+        component={GamificationDashboard}
         options={{headerShown: false}}
       />
       <Stack.Screen

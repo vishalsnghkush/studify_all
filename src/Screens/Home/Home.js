@@ -1,5 +1,9 @@
 import React, {useState, useCallback, useRef, useEffect} from 'react';
-import {Screen, BouncyButton, MascotParticleTrail} from '../../Components/Screen';
+import {
+  Screen,
+  BouncyButton,
+  MascotParticleTrail,
+} from '../../Components/Screen';
 import HomeHeader from '../../Components/Screen/HomeHeader';
 import Banner from '../../Components/Screen/Banner';
 import {
@@ -15,12 +19,22 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useTheme} from 'react-native-paper';
-import {useSelector} from 'react-redux';
+import {useSelector, useDispatch} from 'react-redux';
+import {checkStreak} from '../../Redux/Slices/GamificationSlice';
+import {syncGamificationToFirebase} from '../../Utils/GamificationSync';
 
 const Home = () => {
   const navigation = useNavigation();
   const {colors, dark} = useTheme();
   const {user} = useSelector(state => state.initial);
+  const dispatch = useDispatch();
+  const gamificationState = useSelector(state => state.gamification);
+
+  useEffect(() => {
+    if (user && user.email && gamificationState) {
+      syncGamificationToFirebase(user, gamificationState);
+    }
+  }, [gamificationState, user]);
 
   // Animations for AI Bot
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -57,7 +71,7 @@ const Home = () => {
 
   const [isDizzy, setIsDizzy] = useState(false);
   const isAnimating = useRef(false);
-  
+
   const spinCount = useRef(0);
 
   const startFloat = useCallback(() => {
@@ -142,8 +156,6 @@ const Home = () => {
 
     return () => clearInterval(interval);
   }, [textOpacity, phrases.length]);
-
-
 
   const triggerSpin = () => {
     if (isAnimating.current || isDizzy) {
@@ -510,7 +522,8 @@ const Home = () => {
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [loadDashboardData]),
+      dispatch(checkStreak());
+    }, [loadDashboardData, dispatch]),
   );
 
   // Stats Calculations
@@ -584,7 +597,11 @@ const Home = () => {
             <View style={styles.statTextContainer}>
               <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
                 {(() => {
-                  const count = user?.streak_count || user?.streak || user?.login_streak || 1;
+                  const count =
+                    user?.streak_count ||
+                    user?.streak ||
+                    user?.login_streak ||
+                    1;
                   return `${count} ${count === 1 ? 'Day' : 'Days'}`;
                 })()}
               </Text>
@@ -892,7 +909,10 @@ const Home = () => {
               extracurricular events
             </Text>
             <Text
-              style={[styles.activitiesTitle, dark && {color: colors.onSurface}]}>
+              style={[
+                styles.activitiesTitle,
+                dark && {color: colors.onSurface},
+              ]}>
               Activities
             </Text>
             <View
@@ -946,7 +966,10 @@ const Home = () => {
               academic & career path
             </Text>
             <Text
-              style={[styles.counselingTitle, dark && {color: colors.onSurface}]}>
+              style={[
+                styles.counselingTitle,
+                dark && {color: colors.onSurface},
+              ]}>
               Counseling System
             </Text>
             <View
@@ -963,11 +986,11 @@ const Home = () => {
               />
             </View>
           </View>
-          <Icon 
-            name="account-voice" 
-            size={48} 
-            color={colors.primary} 
-            style={styles.counselingIcon} 
+          <Icon
+            name="account-voice"
+            size={48}
+            color={colors.primary}
+            style={styles.counselingIcon}
           />
         </BouncyButton>
 
