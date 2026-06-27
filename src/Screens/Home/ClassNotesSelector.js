@@ -4,9 +4,9 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Text} from '../../Components/Input';
 import {useNavigation} from '@react-navigation/native';
 import {useTheme} from 'react-native-paper';

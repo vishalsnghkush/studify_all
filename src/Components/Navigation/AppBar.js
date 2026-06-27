@@ -1,10 +1,15 @@
 import {Appbar, IconButton, Searchbar, useTheme} from 'react-native-paper';
 import {Linking} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+
 const CustomAppBar = ({navigation, route, options, back}) => {
   const {colors} = useTheme();
+  const {top} = useSafeAreaInsets();
 
   return (
-    <Appbar.Header style={{backgroundColor: colors.background, elevation: 3}}>
+    <Appbar.Header
+      statusBarHeight={top}
+      style={{backgroundColor: colors.background, elevation: 3}}>
       {back ? (
         // <Appbar.BackAction onPress={navigation.goBack} />
         <IconButton icon="chevron-left" size={29} onPress={navigation.goBack} />

@@ -1,5 +1,6 @@
 import WebView from 'react-native-webview';
-import {StatusBar, View, Linking, Image, SafeAreaView} from 'react-native';
+import {StatusBar, View, Linking, Image} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme} from 'react-native-paper';
 import {useEffect, useState} from 'react';
 import {Button, Text} from '../../Components/Input';

@@ -1,11 +1,6 @@
 import React, {useState, useCallback} from 'react';
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native';
+import {StyleSheet, View, ScrollView, TouchableOpacity} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Text} from '../../Components/Input';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {useTheme, Card, ProgressBar} from 'react-native-paper';

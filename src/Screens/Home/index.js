@@ -13,9 +13,13 @@ import Search from './Search';
 import TestGenerator from './TestGenerator';
 import StudyPlanner from './StudyPlanner';
 import OnlineTuitions from './OnlineTuitions';
+import OfflineTuitions from './OfflineTuitions';
 import ClassNotesSelector from './ClassNotesSelector';
 import PersonalizedLearning from './PersonalizedLearning';
 import GamificationDashboard from './GamificationDashboard';
+import Careers from './Careers';
+import Activities from './Activities';
+import Counselling from './Counselling';
 
 export {
   Home,
@@ -33,7 +37,11 @@ export {
   TestGenerator,
   StudyPlanner,
   OnlineTuitions,
+  OfflineTuitions,
   ClassNotesSelector,
   PersonalizedLearning,
   GamificationDashboard,
+  Careers,
+  Activities,
+  Counselling,
 };

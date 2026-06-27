@@ -57,26 +57,22 @@ const DrawerComponent = props => {
           <Drawer.Item
             label="Activities"
             icon="layers"
-            onPress={() => navigateWithParams('WebView', {
-              url: 'https://activities.studifysuccess.com/',
-              title: 'Activities',
-            })}
+            onPress={() => navigate('Activities')}
           />
           <Drawer.Item
             label="Counseling System"
             icon="account-group"
-            onPress={() => navigateWithParams('WebView', {
-              url: 'https://counselling.studifysuccess.com/',
-              title: 'Counseling System',
-            })}
+            onPress={() => navigate('Counselling')}
           />
           <Drawer.Item
             label="Support Portal"
             icon="help-circle"
-            onPress={() => navigateWithParams('WebView', {
-              url: 'https://support.studifysuccess.com/',
-              title: 'Support Portal',
-            })}
+            onPress={() =>
+              navigateWithParams('WebView', {
+                url: 'https://support.studifysuccess.com/',
+                title: 'Support Portal',
+              })
+            }
           />
           <Drawer.Item
             label="Report Issue or Bug"

@@ -8,7 +8,7 @@ import {useMutation} from '@tanstack/react-query';
 import DropDown from 'react-native-paper-dropdown';
 import FlashMessage from '../../../Components/Screen/FlashMessage';
 import {useSelector} from 'react-redux';
-const Internship = ({navigation}) => {
+const Internship = ({navigation, route}) => {
   const {get, post} = useApi();
   const {colors} = useTheme();
   const {user} = useSelector(state => state.initial);
@@ -17,7 +17,7 @@ const Internship = ({navigation}) => {
     name: user ? [user.fname, user.lname].filter(Boolean).join(' ') : '',
     email: user?.email || '',
     phone: '',
-    department: '',
+    department: route?.params?.category || '',
     duration: '',
   });
   const [dropdown, setDropdown] = useState(false);

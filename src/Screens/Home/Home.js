@@ -718,11 +718,7 @@ const Home = () => {
 
         {/* Offline Coaching Banner Card */}
         <BouncyButton
-          onPress={() =>
-            navigation.navigate('WebView', {
-              url: 'https://www.studifysuccess.com/pre-registration-offline-tuition',
-            })
-          }
+          onPress={() => navigation.navigate('OfflineTuitions')}
           style={[
             styles.offlineBanner,
             dark && {
@@ -828,11 +824,7 @@ const Home = () => {
 
         {/* Careers Banner Card */}
         <BouncyButton
-          onPress={() =>
-            navigation.navigate('WebView', {
-              url: 'https://careers.studifysuccess.com/',
-            })
-          }
+          onPress={() => navigation.navigate('Careers')}
           style={[
             styles.careersBanner,
             dark && {
@@ -881,11 +873,7 @@ const Home = () => {
 
         {/* Activities Banner Card */}
         <BouncyButton
-          onPress={() =>
-            navigation.navigate('WebView', {
-              url: 'https://activities.studifysuccess.com/',
-            })
-          }
+          onPress={() => navigation.navigate('Activities')}
           style={[
             styles.activitiesBanner,
             dark && {
@@ -937,12 +925,7 @@ const Home = () => {
 
         {/* Counseling System Banner */}
         <BouncyButton
-          onPress={() =>
-            navigation.navigate('WebView', {
-              url: 'https://counselling.studifysuccess.com/',
-              title: 'Counseling System',
-            })
-          }
+          onPress={() => navigation.navigate('Counselling')}
           style={[
             styles.counselingBanner,
             dark && {

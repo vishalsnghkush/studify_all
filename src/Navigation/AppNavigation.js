@@ -16,9 +16,13 @@ import {
   TestGenerator,
   StudyPlanner,
   OnlineTuitions,
+  OfflineTuitions,
   ClassNotesSelector,
   PersonalizedLearning,
   GamificationDashboard,
+  Careers,
+  Activities,
+  Counselling,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -184,6 +188,34 @@ const AppNavigation = () => {
         name="GamificationDashboard"
         component={GamificationDashboard}
         options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="OfflineTuitions"
+        component={OfflineTuitions}
+        options={{
+          title: 'Offline Tuitions',
+        }}
+      />
+      <Stack.Screen
+        name="Careers"
+        component={Careers}
+        options={{
+          title: 'Careers',
+        }}
+      />
+      <Stack.Screen
+        name="Activities"
+        component={Activities}
+        options={{
+          title: 'Activities',
+        }}
+      />
+      <Stack.Screen
+        name="Counselling"
+        component={Counselling}
+        options={{
+          title: 'Counselling System',
+        }}
       />
       <Stack.Screen
         name="Chat"
