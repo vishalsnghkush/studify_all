@@ -28,6 +28,17 @@ const phrases = [
   'Daily Progress',
 ];
 
+const gradeColors = [
+  { bg: '#e3f2fd', border: '#90caf9', text: '#1565c0' }, // Jr (Blue)
+  { bg: '#fce4ec', border: '#f48fb1', text: '#c2185b' }, // 6th (Pink)
+  { bg: '#e8f5e9', border: '#a5d6a7', text: '#2e7d32' }, // 7th (Green)
+  { bg: '#f3e5f5', border: '#ce93d8', text: '#7b1fa2' }, // 8th (Purple)
+  { bg: '#fff3e0', border: '#ffcc80', text: '#ef6c00' }, // 9th (Orange)
+  { bg: '#e0f2f1', border: '#80cbc4', text: '#00695c' }, // 10th (Teal)
+  { bg: '#e8eaf6', border: '#9fa8da', text: '#283593' }, // 11th (Indigo)
+  { bg: '#ffebee', border: '#ef9a9a', text: '#c62828' }, // 12th (Red)
+];
+
 const OnlineTuitions = () => {
   const navigation = useNavigation();
   const {colors} = useTheme();
@@ -153,7 +164,7 @@ const OnlineTuitions = () => {
 
   // Data for circular Grade badges
   const gradeBadches = [
-    {title: 'Jr', batch: '1st - 5th', url: 'http://junior.studifysuccess.com/'},
+    {title: 'Jr', batch: '1st - 5th', url: 'https://junior.studifysuccess.com/'},
     {
       title: '6th',
       batch: 'Aster',
@@ -284,109 +295,76 @@ const OnlineTuitions = () => {
 
         <View style={styles.provideGrid}>
           {/* Study Materials */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Notes')}
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#e3f2fd'}]}>
               <Icon name="book-open-page-variant" size={24} color="#1565c0" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Study Material
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Doubt Session */}
-          <TouchableOpacity
-            onPress={() =>
-              openLink(
-                'https://wa.me/918447186881?text=Hi%2C%20I%20have%20a%20doubt%20and%20want%20to%20know%20more%20about%20Doubt%20Sessions.',
-                'Doubt Session',
-              )
-            }
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#fce4ec'}]}>
               <Icon name="comment-question" size={24} color="#c2185b" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Doubt Session
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Test Series */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('GroupsOrQuiz')}
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#e8f5e9'}]}>
               <Icon name="file-document-edit" size={24} color="#2e7d32" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Test Series
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Counselling */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Counselling')}
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#f3e5f5'}]}>
               <Icon name="account-voice" size={24} color="#7b1fa2" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Counselling
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Sample Papers */}
-          <TouchableOpacity
-            onPress={() =>
-              openLink(
-                'https://www.studifysuccess.com/important-questions',
-                'Sample Papers',
-              )
-            }
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#fff3e0'}]}>
               <Icon name="file-document-multiple" size={24} color="#ef6c00" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Sample Papers
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Question Bank */}
-          <TouchableOpacity
-            onPress={() =>
-              openLink(
-                'https://www.studifysuccess.com/important-questions',
-                'Question Bank',
-              )
-            }
-            style={styles.provideItem}>
+          <View style={styles.provideItem}>
             <View style={[styles.circleIcon, {backgroundColor: '#e0f2f1'}]}>
               <Icon name="database" size={24} color="#00695c" />
-              <View style={styles.tinyDot} />
             </View>
             <Text
               size="small"
               style={[styles.provideLabel, {color: colors.onSurface}]}>
               Question Bank
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* 3. EXPLORE CLASSES (CIRCULAR GRADE BADGES) */}
@@ -402,27 +380,30 @@ const OnlineTuitions = () => {
         </View>
 
         <View style={styles.gradeGrid}>
-          {gradeBadches.map((item, idx) => (
-            <TouchableOpacity
-              key={idx}
-              onPress={() =>
-                openLink(item.url, `${item.title} - ${item.batch}`)
-              }
-              style={styles.gradeItem}>
-              <View style={[styles.gradeCircle, {borderColor: colors.primary}]}>
-                <Text
-                  size="small"
-                  style={[styles.gradeCircleText, {color: colors.primary}]}>
+          {gradeBadches.map((item, idx) => {
+            const colorPair = gradeColors[idx % gradeColors.length];
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={() =>
+                  openLink(item.url, `${item.title} - ${item.batch}`)
+                }
+                style={[
+                  styles.gradeCard,
+                  {
+                    backgroundColor: colorPair.bg,
+                    borderColor: colorPair.border,
+                  },
+                ]}>
+                <Text style={[styles.gradeCardTitle, {color: colorPair.text}]}>
                   {item.title}
                 </Text>
-              </View>
-              <Text
-                size="small"
-                style={[styles.gradeLabel, {color: colors.onSurface}]}>
-                {item.batch}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text style={[styles.gradeCardSubtitle, {color: colorPair.text}]}>
+                  {item.batch}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
 
           {/* Brochure Circular Badge */}
           <TouchableOpacity
@@ -432,17 +413,15 @@ const OnlineTuitions = () => {
                 'Brochure',
               )
             }
-            style={styles.gradeItem}>
-            <View
-              style={[
-                styles.gradeCircle,
-                {borderColor: colors.tertiary, backgroundColor: '#fff3e0'},
-              ]}>
-              <Icon name="download" size={20} color={colors.tertiary} />
-            </View>
-            <Text
-              size="small"
-              style={[styles.gradeLabel, {color: colors.onSurface}]}>
+            style={[
+              styles.gradeCard,
+              {
+                backgroundColor: '#fffde7',
+                borderColor: '#fff59d',
+              },
+            ]}>
+            <Icon name="download" size={18} color="#f57f17" style={{marginBottom: 2}} />
+            <Text style={[styles.gradeCardSubtitle, {color: '#f57f17', fontWeight: 'bold'}]}>
               Brochure
             </Text>
           </TouchableOpacity>
@@ -1109,32 +1088,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
     marginBottom: 15,
   },
-  gradeItem: {
-    width: (width - 80) / 3,
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  gradeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
+  gradeCard: {
+    width: (width - 48) / 3,
+    height: 76,
+    borderRadius: 20,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    elevation: 1,
+    padding: 6,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    marginVertical: 6,
   },
-  gradeCircleText: {
+  gradeCardTitle: {
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 15,
   },
-  gradeLabel: {
+  gradeCardSubtitle: {
     fontSize: 10,
+    marginTop: 2,
     textAlign: 'center',
-    marginTop: 4,
+    fontWeight: '600',
   },
   accordionHeader: {
     flexDirection: 'row',

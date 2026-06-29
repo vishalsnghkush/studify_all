@@ -1,4 +1,4 @@
-import {View, Switch} from 'react-native';
+import {View, Switch, Image} from 'react-native';
 import {useState} from 'react';
 import {Text} from '../../../Components/Input';
 import {Screen, CardHorizontal} from '../../../Components/Screen';
@@ -19,54 +19,7 @@ const Profile = ({navigation}) => {
     dispatch(setTheme());
     setIsSwitchOn(!isSwitchOn);
   };
-  const onToggleIntern = async () => {
-    const nextValue = !user?.is_intern;
-    try {
-      // Optimistically update the UI locally
-      dispatch(setUser({ ...user, is_intern: nextValue }));
-      
-      // Update the database remotely by trying candidate endpoints
-      const endpoints = [
-        { method: 'PUT', url: '/user' },
-        { method: 'POST', url: '/user/update' },
-        { method: 'POST', url: '/user/updateProfile' },
-        { method: 'POST', url: '/user/update_profile' },
-        { method: 'PUT', url: '/user/update' },
-        { method: 'PUT', url: '/user/updateProfile' },
-        { method: 'POST', url: '/user/edit' },
-        { method: 'POST', url: '/user/editProfile' },
-        { method: 'POST', url: '/auth/updateProfile' },
-        { method: 'POST', url: '/user' }
-      ];
-      
-      let success = false;
-      for (const ep of endpoints) {
-        try {
-          if (ep.method === 'PUT') {
-            await useApi().put(ep.url, { is_intern: nextValue }, { skipErrorFlash: true, skipSuccessFlash: true });
-          } else {
-            await useApi().post(ep.url, { is_intern: nextValue }, { skipErrorFlash: true, skipSuccessFlash: true });
-          }
-          success = true;
-          console.log(`Successfully updated intern status via ${ep.method} ${ep.url}`);
-          break;
-        } catch (err) {
-          if (err.response?.status === 404 || err.response?.status === 405) {
-            continue; // Try next endpoint
-          }
-          throw err; // Real error, propagate
-        }
-      }
-      
-      if (!success) {
-        throw new Error('All candidate endpoints returned 404 or 405');
-      }
-    } catch (err) {
-      console.log('Failed to update intern role in DB, reverting changes', err);
-      // Revert the local changes on failure
-      dispatch(setUser({ ...user, is_intern: !nextValue }));
-    }
-  };
+
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>
       <InAppReview />
@@ -81,16 +34,34 @@ const Profile = ({navigation}) => {
           borderColor: isDark ? colors.outlineVariant : 'rgba(216, 27, 96, 0.1)',
         }}
       >
-        <Avatar.Text 
-          size={100} 
-          label={(user?.fname?.[0] || '') + (user?.lname?.[0] || '')} 
-          style={{backgroundColor: colors.primary}}
-          color={colors.onPrimary}
-        />
+        {user?.avatar ? (
+          <Image
+            source={{uri: user.avatar}}
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              borderWidth: 3,
+              borderColor: colors.primary,
+            }}
+          />
+        ) : (
+          <Avatar.Text
+            size={100}
+            label={(user?.fname?.[0] || '') + (user?.lname?.[0] || '')}
+            style={{backgroundColor: colors.primary}}
+            color={colors.onPrimary}
+          />
+        )}
         <Text size="medium" style={{marginTop: 14, fontWeight: 'bold', color: colors.onSurface}}>
           {(user?.fname || '') + ' ' + (user?.lname || '')}
         </Text>
         <Text style={{color: colors.onSurfaceVariant, marginTop: 4}}>{user?.email}</Text>
+        {user?.class && (
+          <Text style={{color: colors.primary, marginTop: 4, fontWeight: 'bold'}}>
+            Class: {user.class}
+          </Text>
+        )}
       </View>
       <View style={{marginTop: 10}}>
         <CardHorizontal
@@ -128,19 +99,7 @@ const Profile = ({navigation}) => {
           }
           onPress={onToggleSwitch}
         />
-        <CardHorizontal
-          title="Intern Role"
-          leftIcon="briefcase"
-          rightIcon={
-            <View pointerEvents="none">
-              <Switch
-                value={user?.is_intern || false}
-                trackColor={{false: '#afafaf81'}}
-              />
-            </View>
-          }
-          onPress={onToggleIntern}
-        />
+
         <CardHorizontal
           title="Terms & Conditions"
           leftIcon="shield-alert"

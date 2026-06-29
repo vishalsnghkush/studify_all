@@ -25,6 +25,7 @@ import {claimReward} from '../../Redux/Slices/GamificationSlice';
 import {
   syncGamificationToFirebase,
   fetchGlobalLeaderboard,
+  fetchUserRank,
 } from '../../Utils/GamificationSync';
 
 const {width} = Dimensions.get('window');
@@ -164,6 +165,7 @@ export default function GamificationDashboard() {
   const [celebrating, setCelebrating] = useState(false);
   const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [userRank, setUserRank] = useState(1);
 
   const xpPerLevel = 200;
   const currentLevelProgress = xp % xpPerLevel;
@@ -184,18 +186,41 @@ export default function GamificationDashboard() {
     if (activeTab === 'leaderboard') {
       const loadLeaderboard = async () => {
         setLoadingLeaderboard(true);
-        const data = await fetchGlobalLeaderboard();
-        if (data && data.length > 0) {
-          // Map isUser dynamically
-          const mapped = data.map(item => ({
-            ...item,
-            isUser: item.email === user.email,
-          }));
+        try {
+          const actualRank = await fetchUserRank(xp);
+          setUserRank(actualRank);
+        } catch (err) {
+          console.log('Error loading user rank:', err);
+        }
 
-          // Check if current user is in list, if not append them
-          const userInList = mapped.some(item => item.email === user.email);
-          if (!userInList && user.email) {
-            mapped.push({
+        try {
+          const data = await fetchGlobalLeaderboard();
+          if (data && data.length > 0) {
+            // Map isUser dynamically
+            const mapped = data.map(item => ({
+              ...item,
+              isUser: item.email === user.email,
+            }));
+
+            // Check if current user is in list, if not append them
+            const userInList = mapped.some(item => item.email === user.email);
+            if (!userInList && user.email) {
+              mapped.push({
+                email: user.email,
+                name: user.fname ? `${user.fname} ${user.lname}` : 'You',
+                xp: xp,
+                avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
+                isUser: true,
+                level: level,
+                streak: streak,
+              });
+            }
+
+            mapped.sort((a, b) => b.xp - a.xp);
+            setGlobalLeaderboard(mapped);
+          } else {
+            // If API returns empty, just show current user
+            setGlobalLeaderboard([{
               email: user.email,
               name: user.fname ? `${user.fname} ${user.lname}` : 'You',
               xp: xp,
@@ -203,15 +228,13 @@ export default function GamificationDashboard() {
               isUser: true,
               level: level,
               streak: streak,
-            });
+            }]);
           }
-
-          mapped.sort((a, b) => b.xp - a.xp);
-          setGlobalLeaderboard(mapped);
-        } else {
-          setGlobalLeaderboard([]);
+        } catch (err) {
+          console.log('Error loading leaderboard:', err);
+        } finally {
+          setLoadingLeaderboard(false);
         }
-        setLoadingLeaderboard(false);
       };
 
       loadLeaderboard();
@@ -726,12 +749,18 @@ export default function GamificationDashboard() {
                       styles.rankSummaryDesc,
                       {color: colors.onPrimaryContainer},
                     ]}>
-                    Keep learning, completing tasks, and starting quizzes to
-                    climb the ranks!
+                    You are currently ranked #{userRank} globally. Keep learning to climb the ranks!
                   </Text>
                 </View>
                 <View style={styles.rankBadgeCircle}>
-                  <Micon name="trophy" size={32} color="#ffffff" />
+                  <Text
+                    style={{
+                      color: '#ffffff',
+                      fontWeight: 'bold',
+                      fontSize: userRank > 99 ? 14 : 16,
+                    }}>
+                    #{userRank}
+                  </Text>
                 </View>
               </Card.Content>
             </Card>
@@ -747,7 +776,7 @@ export default function GamificationDashboard() {
 
             <View style={styles.leaderboardList}>
               {displayLeaderboard.map((item, index) => {
-                const rank = index + 1;
+                const rank = item.isUser ? userRank : index + 1;
                 let rankIcon = null;
                 if (rank === 1) {
                   rankIcon = <Text style={styles.rankEmoji}>🥇</Text>;

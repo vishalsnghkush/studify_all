@@ -12,7 +12,9 @@ const useApi = () => {
       const token = state.initial?.token;
       
       let reqMethod = method;
-      let reqHeaders = {};
+      let reqHeaders = {
+        'bypass-tunnel-reminder': 'true'
+      };
       if (token) {
         reqHeaders['x-auth-token'] = token;
         reqHeaders['Authorization'] = `Bearer ${token}`;

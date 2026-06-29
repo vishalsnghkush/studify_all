@@ -12,10 +12,18 @@ const initialSlice = createSlice({
     notificationPermission: false,
     audioPremisson: false,
     videoPermission: false,
+    hasUnreadDiscussion: false,
+    lastSeenMsgId: 0,
   },
   reducers: {
     setTheme(state) {
       state.isDark = !state.isDark;
+    },
+    setUnreadDiscussion(state, action) {
+      state.hasUnreadDiscussion = action.payload;
+    },
+    setLastSeenMsgId(state, action) {
+      state.lastSeenMsgId = action.payload;
     },
     setUserLogin(state, action) {
       state.isUserLoggedIn = true;
@@ -51,5 +59,7 @@ export const {
   setUserLogout,
   updateUserName,
   setPermission,
+  setUnreadDiscussion,
+  setLastSeenMsgId,
 } = initialSlice.actions;
 export default initialSlice.reducer;

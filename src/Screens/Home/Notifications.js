@@ -89,59 +89,7 @@ const Notifications = () => {
     );
   };
 
-  const triggerTestNotification = () => {
-    FlashMessage({
-      message: 'Push notification scheduled in 3s! Close the app or stay here to test.',
-      type: 'info',
-    });
-    setTimeout(async () => {
-      try {
-        const channelId = await notifee.createChannel({
-          id: 'general',
-          name: 'General Channel',
-          importance: AndroidImportance.HIGH,
-          sound: 'default',
-        });
-        const notifId = Date.now().toString();
-        await notifee.displayNotification({
-          id: notifId,
-          title: '👋 hye intern',
-          body: 'This is a test notification for the intern.',
-          data: {
-            url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
-            screen: 'ClassNotesSelector',
-          },
-          android: {
-            channelId,
-            largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
-            timestamp: Date.now(),
-            showTimestamp: true,
-            style: {
-              type: AndroidStyle.BIGTEXT,
-              text: 'Premium Science Notes for Chapter 4 are now available. Tap to study now!',
-            },
-            color: 'teal',
-          },
-        });
 
-        // Add to local notification storage so it is added to the list in the UI
-        await addNotification({
-          id: notifId,
-          title: '👋 hye intern',
-          body: 'Premium Science Notes for Chapter 4 are now available. Tap to study now!',
-          timestamp: Date.now(),
-          screen: 'ClassNotesSelector',
-          url: 'https://allstudynotes.studifysuccess.com/select-class-chapter?mobile=true',
-        });
-
-        setTimeout(() => {
-          loadNotifications();
-        }, 1000);
-      } catch (err) {
-        console.error('Failed to trigger mock notification:', err);
-      }
-    }, 3000);
-  };
 
   const getCategoryColor = (title = '') => {
     const text = title.toLowerCase();
@@ -211,14 +159,6 @@ const Notifications = () => {
   return (
     <Screen list style={{flex: 1}}>
       <View style={styles.topBar}>
-        <Button
-          mode="outlined"
-          onPress={triggerTestNotification}
-          icon="bell-ring"
-          textColor={colors.primary}
-          style={styles.actionBtn}>
-          Test Push
-        </Button>
         {notifications.length > 0 && (
           <Button
             mode="text"
@@ -267,7 +207,7 @@ const Notifications = () => {
 const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginVertical: 12,
   },

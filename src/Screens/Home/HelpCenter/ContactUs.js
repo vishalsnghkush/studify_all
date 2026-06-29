@@ -16,13 +16,6 @@ const ContactUs = ({navigation}) => {
           }}
         />
         <CardHorizontal
-          title="Customer Service"
-          leftIcon="headset"
-          onPress={() => {
-            navigation.navigate('CustomerService');
-          }}
-        />
-        <CardHorizontal
           title="Email"
           leftIcon="email"
           onPress={() => {

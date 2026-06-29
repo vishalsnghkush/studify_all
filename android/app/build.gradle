@@ -74,8 +74,12 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
-
     namespace "com.studifysuccess.courses"
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
     defaultConfig {
         applicationId "com.studifysuccess.courses"
         minSdkVersion rootProject.ext.minSdkVersion

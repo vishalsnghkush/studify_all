@@ -538,103 +538,30 @@ const Home = () => {
 
         {/* 2. Interactive Quick Stats Dashboard */}
         <View style={styles.statsRow}>
-          <View
-            style={[
-              styles.statBox,
-              dark && {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
-              },
-            ]}>
-            <View
-              style={{
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: 28,
-                height: 28,
-              }}>
-              {/* Outer red-orange glow wave */}
-              <Animated.View
-                style={{
-                  position: 'absolute',
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255, 69, 0, 0.35)',
-                  transform: [{scale: glowScale1}],
-                  opacity: glowOpacity1,
-                }}
-              />
-              {/* Middle orange-yellow glow wave */}
-              <Animated.View
-                style={{
-                  position: 'absolute',
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255, 165, 0, 0.5)',
-                  transform: [{scale: glowScale2}],
-                  opacity: glowOpacity2,
-                }}
-              />
-              {/* Inner yellow-gold glow wave */}
-              <Animated.View
-                style={{
-                  position: 'absolute',
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255, 215, 0, 0.7)',
-                  transform: [{scale: glowScale3}],
-                  opacity: glowOpacity3,
-                }}
-              />
-              {/* Inner Flame Icon */}
-              <Animated.View style={{transform: [{scale: streakAnim}]}}>
-                <Icon name="fire" size={24} color="#ff9500" />
-              </Animated.View>
-            </View>
-            <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
-                {(() => {
-                  const count =
-                    user?.streak_count ||
-                    user?.streak ||
-                    user?.login_streak ||
-                    1;
-                  return `${count} ${count === 1 ? 'Day' : 'Days'}`;
-                })()}
-              </Text>
-              <Text
-                style={[
-                  styles.statLabel,
-                  dark && {color: colors.onSurfaceVariant},
-                ]}>
-                Study Streak
-              </Text>
-            </View>
-          </View>
-
           <BouncyButton
             onPress={() => navigation.navigate('PersonalizedLearning')}
             style={[
               styles.statBox,
+              { backgroundColor: '#e0f7fa', borderColor: '#b2ebf2' },
               dark && {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
+                backgroundColor: 'rgba(0,188,212,0.1)',
+                borderColor: 'rgba(0,188,212,0.3)',
               },
             ]}>
-            <Icon name="clipboard-check" size={22} color="#007171" />
+            <View style={[styles.statIconWrapper, {backgroundColor: '#b2ebf2'}]}>
+              <Icon name="clipboard-check" size={15} color="#00838f" />
+            </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
+              <Text style={[styles.statVal, {color: '#006064'}, dark && {color: colors.onSurface}]}>
                 {completedTasks}/{totalTasks}
               </Text>
               <Text
                 style={[
                   styles.statLabel,
+                  {color: '#00838f'},
                   dark && {color: colors.onSurfaceVariant},
                 ]}>
-                Tasks Done
+                Tasks
               </Text>
             </View>
           </BouncyButton>
@@ -643,22 +570,57 @@ const Home = () => {
             onPress={() => navigation.navigate('StudyPlanner')}
             style={[
               styles.statBox,
+              { backgroundColor: '#ede7f6', borderColor: '#d1c4e9' },
               dark && {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
+                backgroundColor: 'rgba(103,58,183,0.1)',
+                borderColor: 'rgba(103,58,183,0.3)',
               },
             ]}>
-            <Icon name="calendar-multiselect" size={22} color="#5c6bc0" />
+            <View style={[styles.statIconWrapper, {backgroundColor: '#d1c4e9'}]}>
+              <Icon name="calendar-multiselect" size={15} color="#512da8" />
+            </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, dark && {color: colors.onSurface}]}>
-                {plannerCount} Slots
+              <Text style={[styles.statVal, {color: '#311b92'}, dark && {color: colors.onSurface}]}>
+                {plannerCount}
               </Text>
               <Text
                 style={[
                   styles.statLabel,
+                  {color: '#512da8'},
                   dark && {color: colors.onSurfaceVariant},
                 ]}>
-                Scheduled
+                Schedule
+              </Text>
+            </View>
+          </BouncyButton>
+
+          <BouncyButton
+            onPress={() => navigation.navigate('GamificationDashboard')}
+            style={[
+              styles.statBox,
+              { backgroundColor: '#fff3e0', borderColor: '#ffe0b2' },
+              dark && {
+                backgroundColor: 'rgba(255,152,0,0.1)',
+                borderColor: 'rgba(255,152,0,0.3)',
+              },
+            ]}>
+            <View style={[styles.statIconWrapper, {backgroundColor: '#ffe0b2'}]}>
+              <Icon name="fire" size={15} color="#e65100" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={[styles.statVal, {color: '#e65100'}, dark && {color: colors.onSurface}]}>
+                {(() => {
+                  const count = gamificationState?.streak || 1;
+                  return `${count}d`;
+                })()}
+              </Text>
+              <Text
+                style={[
+                  styles.statLabel,
+                  {color: '#e65100'},
+                  dark && {color: colors.onSurfaceVariant},
+                ]}>
+                Streak
               </Text>
             </View>
           </BouncyButton>
@@ -1062,25 +1024,6 @@ const Home = () => {
             </BouncyButton>
 
             <BouncyButton
-              onPress={() => navigation.navigate('CustomerService')}
-              style={styles.supportIconCol}>
-              <View
-                style={[
-                  styles.supportIconCircle,
-                  dark && {backgroundColor: '#1c2d2d'},
-                ]}>
-                <Icon name="phone" size={22} color={colors.primary} />
-              </View>
-              <Text
-                style={[
-                  styles.supportIconText,
-                  dark && {color: colors.onSurfaceVariant},
-                ]}>
-                Call Support
-              </Text>
-            </BouncyButton>
-
-            <BouncyButton
               onPress={() => navigation.navigate('Appreport')}
               style={styles.supportIconCol}>
               <View
@@ -1223,41 +1166,44 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    marginVertical: 10,
-    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 10,
   },
   statBox: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 12,
+    paddingHorizontal: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#eceff1',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  statIconWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   statTextContainer: {
-    marginLeft: 4,
-    flex: 1,
-    flexShrink: 1,
+    alignItems: 'center',
   },
   statVal: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#263238',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 1,
   },
   statLabel: {
-    fontSize: 9,
-    color: '#78909c',
-    marginTop: 1,
-    flexWrap: 'wrap',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   chevronIcon: {
     marginLeft: 2,

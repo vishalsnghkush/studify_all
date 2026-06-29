@@ -5,7 +5,10 @@ import {Text} from '../Input';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {fetchGlobalLeaderboard} from '../../Utils/GamificationSync';
+import {
+  fetchGlobalLeaderboard,
+  fetchUserRank,
+} from '../../Utils/GamificationSync';
 
 var myDate = new Date();
 var hrs = myDate.getHours();
@@ -35,33 +38,9 @@ const HomeHeader = () => {
     let active = true;
     const loadRank = async () => {
       try {
-        const data = await fetchGlobalLeaderboard();
+        const rank = await fetchUserRank(xp);
         if (!active) return;
-        if (data && data.length > 0) {
-          const mapped = data.map(item => ({
-            ...item,
-            isUser: item.email === user.email,
-          }));
-
-          const userInList = mapped.some(item => item.email === user.email);
-          if (!userInList && user.email) {
-            mapped.push({
-              email: user.email,
-              name: user.fname ? `${user.fname} ${user.lname}` : 'You',
-              xp: xp,
-              avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
-              isUser: true,
-              level: level,
-              streak: streak,
-            });
-          }
-
-          mapped.sort((a, b) => b.xp - a.xp);
-          const rank = mapped.findIndex(item => item.isUser) + 1;
-          setUserRank(rank > 0 ? rank : 1);
-        } else {
-          setUserRank(1);
-        }
+        setUserRank(rank);
       } catch (err) {
         if (active) setUserRank(1);
       }
@@ -70,7 +49,7 @@ const HomeHeader = () => {
     return () => {
       active = false;
     };
-  }, [xp, user.email, level, streak]);
+  }, [xp]);
 
   return (
     <View style={styles.container}>
@@ -123,22 +102,6 @@ const HomeHeader = () => {
           },
         ]}>
         <View style={styles.statItem}>
-          <Micon name="fire" size={18} color="#f97316" />
-          <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
-            Streak: <Text style={styles.statVal}>{streak || 0}d</Text>
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.separator,
-            {
-              backgroundColor: theme.dark
-                ? 'rgba(255,255,255,0.15)'
-                : 'rgba(0,0,0,0.1)',
-            },
-          ]}
-        />
-        <View style={styles.statItem}>
           <Micon name="lightning-bolt" size={18} color="#eab308" />
           <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
             Lvl <Text style={styles.statVal}>{level || 1}</Text> ({xp || 0} XP)
@@ -162,11 +125,14 @@ const HomeHeader = () => {
         </View>
       </TouchableOpacity>
 
-      <Searchbar
-        placeholder="Search"
-        // onPressIn={() => navigation.navigate('Search')}
-        style={{marginTop: 8}}
-      />
+      <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Search')}>
+        <View pointerEvents="none">
+          <Searchbar
+            placeholder="Search"
+            style={{marginTop: 8}}
+          />
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };

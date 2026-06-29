@@ -1,6 +1,6 @@
 @echo off
 cd /d "%LOCALAPPDATA%\Android\Sdk\emulator"
-echo Starting Android Emulator: Pixel_9_api35...
-emulator -avd Pixel_9_api35
+echo Starting Android Emulator: Medium_Phone_API_36.1...
+emulator -avd Medium_Phone_API_36.1
 pause
 

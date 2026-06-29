@@ -26,7 +26,7 @@ import {
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
-import {CustomerService} from '../Screens/Home/HelpCenter';
+
 import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
@@ -70,14 +70,7 @@ const AppNavigation = () => {
           title: 'Help Center',
         }}
       />
-      <Stack.Screen
-        name="CustomerService"
-        component={CustomerService}
-        options={{
-          title: 'Customer Service',
-          showPhoneIcon: true,
-        }}
-      />
+
       <Stack.Screen name="Transaction" component={Transaction} />
       <Stack.Screen
         name="TransactionDetails"

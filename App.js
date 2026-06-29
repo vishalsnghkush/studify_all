@@ -8,6 +8,9 @@ import {useEffect} from 'react';
 import SplashScreen from 'react-native-splash-screen';
 import messaging from '@react-native-firebase/messaging';
 import {onMessageReceived} from './src/Utils/Notification';
+import {LogBox} from 'react-native';
+
+LogBox.ignoreAllLogs();
 
 const App = () => {
   useEffect(() => {

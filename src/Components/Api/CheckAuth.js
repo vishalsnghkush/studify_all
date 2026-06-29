@@ -9,8 +9,9 @@ import {requestNotificationPermission} from '../../Utils/Notification';
 import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
+// const BASE_URL = 'https://studifysuccess-chat-room.loca.lt/api/';
+// const BASE_URL = 'http://10.0.2.2:3000/api/';
 const BASE_URL = 'https://www.api.studifysuccess.com/api/';
-// const BASE_URL = 'http://192.168.1.3:3000/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
 

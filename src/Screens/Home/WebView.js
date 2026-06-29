@@ -13,52 +13,93 @@ const WebviewScreen = ({route}) => {
   const height = StatusBar.currentHeight || 0;
   const {colors} = useTheme();
   const isDark = useSelector(state => state.initial.isDark);
+  const isStudifySite = url.includes('studifysuccess.com');
 
-  const injectedDarkTheme = `
+  const injectedBeforeLoadScript = `
     (function() {
-      // Force page level styles for dark mode loading screen and background
-      var css = 'html, body, #root, #__next, .loading-screen, [class*="loading"], [id*="loading"] { background-color: #121212 !important; color: #ffffff !important; }';
-      css += ' [class*="loading"] .card, [class*="loading"] [class*="card"], [id*="loading"] .card, [id*="loading"] [class*="card"], .loading-screen .card, .loading-screen [class*="card"] { background-color: #1e1e1e !important; color: #ffffff !important; border-color: #333333 !important; }';
-      css += ' [class*="loading"] h1, [class*="loading"] h2, [class*="loading"] h3, [class*="loading"] h4, [class*="loading"] h5, [class*="loading"] h6, [class*="loading"] p, [class*="loading"] span, [id*="loading"] h1, [id*="loading"] h2, [id*="loading"] h3, [id*="loading"] h4, [id*="loading"] h5, [id*="loading"] h6, [id*="loading"] p, [id*="loading"] span, .loading-screen h1, .loading-screen h2, .loading-screen h3, .loading-screen h4, .loading-screen h5, .loading-screen h6, .loading-screen p, .loading-screen span { color: #e0e0e0 !important; }';
-      css += ' .loader, .spinner { border-top-color: #007171 !important; }';
+      var css = '';
+      
+      // Hide website navigation headers, bars, social links, and footers immediately
+      if (${isStudifySite}) {
+        css += ' \\
+          .top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe { \\
+            display: none !important; \\
+            visibility: hidden !important; \\
+            height: 0 !important; \\
+            opacity: 0 !important; \\
+            z-index: -99999 !important; \\
+          } \\
+          body, html, .main-wrapper { \\
+            padding-top: 0 !important; \\
+            margin-top: 0 !important; \\
+            background-color: ${isDark ? '#121212' : '#ffffff'} !important; \\
+          } \\
+        ';
+      }
+      
+      // Apply dark mode overrides immediately if dark mode is active
+      if (${isDark}) {
+        css += ' \\
+          html, body, #root, #__next { background-color: #121212 !important; color: #ffffff !important; } \\
+          [class*="loading"] .card, [class*="loading"] [class*="card"], [id*="loading"] .card, [id*="loading"] [class*="card"] { background-color: #1e1e1e !important; color: #ffffff !important; border-color: #333333 !important; } \\
+          [class*="loading"] h1, [class*="loading"] h2, [class*="loading"] h3, [class*="loading"] h4, [class*="loading"] p, [class*="loading"] span { color: #e0e0e0 !important; } \\
+        ';
+      }
       
       var style = document.createElement('style');
-      style.id = 'studify-dark-mode-override';
+      style.id = 'studify-webview-clean-override';
       style.type = 'text/css';
-      if (style.styleSheet){
-        style.styleSheet.cssText = css;
-      } else {
-        style.appendChild(document.createTextNode(css));
-      }
+      style.appendChild(document.createTextNode(css));
       document.documentElement.appendChild(style);
 
-      function forceDark() {
-        if (document.documentElement && !document.documentElement.classList.contains('dark')) {
-          document.documentElement.classList.add('dark');
-          document.documentElement.setAttribute('data-theme', 'dark');
+      // Force dark mode classes if enabled
+      if (${isDark}) {
+        function forceDark() {
+          if (document.documentElement && !document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+          if (document.body && !document.body.classList.contains('dark')) {
+            document.body.classList.add('dark');
+            document.body.setAttribute('data-theme', 'dark');
+          }
         }
-        if (document.body && !document.body.classList.contains('dark')) {
-          document.body.classList.add('dark');
-          document.body.setAttribute('data-theme', 'dark');
+        forceDark();
+        var observer = new MutationObserver(function() { forceDark(); });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+      }
+    })();
+    true;
+  `;
+
+  const postLoadScript = `
+    (function() {
+      function hideHeaderFooter() {
+        var selectors = '.top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe, [class*="widget"], [class*="floating"]';
+        var elements = document.querySelectorAll(selectors);
+        for (var i = 0; i < elements.length; i++) {
+          elements[i].style.setProperty('display', 'none', 'important');
+          elements[i].style.setProperty('visibility', 'hidden', 'important');
+          elements[i].style.setProperty('height', '0', 'important');
+          elements[i].style.setProperty('opacity', '0', 'important');
+        }
+        
+        var wrappers = document.querySelectorAll('body, html, .main-wrapper');
+        for (var j = 0; j < wrappers.length; j++) {
+          wrappers[j].style.setProperty('padding-top', '0', 'important');
+          wrappers[j].style.setProperty('margin-top', '0', 'important');
         }
       }
-
-      forceDark();
-
-      // Create an observer to watch for class/theme changes and force them to remain dark
-      var observer = new MutationObserver(function(mutations) {
-        forceDark();
-      });
-
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
       
-      var checkBody = setInterval(function() {
-        if (document.body) {
-          clearInterval(checkBody);
-          forceDark();
-          observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme'] });
-        }
-      }, 100);
+      hideHeaderFooter();
+      var interval = setInterval(hideHeaderFooter, 200);
+      
+      setTimeout(function() {
+        clearInterval(interval);
+      }, 6000);
+
+      document.addEventListener('click', hideHeaderFooter);
+      document.addEventListener('scroll', hideHeaderFooter);
     })();
     true;
   `;
@@ -75,9 +116,8 @@ const WebviewScreen = ({route}) => {
         mixedContentMode={'always'}
         originWhitelist={['*']}
         javaScriptEnabled={true}
-        injectedJavaScriptBeforeContentLoaded={
-          isDark ? injectedDarkTheme : undefined
-        }
+        injectedJavaScriptBeforeContentLoaded={injectedBeforeLoadScript}
+        injectedJavaScript={isStudifySite ? postLoadScript : undefined}
         forceDarkOn={isDark}
         algorithmicDarkeningAllowed={isDark}
         onFileDownload={({nativeEvent: {downloadUrl}}) =>
