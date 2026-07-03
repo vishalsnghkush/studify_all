@@ -354,7 +354,8 @@ const StudyPlanner = () => {
       <View
         style={[
           styles.dateSelectorContainer,
-          {backgroundColor: theme.colors.primary},
+          {backgroundColor: theme.dark ? theme.colors.elevation.level2 : theme.colors.primary},
+          theme.dark && {borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant},
         ]}>
         <TouchableOpacity
           onPress={showDatePicker}
@@ -370,29 +371,34 @@ const StudyPlanner = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Custom Premium Tab Bar */}
+      {/* Custom Premium Tab Bar (Segmented Control style) */}
       <View
         style={[
           styles.tabContainer,
+          {
+            backgroundColor: theme.dark ? theme.colors.elevation.level1 : '#f2f2f2',
+          },
           theme.dark && {
-            backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
-            shadowColor: '#000',
+            borderWidth: 1,
           },
         ]}>
         <TouchableOpacity
           onPress={() => setActiveTab('planner')}
           style={[
             styles.tabButton,
-            theme.dark && {borderColor: theme.colors.outlineVariant},
             activeTab === 'planner' && {
               backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
+              elevation: 4,
+              shadowColor: theme.colors.primary,
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              shadowOffset: {width: 0, height: 2},
             },
           ]}>
           <Icon
             name="calendar-clock"
-            size={20}
+            size={18}
             color={
               activeTab === 'planner'
                 ? '#ffffff'
@@ -415,15 +421,18 @@ const StudyPlanner = () => {
           onPress={() => setActiveTab('tasks')}
           style={[
             styles.tabButton,
-            theme.dark && {borderColor: theme.colors.outlineVariant},
             activeTab === 'tasks' && {
               backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
+              elevation: 4,
+              shadowColor: theme.colors.primary,
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              shadowOffset: {width: 0, height: 2},
             },
           ]}>
           <Icon
             name="clipboard-text-play"
-            size={20}
+            size={18}
             color={
               activeTab === 'tasks' ? '#ffffff' : theme.colors.onSurfaceVariant
             }
@@ -469,22 +478,22 @@ const StudyPlanner = () => {
           </View>
 
           {sortedSlots.length === 0 ? (
-            <Card
+            <View
               style={[
                 styles.emptyCard,
-                theme.dark && {
-                  backgroundColor: theme.colors.surface,
+                {
+                  backgroundColor: theme.dark ? theme.colors.elevation.level1 : '#fafafa',
                   borderColor: theme.colors.outlineVariant,
                 },
               ]}>
               <Icon
-                name="calendar-blank"
-                size={60}
+                name="calendar-blank-outline"
+                size={56}
                 color={theme.colors.primary}
                 style={styles.emptyCardIcon}
               />
-              <Text style={[styles.emptyText, {color: theme.colors.primary}]}>
-                No study blocks scheduled today.
+              <Text style={[styles.emptyText, {color: theme.colors.onSurface}]}>
+                No study blocks scheduled today
               </Text>
               <Text
                 style={[
@@ -498,12 +507,19 @@ const StudyPlanner = () => {
                 onPress={() => setSlotModalVisible(true)}
                 style={[
                   styles.addBtn,
-                  {backgroundColor: theme.colors.primary},
+                  {
+                    backgroundColor: theme.colors.primary,
+                    elevation: 3,
+                    shadowColor: theme.colors.primary,
+                    shadowOpacity: 0.2,
+                    shadowRadius: 3,
+                    shadowOffset: {width: 0, height: 2},
+                  },
                 ]}>
                 <Icon name="plus" size={18} color="white" />
                 <Text style={styles.addBtnText}>Schedule First Block</Text>
               </TouchableOpacity>
-            </Card>
+            </View>
           ) : (
             <View>
               {sortedSlots.map(item => (
@@ -1125,12 +1141,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateSelectorContainer: {
-    backgroundColor: '#007171',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: {width: 0, height: 3},
   },
   dateSelectorRow: {
     flexDirection: 'row',
@@ -1155,33 +1177,25 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    padding: 10,
-    backgroundColor: '#ffffff',
-    marginHorizontal: 15,
-    marginTop: 15,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    gap: 8,
+    padding: 4,
+    marginHorizontal: 16,
+    marginTop: 18,
+    borderRadius: 28,
+    gap: 4,
   },
   tabButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 0,
     backgroundColor: 'transparent',
-    gap: 6,
+    gap: 8,
   },
   tabText: {
     fontSize: 14,
-    color: '#555555',
   },
   contentContainer: {
     paddingHorizontal: 15,
@@ -1216,30 +1230,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   emptyCard: {
-    padding: 30,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    elevation: 3,
+    padding: 32,
+    borderRadius: 24,
+    borderWidth: 1,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
+    marginHorizontal: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: {width: 0, height: 1},
   },
   emptyCardIcon: {
     alignSelf: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#007171',
-    marginTop: 15,
+    marginTop: 16,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 13,
-    color: '#757575',
-    marginTop: 8,
+    marginTop: 10,
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   addBtnText: {
     color: 'white',
@@ -1249,9 +1267,9 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 28,
     gap: 6,
   },
   addBtnFloating: {

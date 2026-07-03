@@ -259,28 +259,72 @@ const DiscussionForum = ({navigation}) => {
     }
   };
 
+  const getClassCardDetails = (className) => {
+    const numStr = className.replace(/[^0-9]/g, '');
+    const num = parseInt(numStr, 10) || 1;
+    if (num <= 5) {
+      return {
+        icon: 'school-outline',
+        accentColor: '#007171',
+      };
+    } else if (num <= 8) {
+      return {
+        icon: 'compass-outline',
+        accentColor: '#1e88e5',
+      };
+    } else if (num <= 10) {
+      return {
+        icon: 'sigma',
+        accentColor: '#8e24aa',
+      };
+    } else {
+      return {
+        icon: 'rocket-launch-outline',
+        accentColor: '#e65100',
+      };
+    }
+  };
+
   const renderClassSelector = () => (
-    <View style={styles.centerContainer}>
-      <IconText icon="account-group" color={colors.primary} size={64} />
-      <Text size="large" style={[styles.title, {color: colors.onSurface}]}>Choose your Class</Text>
-      <Text style={[styles.subtitle, {color: colors.onSurfaceVariant}]}>
-        Select your class/standard to access the student discussion boards.
-      </Text>
+    <View style={{flex: 1}}>
       {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{marginTop: 30}} />
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
       ) : (
         <FlatList
           data={classesList}
           keyExtractor={(item) => item}
           numColumns={2}
           contentContainerStyle={styles.classGrid}
-          renderItem={({item}) => (
-            <TouchableOpacity
-              style={[styles.classCard, {backgroundColor: colors.elevation.level2, borderColor: colors.outlineVariant}]}
-              onPress={() => saveClass(item)}>
-              <Text size="medium" style={{color: colors.onSurface, fontWeight: 'bold'}}>{item}</Text>
-            </TouchableOpacity>
-          )}
+          ListHeaderComponent={
+            <View style={styles.classSelectorHeader}>
+              <IconText icon="account-group" color={colors.primary} size={64} />
+              <Text size="large" style={[styles.title, {color: colors.onSurface}]}>Choose your Class</Text>
+              <Text style={[styles.subtitle, {color: colors.onSurfaceVariant}]}>
+                Select your class/standard to access the student discussion boards.
+              </Text>
+            </View>
+          }
+          renderItem={({item}) => {
+            const details = getClassCardDetails(item);
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.classCard,
+                  {
+                    backgroundColor: colors.elevation.level2,
+                    borderColor: colors.outlineVariant,
+                    borderLeftColor: details.accentColor,
+                    borderLeftWidth: 4,
+                  }
+                ]}
+                onPress={() => saveClass(item)}>
+                <Micon name={details.icon} size={26} color={details.accentColor} style={{marginBottom: 8}} />
+                <Text size="medium" style={{color: colors.onSurface, fontWeight: 'bold'}}>{item}</Text>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
     </View>
@@ -571,32 +615,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 40,
   },
+  classSelectorHeader: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginTop: 40,
+    marginBottom: 20,
+  },
   title: {
     fontWeight: 'bold',
+    fontSize: 22,
     marginTop: 15,
-    marginBottom: 5,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 15,
     paddingHorizontal: 15,
+    fontSize: 14,
+    lineHeight: 20,
   },
   classGrid: {
-    alignItems: 'center',
-    paddingBottom: 40,
+    paddingHorizontal: 12,
+    paddingBottom: 110,
   },
   classCard: {
-    width: width * 0.4,
+    flex: 1,
     margin: 8,
-    paddingVertical: 18,
-    borderRadius: 14,
+    paddingVertical: 22,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 2},
   },
   headerContainer: {
     paddingVertical: 10,

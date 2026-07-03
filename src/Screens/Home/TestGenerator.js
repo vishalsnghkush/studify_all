@@ -615,27 +615,37 @@ export default function TestGenerator() {
   if (appState === 'setup') {
     return (
       <Screen style={{paddingBottom: 40}}>
-        <Text
-          style={[styles.title, {color: theme.colors.primary}]}
-          size="large">
-          AI Test Generator
-        </Text>
-        <Text style={[styles.subtitle, {color: theme.colors.onSurfaceVariant}]}>
-          Configure your test options to generate a custom, AI-powered test
-          based on your exam syllabus.
-        </Text>
+        <View style={styles.headerBanner}>
+          <Icon name="robot-excited-outline" size={48} color={theme.colors.primary} style={{alignSelf: 'center', marginBottom: 8}} />
+          <Text
+            style={[styles.title, {color: theme.colors.primary, textAlign: 'center'}]}
+            size="large">
+            AI Test Generator
+          </Text>
+          <Text style={[styles.subtitle, {color: theme.colors.onSurfaceVariant, textAlign: 'center'}]}>
+            Configure your test options to generate a custom, AI-powered test
+            based on your exam syllabus.
+          </Text>
+        </View>
 
         <Card
           style={[
             styles.formCard,
-            theme.dark && {
-              backgroundColor: theme.colors.surface,
+            theme.dark ? {
+              backgroundColor: theme.colors.elevation.level1,
               borderColor: theme.colors.outlineVariant,
               borderWidth: 1,
+            } : {
+              backgroundColor: '#ffffff',
+              elevation: 2,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              shadowOffset: {width: 0, height: 1},
             },
           ]}>
-          <Card.Content>
-            <View style={{marginTop: 15}}>
+          <Card.Content style={{paddingVertical: 10}}>
+            <View style={{marginTop: 5}}>
               <Dropdown
                 label="Target Exam"
                 name="examName"
@@ -716,6 +726,7 @@ export default function TestGenerator() {
 
         <Button
           name="Generate Live Test"
+          icon="flash"
           onPress={handleGenerate}
           style={styles.actionButton}
         />
@@ -1244,23 +1255,27 @@ export default function TestGenerator() {
 }
 
 const styles = StyleSheet.create({
+  headerBanner: {
+    marginTop: 20,
+    marginBottom: 15,
+    paddingHorizontal: 16,
+  },
   title: {
     fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 5,
+    fontSize: 22,
     color: '#007171',
+    marginBottom: 6,
   },
   subtitle: {
     color: '#666',
-    marginBottom: 20,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   formCard: {
-    elevation: 3,
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 20,
     marginBottom: 20,
+    paddingVertical: 4,
   },
   hint: {
     fontSize: 11,
@@ -1271,7 +1286,14 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     backgroundColor: '#007171',
-    marginTop: 10,
+    marginTop: 15,
+    borderRadius: 28,
+    paddingVertical: 14,
+    elevation: 4,
+    shadowColor: '#007171',
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: {width: 0, height: 3},
   },
   centered: {
     flex: 1,

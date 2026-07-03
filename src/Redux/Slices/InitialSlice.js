@@ -31,7 +31,11 @@ const initialSlice = createSlice({
       state.token = action.payload.token;
     },
     setUser(state, action) {
-      state.user = action.payload;
+      const wasIntern = state.user?.is_intern;
+      state.user = {
+        ...action.payload,
+        is_intern: wasIntern !== undefined ? wasIntern : action.payload?.is_intern,
+      };
     },
     setUserLogout(state) {
       state.isUserLoggedIn = false;

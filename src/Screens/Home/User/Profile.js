@@ -57,7 +57,7 @@ const Profile = ({navigation}) => {
           {(user?.fname || '') + ' ' + (user?.lname || '')}
         </Text>
         <Text style={{color: colors.onSurfaceVariant, marginTop: 4}}>{user?.email}</Text>
-        {user?.class && (
+        {user?.class && !user?.is_intern && (
           <Text style={{color: colors.primary, marginTop: 4, fontWeight: 'bold'}}>
             Class: {user.class}
           </Text>

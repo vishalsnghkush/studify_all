@@ -278,36 +278,38 @@ const EditProfile = ({navigation}) => {
                 error={errors.gender}
               />
             </View>
-            <View style={{marginBottom: 15}}>
-              <DropDown
-                label="Class/Standard"
-                mode="outlined"
-                visible={classDropdown}
-                showDropDown={() => setClassDropdown(true)}
-                onDismiss={() => setClassDropdown(false)}
-                value={form.class}
-                setValue={value => {
-                  updateFormValue({name: 'class', value});
-                  setClassDropdown(false);
-                }}
-                list={[
-                  {label: 'Class 1st', value: 'Class 1st'},
-                  {label: 'Class 2nd', value: 'Class 2nd'},
-                  {label: 'Class 3rd', value: 'Class 3rd'},
-                  {label: 'Class 4th', value: 'Class 4th'},
-                  {label: 'Class 5th', value: 'Class 5th'},
-                  {label: 'Class 6th', value: 'Class 6th'},
-                  {label: 'Class 7th', value: 'Class 7th'},
-                  {label: 'Class 8th', value: 'Class 8th'},
-                  {label: 'Class 9th', value: 'Class 9th'},
-                  {label: 'Class 10th', value: 'Class 10th'},
-                  {label: 'Class 11th', value: 'Class 11th'},
-                  {label: 'Class 12th', value: 'Class 12th'},
-                ]}
-                dropDownItemTextStyle={{color: colors.onBackground}}
-                error={errors.class}
-              />
-            </View>
+            {!reduxUser?.is_intern && (
+              <View style={{marginBottom: 15}}>
+                <DropDown
+                  label="Class/Standard"
+                  mode="outlined"
+                  visible={classDropdown}
+                  showDropDown={() => setClassDropdown(true)}
+                  onDismiss={() => setClassDropdown(false)}
+                  value={form.class}
+                  setValue={value => {
+                    updateFormValue({name: 'class', value});
+                    setClassDropdown(false);
+                  }}
+                  list={[
+                    {label: 'Class 1st', value: 'Class 1st'},
+                    {label: 'Class 2nd', value: 'Class 2nd'},
+                    {label: 'Class 3rd', value: 'Class 3rd'},
+                    {label: 'Class 4th', value: 'Class 4th'},
+                    {label: 'Class 5th', value: 'Class 5th'},
+                    {label: 'Class 6th', value: 'Class 6th'},
+                    {label: 'Class 7th', value: 'Class 7th'},
+                    {label: 'Class 8th', value: 'Class 8th'},
+                    {label: 'Class 9th', value: 'Class 9th'},
+                    {label: 'Class 10th', value: 'Class 10th'},
+                    {label: 'Class 11th', value: 'Class 11th'},
+                    {label: 'Class 12th', value: 'Class 12th'},
+                  ]}
+                  dropDownItemTextStyle={{color: colors.onBackground}}
+                  error={errors.class}
+                />
+              </View>
+            )}
           </ScrollView>
           <Button name="Update Profile" onPress={submit} loading={isPending} />
         </View>
