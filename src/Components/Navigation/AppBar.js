@@ -6,18 +6,32 @@ const CustomAppBar = ({navigation, route, options, back}) => {
   const {colors} = useTheme();
   const {top} = useSafeAreaInsets();
 
+  const headerBg = options.headerStyle?.backgroundColor || colors.background;
+  const headerTextColor = options.headerTintColor || (options.headerStyle?.backgroundColor ? '#ffffff' : colors.onSurface);
+
   return (
     <Appbar.Header
       statusBarHeight={top}
-      style={{backgroundColor: colors.background, elevation: 3}}>
+      style={{backgroundColor: headerBg, elevation: 3}}>
       {back ? (
-        // <Appbar.BackAction onPress={navigation.goBack} />
-        <IconButton icon="chevron-left" size={29} onPress={navigation.goBack} />
+        <IconButton 
+          icon="chevron-left" 
+          size={29} 
+          iconColor={headerTextColor} 
+          onPress={navigation.goBack} 
+        />
       ) : (
-        <Appbar.Action icon="menu" onPress={() => navigation.openDrawer()} />
+        <Appbar.Action 
+          icon="menu" 
+          iconColor={headerTextColor} 
+          onPress={() => navigation.openDrawer()} 
+        />
       )}
       {back ? (
-        <Appbar.Content title={options.title || route.name} />
+        <Appbar.Content 
+          title={options.title || route.name} 
+          titleStyle={{color: headerTextColor, fontWeight: 'bold', fontSize: 18}} 
+        />
       ) : (
         <Searchbar
           placeholder="Search"
@@ -29,6 +43,7 @@ const CustomAppBar = ({navigation, route, options, back}) => {
       {options?.showNotificationIcon && (
         <Appbar.Action
           icon="bell"
+          iconColor={headerTextColor}
           onPress={() => {
             navigation.navigate('Notifications');
           }}
@@ -37,6 +52,7 @@ const CustomAppBar = ({navigation, route, options, back}) => {
       {options?.showPhoneIcon && (
         <Appbar.Action
           icon="phone"
+          iconColor={headerTextColor}
           onPress={() => {
             Linking.openURL('tel:8447186881');
           }}
@@ -47,3 +63,4 @@ const CustomAppBar = ({navigation, route, options, back}) => {
 };
 
 export default CustomAppBar;
+

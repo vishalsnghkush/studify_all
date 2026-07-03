@@ -29,3 +29,31 @@ allprojects {
         mavenCentral()
     }
 }
+
+subprojects { prj ->
+    def configAction = { p ->
+        if (p.hasProperty("android")) {
+            p.android {
+                try {
+                    externalNativeBuild {
+                        cmake {
+                            arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                        }
+                        ndkBuild {
+                            arguments "APP_LDFLAGS=-Wl,-z,max-page-size=16384"
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore if externalNativeBuild block does not exist or isn't configurable
+                }
+            }
+        }
+    }
+    if (prj.state.executed) {
+        configAction(prj)
+    } else {
+        prj.afterEvaluate {
+            configAction(prj)
+        }
+    }
+}

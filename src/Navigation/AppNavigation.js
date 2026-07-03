@@ -85,6 +85,10 @@ const AppNavigation = () => {
         options={({route}) => ({
           title: route?.params?.title || '',
           headerShown: route?.params?.title ? true : false,
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
         })}
       />
       <Stack.Screen

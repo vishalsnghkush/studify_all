@@ -1,4 +1,5 @@
-import {Linking, View, Image} from 'react-native';
+import React, {useState, useRef, useEffect} from 'react';
+import {Linking, View, Image, Animated, StyleSheet} from 'react-native';
 import {Drawer, Avatar, TouchableRipple, useTheme} from 'react-native-paper';
 import {DrawerContentScrollView} from '@react-navigation/drawer';
 import {Text} from '../Input';
@@ -19,6 +20,8 @@ const DrawerComponent = props => {
   const {user} = useSelector(state => state.initial);
   const {bottom} = useSafeAreaInsets();
   const {colors} = useTheme();
+
+
 
   return (
     <View style={{flex: 1}}>
@@ -61,7 +64,7 @@ const DrawerComponent = props => {
               )}
               <View style={{flex: 1}}>
                 <Text size="medium" style={{color: '#fff', fontWeight: 'bold'}}>{user.fname} {user.lname}</Text>
-                {user?.class && (
+                {user?.class && !user?.is_intern && (
                   <Text size="small" style={{color: 'rgba(255, 255, 255, 0.85)', fontWeight: 'bold', marginTop: 2}}>
                     Class: {user.class}
                   </Text>
@@ -106,18 +109,28 @@ const DrawerComponent = props => {
           />
         </View>
 
-        <TouchableRipple
-          style={{alignItems: 'center', padding: 5}}
-          onPress={() =>
-            Linking.openURL('https://www.linkedin.com/in/ankit-budhori/')
-          }>
-          <>
-            <Text>App Version : {DeviceInfo.getVersion()}</Text>
-            <Text>Crafted with 💚 in India</Text>
-          </>
-        </TouchableRipple>
+        <View style={{alignItems: 'center', padding: 10, paddingBottom: 15}}>
+          <Text style={{fontSize: 12, color: colors.onSurfaceVariant || '#666'}}>
+            App Version : {DeviceInfo.getVersion()}
+          </Text>
+          <Text style={{fontSize: 13, color: colors.onSurfaceVariant || '#666', fontWeight: '500', marginTop: 4, textAlign: 'center'}}>
+            Beautifully Imagined and built by {'\n'}
+            <Text
+              style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
+              onPress={() => Linking.openURL('https://www.linkedin.com/in/aditi-malviya-9b093322a/')}>
+              Aditi
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
+              onPress={() => Linking.openURL('https://www.linkedin.com/in/vishal-kushwaha-a8337022a/')}>
+              Vishal
+            </Text>
+          </Text>
+        </View>
       </DrawerContentScrollView>
     </View>
+
   );
 };
 
