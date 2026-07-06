@@ -1,23 +1,59 @@
 buildscript {
-    ext {
-        buildToolsVersion = "35.0.0"
-        minSdkVersion = 23
-        compileSdkVersion = 35
-        targetSdkVersion = 35
-        ndkVersion = "25.1.8937393"
-        kotlinVersion = "1.8.0"
-        googlePlayServicesAuthVersion = "20.7.0"
-    }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
         classpath("com.google.gms:google-services:4.4.2")
-        classpath("com.android.tools.build:gradle")
+        classpath("com.android.tools.build:gradle:8.2.1")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
     }
 }
 
+ext {
+    buildToolsVersion = "35.0.0"
+    minSdkVersion = 23
+    compileSdkVersion = 35
+    targetSdkVersion = 35
+    ndkVersion = "25.1.8937393"
+    kotlinVersion = "1.8.0"
+    googlePlayServicesAuthVersion = "20.7.0"
+}
+
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+subprojects { prj ->
+    def configAction = { p ->
+        if (p.hasProperty("android")) {
+            p.android {
+                try {
+                    externalNativeBuild {
+                        cmake {
+                            arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                        }
+                        ndkBuild {
+                            arguments "APP_LDFLAGS=-Wl,-z,max-page-size=16384"
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore if externalNativeBuild block does not exist or isn't configurable
+                }
+            }
+        }
+    }
+    if (prj.state.executed) {
+        configAction(prj)
+    } else {
+        prj.afterEvaluate {
+            configAction(prj)
+        }
+    }
+}

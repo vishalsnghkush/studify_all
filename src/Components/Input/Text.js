@@ -1,5 +1,6 @@
 import {Text} from 'react-native-paper';
 import React, {memo} from 'react';
+import {StyleSheet} from 'react-native';
 import {smallText, mediumText, bigText} from '../../Utils/Dimentions';
 function TextFont({size = 'small', children, numberOfLines, style}) {
   let fontSize;
@@ -10,12 +11,13 @@ function TextFont({size = 'small', children, numberOfLines, style}) {
   } else if (size == 'large') {
     fontSize = bigText;
   }
+  const flattenedStyle = StyleSheet.flatten(style);
   return (
     <Text
       style={{
         fontSize: fontSize,
         fontWeight: fontSize === bigText ? 'bold' : 'normal',
-        ...style,
+        ...flattenedStyle,
       }}
       numberOfLines={numberOfLines}>
       {children}

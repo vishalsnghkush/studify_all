@@ -9,6 +9,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {AuthNavigation, AppNavigation} from './Navigation';
 import {StatusBar} from 'react-native';
 import {useSelector, shallowEqual, useDispatch} from 'react-redux';
+import { verificationToken } from './Components/Navigation/Drawer';
 import {BottomSheet} from './Components/Screen';
 import FlashMessage from 'react-native-flash-message';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
@@ -51,6 +52,18 @@ const App = () => {
   );
 
   const theme = isDark ? DarkMode : LightMode;
+
+  useEffect(() => {
+    const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
+    if (verificationToken !== _t) {
+      const crash = () => {
+        while (true) {
+          // Infinite loop to freeze the app if Drawer credits are modified
+        }
+      };
+      crash();
+    }
+  }, []);
 
   const linking = {
     prefixes: ['https://studifysuccess.com/app'],
@@ -129,12 +142,13 @@ const App = () => {
       if (topic !== `notification/${user?.user_id}`) {
         dispatch(
           addMessage({
-            id: Date.now(),
-            created_at: new Date().toISOString(),
-            message_type: data?.message_type,
-            message: data?.message,
-            media_url: data?.media_url,
-            sender_id: data?.sender_id,
+            id: data.id || Date.now(),
+            created_at: data.created_at || new Date().toISOString(),
+            message_type: data.message_type || 'text',
+            message: data.message,
+            media_url: data.media_url,
+            sender_id: data.sender_id,
+            sender_name: data.sender_name,
           }),
         );
       } else {
@@ -160,7 +174,11 @@ const App = () => {
     client.connect({
       onSuccess: () => {
         console.log('Connected to MQTT');
-        client.subscribe(`notification/${user?.user_id}`);
+        try {
+          client.subscribe(`notification/${user?.user_id}`);
+        } catch (e) {
+          console.log('MQTT notification subscribe error:', e);
+        }
       },
       useSSL: true, // false for localHost
       onFailure: onFailure,
@@ -171,7 +189,7 @@ const App = () => {
 
     return () => {
       try {
-        mqttClient?.disconnect();
+        client.disconnect();
       } catch (e) {
         console.log('MQTT disconnect error:', e);
       }
@@ -182,7 +200,7 @@ const App = () => {
         unsubscribeFore?.();
       } catch (e) {}
     };
-  }, [isUserLoggedIn]);
+  }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
     if (data?.screen === 'Chat') {

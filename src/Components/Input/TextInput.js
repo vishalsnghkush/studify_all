@@ -7,6 +7,7 @@ function InputText({
   onPress,
   style,
   defaultValue,
+  value: propValue,
   maxLength,
   updateFormValue,
   rightIcon = false,
@@ -14,26 +15,35 @@ function InputText({
   error = false,
   disabled = false,
   multiline = 1,
+  ...props
 }) {
-  const [value, setValue] = useState();
+  const [internalValue, setInternalValue] = useState(defaultValue || '');
   const [showPassword, setShowPassword] = useState(rightIcon);
 
   useEffect(() => {
-    setValue(defaultValue);
+    if (defaultValue !== undefined) {
+      setInternalValue(defaultValue);
+    }
   }, [defaultValue]);
 
+  const displayValue = propValue !== undefined ? propValue : internalValue;
+
   const updateInputValue = val => {
-    setValue(val);
-    updateFormValue({name, value: val});
-  };
+    setInternalValue(val);
+    if (updateFormValue) {
+        updateFormValue({name, value: val});
+    }
+};
+
   return (
     <TextInput
       mode="outlined"
       onPressIn={onPress}
+      showSoftInputOnFocus={onPress ? false : true}
       maxLength={maxLength}
       keyboardType={keyboard}
       label={label}
-      value={value}
+      value={displayValue}
       error={error}
       secureTextEntry={showPassword}
       onChangeText={e => updateInputValue(e)}
@@ -56,6 +66,7 @@ function InputText({
         ))
       }
       style={{marginBottom: 15, ...style}}
+      {...props}
     />
   );
 }

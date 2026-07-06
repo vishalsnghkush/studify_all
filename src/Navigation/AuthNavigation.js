@@ -11,8 +11,9 @@ import ResetPassword from '../Screens/Auth/ResetPassword';
 const Signin = lazy(() => import('../Screens/Auth/Sign_in'));
 const Signup = lazy(() => import('../Screens/Auth/Sign_up'));
 const ForgetPassword = lazy(() => import('../Screens/Auth/ForgetPassword'));
+const Stack = createStackNavigator();
+
 const AuthNavigation = () => {
-  const Stack = createStackNavigator();
 
   return (
     <Suspense fallback={() => <Text style={{marginTop: 100}}>Loading...</Text>}>
