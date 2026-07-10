@@ -488,9 +488,10 @@ const Home = () => {
     outputRange: [0.85, 0.25],
   });
 
-  // Tasks state
+  // Tasks & Notebook state
   const [tasks, setTasks] = useState([]);
   const [plannerCount, setPlannerCount] = useState(0);
+  const [notebooksCount, setNotebooksCount] = useState(1);
 
   const formatDateKey = date => {
     const yyyy = date.getFullYear();
@@ -513,6 +514,14 @@ const Home = () => {
       } else {
         setTasks([]);
         setPlannerCount(0);
+      }
+
+      // Load notebooks count
+      const savedNotebooks = await AsyncStorage.getItem('@voice_notebooks');
+      if (savedNotebooks) {
+        setNotebooksCount(JSON.parse(savedNotebooks).length);
+      } else {
+        setNotebooksCount(1); // default Manual notebook
       }
     } catch (e) {
       console.log('Failed to load dashboard data', e);
@@ -567,7 +576,7 @@ const Home = () => {
           </BouncyButton>
 
           <BouncyButton
-            onPress={() => navigation.navigate('StudyPlanner')}
+            onPress={() => navigation.navigate('VoiceNotebook')}
             style={[
               styles.statBox,
               { backgroundColor: '#ede7f6', borderColor: '#d1c4e9' },
@@ -576,12 +585,24 @@ const Home = () => {
                 borderColor: 'rgba(103,58,183,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#d1c4e9'}]}>
-              <Icon name="calendar-multiselect" size={15} color="#512da8" />
+            <View style={[styles.statIconWrapper, {backgroundColor: '#d1c4e9', position: 'relative'}]}>
+              <Icon name="notebook-outline" size={16} color="#512da8" />
+              <View style={{
+                position: 'absolute',
+                bottom: -3,
+                right: -3,
+                backgroundColor: dark ? '#201630' : '#ede7f6',
+                borderRadius: 6,
+                padding: 1,
+                borderWidth: 1,
+                borderColor: '#d1c4e9',
+              }}>
+                <Icon name="microphone" size={9} color="#512da8" />
+              </View>
             </View>
             <View style={styles.statTextContainer}>
               <Text style={[styles.statVal, {color: '#311b92'}, dark && {color: colors.onSurface}]}>
-                {plannerCount}
+                {notebooksCount}
               </Text>
               <Text
                 style={[
@@ -589,7 +610,7 @@ const Home = () => {
                   {color: '#512da8'},
                   dark && {color: colors.onSurfaceVariant},
                 ]}>
-                Schedule
+                Notebooks
               </Text>
             </View>
           </BouncyButton>

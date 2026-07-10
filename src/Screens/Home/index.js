@@ -20,6 +20,7 @@ import GamificationDashboard from './GamificationDashboard';
 import Careers from './Careers';
 import Activities from './Activities';
 import Counselling from './Counselling';
+import VoiceNotebook from './Notes/VoiceNotebook';
 
 export {
   Home,
@@ -44,4 +45,5 @@ export {
   Careers,
   Activities,
   Counselling,
+  VoiceNotebook,
 };

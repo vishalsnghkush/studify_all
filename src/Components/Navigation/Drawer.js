@@ -99,6 +99,11 @@ const DrawerComponent = props => {
             onPress={() => navigate('Counselling')}
           />
           <Drawer.Item
+            label="Voice Notebook"
+            icon="microphone"
+            onPress={() => navigate('VoiceNotebook')}
+          />
+          <Drawer.Item
             label="Support Portal"
             icon="help-circle"
             onPress={() =>

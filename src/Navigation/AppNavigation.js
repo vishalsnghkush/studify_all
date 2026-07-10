@@ -23,6 +23,7 @@ import {
   Careers,
   Activities,
   Counselling,
+  VoiceNotebook,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
@@ -212,6 +213,17 @@ const AppNavigation = () => {
         component={Counselling}
         options={{
           title: 'Counselling System',
+        }}
+      />
+      <Stack.Screen
+        name="VoiceNotebook"
+        component={VoiceNotebook}
+        options={{
+          title: 'Voice Notebook',
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
         }}
       />
       <Stack.Screen

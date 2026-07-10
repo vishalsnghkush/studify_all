@@ -39,3 +39,43 @@ export const requestImagePermissions = async () => {
     return false;
   }
 };
+
+export const requestMicrophonePermission = async () => {
+  try {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: "Microphone Permission",
+          message: "We need access to your microphone for voice typing.",
+          buttonPositive: "OK",
+          buttonNegative: "Cancel",
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log("Microphone permission granted");
+        return true;
+      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        Alert.alert(
+          "Permission Required",
+          "To use speech-to-text, enable microphone permission in app settings.",
+          [
+            {text: "Cancel", style: "cancel"},
+            {text: "Open Settings", onPress: () => Linking.openSettings()},
+          ],
+        );
+        return false;
+      } else {
+        Alert.alert(
+          "Permission Denied",
+          "Microphone access is required for voice typing.",
+        );
+        return false;
+      }
+    }
+    return true; // iOS handles permission via WebView naturally
+  } catch (error) {
+    console.warn(error);
+    return false;
+  }
+};
