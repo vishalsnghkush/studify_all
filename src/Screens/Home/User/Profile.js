@@ -4,7 +4,11 @@ import {Text} from '../../../Components/Input';
 import {Screen, CardHorizontal} from '../../../Components/Screen';
 import {Avatar, useTheme} from 'react-native-paper';
 import {useDispatch, useSelector} from 'react-redux';
-import {setUserLogout, setTheme, setUser} from '../../../Redux/Slices/InitialSlice';
+import {
+  setUserLogout,
+  setTheme,
+  setUser,
+} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import InAppReview from '../../../Components/Screen/InAppReview';
 import {removeFcmToken} from '../../../Components/Api/CheckAuth';
@@ -23,17 +27,20 @@ const Profile = ({navigation}) => {
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>
       <InAppReview />
-      <View 
+      <View
         style={{
-          alignItems: 'center', 
-          backgroundColor: isDark ? colors.elevation.level1 : 'rgba(216, 27, 96, 0.04)',
+          alignItems: 'center',
+          backgroundColor: isDark
+            ? colors.elevation.level1
+            : 'rgba(216, 27, 96, 0.04)',
           margin: 16,
           padding: 24,
           borderRadius: 24,
           borderWidth: 1,
-          borderColor: isDark ? colors.outlineVariant : 'rgba(216, 27, 96, 0.1)',
-        }}
-      >
+          borderColor: isDark
+            ? colors.outlineVariant
+            : 'rgba(216, 27, 96, 0.1)',
+        }}>
         {user?.avatar ? (
           <Image
             source={{uri: user.avatar}}
@@ -53,12 +60,17 @@ const Profile = ({navigation}) => {
             color={colors.onPrimary}
           />
         )}
-        <Text size="medium" style={{marginTop: 14, fontWeight: 'bold', color: colors.onSurface}}>
+        <Text
+          size="medium"
+          style={{marginTop: 14, fontWeight: 'bold', color: colors.onSurface}}>
           {(user?.fname || '') + ' ' + (user?.lname || '')}
         </Text>
-        <Text style={{color: colors.onSurfaceVariant, marginTop: 4}}>{user?.email}</Text>
+        <Text style={{color: colors.onSurfaceVariant, marginTop: 4}}>
+          {user?.email}
+        </Text>
         {user?.class && !user?.is_intern && (
-          <Text style={{color: colors.primary, marginTop: 4, fontWeight: 'bold'}}>
+          <Text
+            style={{color: colors.primary, marginTop: 4, fontWeight: 'bold'}}>
             Class: {user.class}
           </Text>
         )}
@@ -91,10 +103,7 @@ const Profile = ({navigation}) => {
           leftIcon="weather-night"
           rightIcon={
             <View pointerEvents="none">
-              <Switch
-                value={isSwitchOn}
-                trackColor={{false: '#afafaf81'}}
-              />
+              <Switch value={isSwitchOn} trackColor={{false: '#afafaf81'}} />
             </View>
           }
           onPress={onToggleSwitch}

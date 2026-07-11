@@ -7,7 +7,6 @@ import {
   Pressable,
   Image,
 } from 'react-native';
-import {color} from 'react-native-reanimated';
 
 const ComponentRenderer = ({component}) => {
   const {type, props, children} = component;
