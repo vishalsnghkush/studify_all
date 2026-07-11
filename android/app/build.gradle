@@ -8,6 +8,11 @@ apply plugin: 'com.google.gms.google-services'
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Adds every autolinked native module as an `implementation` project dependency
+    // by reading build/generated/autolinking/autolinking.json (produced by
+    // autolinkLibrariesFromCommand() in settings.gradle). Required since RN 0.75+.
+    autolinkLibrariesWithApp()
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
     // root = file("../")
@@ -110,6 +115,13 @@ android {
             keyPassword 'android'
         }
     }
+    // react-native-pdf pins io.legere:pdfiumandroid:1.0.24 (4KB page alignment),
+    // which fails the Google Play 16KB requirement. 1.0.35 ships 16KB-aligned .so files.
+    configurations.all {
+        resolutionStrategy {
+            force 'io.legere:pdfiumandroid:1.0.35'
+        }
+    }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
@@ -127,10 +139,9 @@ android {
 }
 
 dependencies {
-     implementation project(':react-native-splash-screen')
+    implementation project(':react-native-splash-screen')
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:flipper-integration")
     implementation("androidx.activity:activity:1.9.+")
 
     if (hermesEnabled.toBoolean()) {
@@ -139,5 +150,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
