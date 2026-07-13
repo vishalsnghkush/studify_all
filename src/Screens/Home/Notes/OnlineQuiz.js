@@ -74,8 +74,39 @@ const OnlineQuiz = () => {
     },
   ];
 
-  const handlePress = url => {
+  const handlePress = (url, title) => {
     dispatch(triggerActivity('quiz_started'));
+
+    // Log the quiz practice attempt in history
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.getItem('@studify_test_history').then(existingHistory => {
+        let history = [];
+        if (existingHistory) {
+          try {
+            history = JSON.parse(existingHistory);
+          } catch (_) {}
+        }
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: title, // e.g. "Class 6th"
+          type: 'Online Quiz',
+          subject: 'Quiz Practice',
+          score: 'Completed',
+          rawScore: 80,
+          maxMarks: 100,
+          accuracy: 80,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: 'Web Practice',
+          timestamp: Date.now()
+        };
+        history.unshift(newRecord);
+        AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      });
+    } catch (e) {
+      console.warn('Failed to log quiz attempt', e);
+    }
+
     navigation.navigate('WebView', {url});
   };
 
@@ -103,7 +134,7 @@ const OnlineQuiz = () => {
           {classes.map((item, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handlePress(item.url)}
+              onPress={() => handlePress(item.url, item.title)}
               style={[
                 styles.card,
                 {

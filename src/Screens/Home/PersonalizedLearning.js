@@ -1,5 +1,5 @@
-import React, {useState, useCallback} from 'react';
-import {StyleSheet, View, ScrollView, TouchableOpacity} from 'react-native';
+import React, {useState, useCallback, useEffect} from 'react';
+import {StyleSheet, View, ScrollView, TouchableOpacity, TextInput} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Text} from '../../Components/Input';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -7,6 +7,7 @@ import {useTheme, Card, ProgressBar} from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
+import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 
 const PersonalizedLearning = () => {
   const navigation = useNavigation();
@@ -17,6 +18,59 @@ const PersonalizedLearning = () => {
   const [plannerCount, setPlannerCount] = useState(0);
   const [activeMiniBurstId, setActiveMiniBurstId] = useState(null);
   const [showGrandConfetti, setShowGrandConfetti] = useState(false);
+
+  // AI Study Planner & Exam Countdown states
+  const [examTarget, setExamTarget] = useState(null);
+  const [isSettingTarget, setIsSettingTarget] = useState(false);
+  const [tempTitle, setTempTitle] = useState('');
+  const [tempDate, setTempDate] = useState(new Date());
+  const [tempTotalChapters, setTempTotalChapters] = useState('10');
+  const [tempCompletedChapters, setTempCompletedChapters] = useState('0');
+
+  const loadExamTarget = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('@studify_exam_target');
+      if (saved) {
+        setExamTarget(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.log('Failed to load exam target', e);
+    }
+  }, []);
+
+  const handleSaveTarget = async () => {
+    if (!tempTitle.trim()) {
+      alert('Please enter an exam title');
+      return;
+    }
+    const targetObj = {
+      title: tempTitle,
+      date: tempDate.toISOString().split('T')[0],
+      totalChapters: parseInt(tempTotalChapters) || 10,
+      completedChapters: parseInt(tempCompletedChapters) || 0,
+    };
+    await AsyncStorage.setItem('@studify_exam_target', JSON.stringify(targetObj));
+    setExamTarget(targetObj);
+    setIsSettingTarget(false);
+  };
+
+  const handleDeleteTarget = async () => {
+    await AsyncStorage.removeItem('@studify_exam_target');
+    setExamTarget(null);
+  };
+
+  const showDatePicker = () => {
+    DateTimePickerAndroid.open({
+      value: tempDate,
+      onChange: (event, selectedDate) => {
+        if (selectedDate) {
+          setTempDate(selectedDate);
+        }
+      },
+      mode: 'date',
+      is24Hour: true,
+    });
+  };
 
   const formatDateKey = date => {
     const yyyy = date.getFullYear();
@@ -48,7 +102,8 @@ const PersonalizedLearning = () => {
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [loadDashboardData]),
+      loadExamTarget();
+    }, [loadDashboardData, loadExamTarget]),
   );
 
   const handleToggleTask = async id => {
@@ -253,6 +308,201 @@ const PersonalizedLearning = () => {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Exam Target & AI Study Planner Card */}
+        {isSettingTarget ? (
+          <View style={[styles.targetFormCard, {backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant}]}>
+            <View style={styles.formHeader}>
+              <Icon name="target" size={20} color={theme.colors.primary} />
+              <Text style={[styles.formTitle, {color: theme.colors.onSurface}]}>Set Exam Target</Text>
+            </View>
+            
+            <Text style={styles.inputLabel}>Exam Name / Title</Text>
+            <TextInput
+              value={tempTitle}
+              onChangeText={setTempTitle}
+              placeholder="e.g. Class 10 Board Exam"
+              placeholderTextColor={theme.colors.outline}
+              style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+            />
+
+            <Text style={styles.inputLabel}>Exam Date</Text>
+            <TouchableOpacity onPress={showDatePicker} style={[styles.dateSelectorBtn, {borderColor: theme.colors.outlineVariant}]}>
+              <Icon name="calendar" size={18} color={theme.colors.primary} />
+              <Text style={{color: theme.colors.onSurface, marginLeft: 8, fontSize: 13}}>
+                {tempDate.toDateString()}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.formRow}>
+              <View style={{flex: 1}}>
+                <Text style={styles.inputLabel}>Total Chapters</Text>
+                <TextInput
+                  value={tempTotalChapters}
+                  onChangeText={setTempTotalChapters}
+                  keyboardType="numeric"
+                  style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+                />
+              </View>
+              <View style={{width: 12}} />
+              <View style={{flex: 1}}>
+                <Text style={styles.inputLabel}>Chapters Completed</Text>
+                <TextInput
+                  value={tempCompletedChapters}
+                  onChangeText={setTempCompletedChapters}
+                  keyboardType="numeric"
+                  style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formActions}>
+              <TouchableOpacity onPress={() => setIsSettingTarget(false)} style={[styles.formBtn, {borderColor: theme.colors.outline}]}>
+                <Text style={{color: theme.colors.onSurfaceVariant, fontSize: 12}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveTarget} style={[styles.formBtn, styles.btnPrimary, {backgroundColor: theme.colors.primary}]}>
+                <Text style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>Save Target</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : examTarget ? (
+          (() => {
+            const daysRemaining = Math.max(0, Math.ceil((new Date(examTarget.date) - new Date()) / (1000 * 60 * 60 * 24)));
+            const remainingChapters = Math.max(0, examTarget.totalChapters - examTarget.completedChapters);
+            const chaptersPerDay = daysRemaining > 0 ? (remainingChapters / daysRemaining).toFixed(2) : 0;
+            const completionPercent = Math.min(100, Math.round((examTarget.completedChapters / examTarget.totalChapters) * 100)) || 0;
+
+            let plannerAdvice = "On track! Spend 30 minutes revising daily.";
+            if (chaptersPerDay > 0.05 && chaptersPerDay <= 0.2) {
+              plannerAdvice = "Steady pace! Study 1.5 hours daily to finish in time.";
+            } else if (chaptersPerDay > 0.2) {
+              plannerAdvice = "Needs focus! Dedicate 3 hours daily to cover the syllabus.";
+            }
+
+            return (
+              <View style={[styles.targetCard, {backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant}]}>
+                <View style={styles.targetHeader}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+                    <View style={styles.targetIconCircle}>
+                      <Icon name="bullseye-arrow" size={24} color="#ffffff" />
+                    </View>
+                    <View>
+                      <Text style={[styles.targetTitle, {color: theme.colors.onSurface}]}>{examTarget.title}</Text>
+                      <Text style={[styles.targetSubtitle, {color: theme.colors.outline}]}>
+                        {daysRemaining > 0 ? `${daysRemaining} days remaining` : 'Exam today / completed!'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={handleDeleteTarget} style={styles.deleteTargetBtn}>
+                    <Icon name="trash-can-outline" size={20} color="#e53935" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Progress bar */}
+                <View style={styles.targetProgressSection}>
+                  <View style={styles.progressLabelRow}>
+                    <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface}}>Syllabus Coverage</Text>
+                    <Text style={{fontSize: 12, color: theme.colors.outline}}>{completionPercent}%</Text>
+                  </View>
+                  <ProgressBar
+                    progress={completionPercent / 100}
+                    color={theme.colors.primary}
+                    style={styles.targetProgressBar}
+                  />
+                  <Text style={styles.chaptersRatioText}>
+                    {examTarget.completedChapters} of {examTarget.totalChapters} chapters completed
+                  </Text>
+                </View>
+
+                {/* AI Advice */}
+                <View style={[styles.adviceBox, {backgroundColor: theme.dark ? 'rgba(99, 102, 241, 0.12)' : '#eef2ff', borderColor: theme.dark ? '#4f46e5' : '#c7d2fe'}]}>
+                  <Icon name="robot" size={20} color="#6366f1" />
+                  <View style={{flex: 1}}>
+                    <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.dark ? '#818cf8' : '#4f46e5'}}>AI Study Advice</Text>
+                    <Text style={{fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 2}}>
+                      {plannerAdvice} ({chaptersPerDay} chapters/day required)
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })()
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempTitle('');
+              setTempDate(new Date());
+              setTempTotalChapters('12');
+              setTempCompletedChapters('3');
+              setIsSettingTarget(true);
+            }}
+            style={[
+              styles.featureCardFull,
+              {
+                backgroundColor: '#eef2ff',
+                borderColor: '#c7d2fe',
+              },
+              theme.dark && {
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                borderColor: '#6366f1',
+              },
+            ]}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 14}}>
+              <View style={[styles.featureIconCircleFull, {backgroundColor: '#6366f1'}]}>
+                <Icon name="bullseye-arrow" size={26} color="white" />
+              </View>
+              <View style={{flex: 1}}>
+                <Text
+                  style={[
+                    styles.featureCardTitle,
+                    {color: theme.colors.onSurface},
+                  ]}>
+                  AI Exam Target & Study Planner
+                </Text>
+                <Text
+                  style={[
+                    styles.featureCardDesc,
+                    {color: theme.colors.onSurfaceVariant},
+                  ]}>
+                  Set your exam date to generate a customized countdown, coverage rate, and daily study targets!
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Card 3: Performance Analyzer */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Analysis')}
+          style={[
+            styles.featureCardFull,
+            theme.dark && {
+              backgroundColor: 'rgba(103, 58, 183, 0.15)',
+              borderColor: '#673ab7',
+            },
+          ]}>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 14}}>
+            <View style={styles.featureIconCircleFull}>
+              <Icon name="chart-bar" size={26} color="white" />
+            </View>
+            <View style={{flex: 1}}>
+              <Text
+                style={[
+                  styles.featureCardTitle,
+                  {color: theme.colors.onSurface},
+                ]}>
+                Performance Analyzer
+              </Text>
+              <Text
+                style={[
+                  styles.featureCardDesc,
+                  {color: theme.colors.onSurfaceVariant},
+                ]}>
+                Track your study streaks, task completion rates, and test scores over time.
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Current Tasks Checklist */}
         <View style={styles.checklistSection}>
@@ -495,6 +745,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+  featureCardFull: {
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    backgroundColor: '#f3e5f5',
+    borderColor: '#673ab7',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  featureIconCircleFull: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#673ab7',
+  },
   featureIconCircle1: {
     width: 44,
     height: 44,
@@ -630,6 +901,129 @@ const styles = StyleSheet.create({
   priorityTagText: {
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  targetFormCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  formTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 6,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  dateSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  formRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  formActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  formBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  btnPrimary: {
+    borderWidth: 0,
+  },
+  targetCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  targetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  targetIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+  },
+  targetTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  targetSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  deleteTargetBtn: {
+    padding: 6,
+  },
+  targetProgressSection: {
+    marginBottom: 16,
+  },
+  progressLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  targetProgressBar: {
+    height: 6,
+    borderRadius: 3,
+  },
+  chaptersRatioText: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 6,
+  },
+  adviceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
   },
 });
 

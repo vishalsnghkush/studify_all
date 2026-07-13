@@ -43,125 +43,29 @@ const DrawerComponent = props => {
   const _fD = arr => arr.map(c => String.fromCharCode(c ^ 90)).join(''); // eslint-disable-line no-bitwise
 
   const [expanded, setExpanded] = useState(false);
-  const [layoutSize, setLayoutSize] = useState({width: 0, height: 0});
-  const [active, setActive] = useState(false);
+  const tapCount = useRef(0);
+  const tapTimer = useRef(null);
 
-  const _t1 = useRef(null);
-  const _t2 = useRef(null);
-  const _t3 = useRef(null);
-  const _t4 = useRef(null);
-  const _history = useRef([]);
-
-  const _onL = e => {
-    const {width, height} = e.nativeEvent.layout;
-    setLayoutSize({width, height});
-  };
-
-  const _onS = e => {
-    if (expanded || layoutSize.width === 0) {
-      return;
+  const _handleCreditTap = () => {
+    tapCount.current += 1;
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
     }
 
-    const {touches} = e.nativeEvent;
-
-    if (touches && touches.length === 2) {
-      _t2.current = {
-        y0: touches[0].pageY,
-        y1: touches[1].pageY,
-        t: Date.now(),
-      };
-      return;
+    if (tapCount.current >= 3) {
+      setExpanded(prev => !prev);
+      tapCount.current = 0;
     } else {
-      _t2.current = null;
-    }
-
-    if (!active && (!touches || touches.length <= 1)) {
-      const {locationX, locationY} = e.nativeEvent;
-      const W = layoutSize.width;
-      const H = layoutSize.height;
-
-      // Compute quadrant identifier and map to distinct prime weights
-      const idx = (locationY < H / 2 ? 0 : 2) + (locationX < W / 2 ? 0 : 1);
-      const w = idx === 0 ? 11 : idx === 1 ? 13 : idx === 2 ? 17 : 19;
-
-      _history.current.push(w);
-      if (_history.current.length > 4) {
-        _history.current.shift();
-      }
-
-      if (_t1.current) {
-        clearTimeout(_t1.current);
-      }
-      _t1.current = setTimeout(() => {
-        _history.current = [];
-      }, 3000);
-
-      // Verify sequence using a polynomial hash equation
-      if (_history.current.length === 4) {
-        const h =
-          ((_history.current[0] * 31 + _history.current[1]) * 31 +
-            _history.current[2]) *
-            31 +
-          _history.current[3];
-
-        if (h === 340740) {
-          setActive(true);
-          _history.current = [];
-
-          if (_t3.current) {
-            clearTimeout(_t3.current);
-          }
-          _t3.current = setTimeout(() => {
-            setActive(false);
-          }, 10000);
-
-          if (_t1.current) {
-            clearTimeout(_t1.current);
-          }
-        }
-      }
-    }
-  };
-
-  const _onM = e => {
-    if (expanded || !active || !_t2.current) {
-      return;
-    }
-
-    const {touches} = e.nativeEvent;
-    if (touches && touches.length === 2) {
-      const start = _t2.current;
-      const dy0 = touches[0].pageY - start.y0;
-      const dy1 = touches[1].pageY - start.y1;
-
-      if (dy0 > 130 && dy1 > 130 && Date.now() - start.t < 1000) {
-        setExpanded(true);
-        setActive(false);
-        _t2.current = null;
-        if (_t3.current) {
-          clearTimeout(_t3.current);
-        }
-
-        if (_t4.current) {
-          clearTimeout(_t4.current);
-        }
-        _t4.current = setTimeout(() => {
-          setExpanded(false);
-        }, 3000);
-      }
+      tapTimer.current = setTimeout(() => {
+        tapCount.current = 0;
+      }, 1500);
     }
   };
 
   useEffect(() => {
     return () => {
-      if (_t1.current) {
-        clearTimeout(_t1.current);
-      }
-      if (_t3.current) {
-        clearTimeout(_t3.current);
-      }
-      if (_t4.current) {
-        clearTimeout(_t4.current);
+      if (tapTimer.current) {
+        clearTimeout(tapTimer.current);
       }
     };
   }, []);
@@ -171,9 +75,9 @@ const DrawerComponent = props => {
       <DrawerContentScrollView
         {...props}
         contentContainerStyle={{
-          flex: 1,
+          flexGrow: 1,
           justifyContent: 'space-between',
-          paddingBottom: bottom || 0,
+          paddingBottom: (bottom || 0) + 10,
         }}>
         <View>
           <TouchableRipple onPress={() => navigate('Profile')}>
@@ -262,6 +166,16 @@ const DrawerComponent = props => {
             onPress={() => navigate('VoiceNotebook')}
           />
           <Drawer.Item
+            label="Focus Space"
+            icon="timer-sand"
+            onPress={() => navigate('FocusSpace')}
+          />
+          <Drawer.Item
+            label="Performance Analyzer"
+            icon="chart-bar"
+            onPress={() => navigate('Analysis')}
+          />
+          <Drawer.Item
             label="Support Portal"
             icon="help-circle"
             onPress={() =>
@@ -278,60 +192,57 @@ const DrawerComponent = props => {
           />
         </View>
 
-        {/* Secret Touch Area */}
-        <View
-          style={{flex: 1, minHeight: 200, width: '100%'}}
-          onLayout={_onL}
-          onTouchStart={_onS}
-          onTouchMove={_onM}
-          pointerEvents="auto"
-        />
-
-        <View style={{alignItems: 'center', padding: 10, paddingBottom: 15}}>
-          {expanded && (
-            <Text
-              style={{
-                fontSize: 13,
-                color: colors.onSurfaceVariant || '#666',
-                fontWeight: '500',
-                marginBottom: 8,
-                textAlign: 'center',
-              }}>
-              {_fD(_vD)}
-              {'\n'}
+        {/* Footer & Secret Credit Toggle Area */}
+        <TouchableRipple
+          onPress={_handleCreditTap}
+          rippleColor="rgba(0, 0, 0, 0.05)"
+          style={{width: '100%', padding: 12, paddingBottom: 15, alignItems: 'center'}}>
+          <View style={{alignItems: 'center', width: '100%'}}>
+            {expanded && (
               <Text
-                style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
-                onPress={() => Linking.openURL(_fD(_lA))}>
-                {_fD(_uA)}
-              </Text>{' '}
-              and{' '}
-              <Text
-                style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
-                onPress={() => Linking.openURL(_fD(_lV))}>
-                {_fD(_uV)}
+                style={{
+                  fontSize: 13,
+                  color: colors.onSurfaceVariant || '#666',
+                  fontWeight: '500',
+                  marginBottom: 8,
+                  textAlign: 'center',
+                }}>
+                {_fD(_vD)}
+                {'\n'}
+                <Text
+                  style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
+                  onPress={() => Linking.openURL(_fD(_lA))}>
+                  {_fD(_uA)}
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={{color: colors.primary || '#007171', fontWeight: 'bold'}}
+                  onPress={() => Linking.openURL(_fD(_lV))}>
+                  {_fD(_uV)}
+                </Text>
               </Text>
-            </Text>
-          )}
+            )}
 
-          <View style={{alignItems: 'center'}}>
-            <Text
-              style={{
-                fontSize: 12,
-                color: colors.onSurfaceVariant || '#666',
-                fontWeight: '500',
-              }}>
-              Crafted with 💚 in India
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: colors.onSurfaceVariant || '#666',
-                marginTop: 2,
-              }}>
-              App Version : {DeviceInfo.getVersion()}
-            </Text>
+            <View style={{alignItems: 'center'}}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: colors.onSurfaceVariant || '#666',
+                  fontWeight: '500',
+                }}>
+                Crafted with 💚 in India
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: colors.onSurfaceVariant || '#666',
+                  marginTop: 2,
+                }}>
+                App Version : {DeviceInfo.getVersion()}
+              </Text>
+            </View>
           </View>
-        </View>
+        </TouchableRipple>
       </DrawerContentScrollView>
     </View>
   );

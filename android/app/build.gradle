@@ -156,7 +156,7 @@ task verifyDrawerIntegrity {
             throw new GradleException("CRITICAL ERROR: Navigation components are missing. Compilation aborted.")
         }
         
-        def expectedHash = "e3d70b561bb6c21d5d67e1bfab390e9464f169133be6497e2ffe8b410dc0f3bf"
+        def expectedHash = "442c252ed7ada29346ee0a80f193d4578c66f207c0f87243897eeb0f48366d16"
         
         def digest = MessageDigest.getInstance("SHA-256")
         def fileBytes = drawerFile.readBytes()

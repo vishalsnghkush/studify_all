@@ -21,6 +21,8 @@ import Careers from './Careers';
 import Activities from './Activities';
 import Counselling from './Counselling';
 import VoiceNotebook from './Notes/VoiceNotebook';
+import Analysis from './Analysis';
+import FocusSpace from './FocusSpace';
 
 export {
   Home,
@@ -46,4 +48,6 @@ export {
   Activities,
   Counselling,
   VoiceNotebook,
+  Analysis,
+  FocusSpace,
 };

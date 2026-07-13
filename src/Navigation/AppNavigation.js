@@ -25,6 +25,8 @@ import {
   Counselling,
   VoiceNotebook,
 } from '../Screens/Home';
+import FocusSpace from '../Screens/Home/FocusSpace';
+import Analysis from '../Screens/Home/Analysis';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
 
@@ -224,6 +226,18 @@ const AppNavigation = () => {
             backgroundColor: '#007171',
           },
           headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="FocusSpace"
+        component={FocusSpace}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Analysis"
+        component={Analysis}
+        options={{
+          title: 'Performance Analyzer',
         }}
       />
       <Stack.Screen

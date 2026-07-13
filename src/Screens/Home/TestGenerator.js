@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   Text as RNText,
+  TextInput as RNTextInput,
+  Image,
 } from 'react-native';
 import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,8 +17,57 @@ import {Screen} from '../../Components/Screen';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 import {Text, TextInput, Button} from '../../Components/Input';
+import {useNavigation} from '@react-navigation/native';
 import Dropdown from '../../Components/Input/Dropdown';
 import {Confetti} from '../../Components/Screen/Confetti';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+
+// Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
+// Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
+const NOTE_FILES = [
+  { title: 'Class 8 Science Chapter 4 (Materials: Metals and Non-Metals)', subject: 'Science', class: 8, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%208%20science%20ch%204%20part%201.pdf' },
+  { title: 'Class 8 Science Chapter 5 (Coal and Petroleum)', subject: 'Science', class: 8, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%208%20science%20ch%205%20part%201.pdf' },
+  { title: 'Class 9 Science Chapter 8 (Motion)', subject: 'Science', class: 9, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%209%20science%20ch%208%20part%201.pdf' },
+  { title: 'Class 9 Mathematics Polynomials (Part 1)', subject: 'Mathematics', class: 9, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%209%20maths%20polynomials%20part%201.pdf' },
+  { title: 'Class 10 Mathematics Real Numbers', subject: 'Mathematics', class: 10, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2010%20maths%20ch%201%20part%201.pdf' },
+  { title: 'Class 11 Physics Units and Measurements', subject: 'Physics', class: 11, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2011%20science%20unit%201.pdf' },
+  { title: 'Class 12 Economics Money and Banking', subject: 'Economics', class: 12, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2012%20economics%20unit%202%20part%201.pdf' },
+];
+
+const getMatchingNoteForQuestion = (qText, sub, examName) => {
+  const query = (qText + ' ' + (sub || '')).toLowerCase();
+  
+  // Extract class number from examName context (e.g. "NCERT Class 6" -> 6)
+  let classNum = null;
+  if (examName) {
+    const match = examName.match(/Class\s+(\d+)/i);
+    if (match) classNum = parseInt(match[1]);
+  }
+
+  // Filter candidates if class context matches
+  let candidateNotes = NOTE_FILES;
+  if (classNum) {
+    const classNotes = NOTE_FILES.filter(n => n.class === classNum);
+    if (classNotes.length > 0) {
+      candidateNotes = classNotes;
+    }
+  }
+
+  // Check matching words in candidates
+  for (const note of candidateNotes) {
+    const titleWords = note.title.toLowerCase().split(/[ :(),]+/);
+    const matchesKeyword = titleWords.some(w => w.length > 3 && query.includes(w));
+    if (matchesKeyword) return note;
+  }
+  
+  // Fallback to first matching subject in candidates
+  const subMatch = candidateNotes.find(n => n.subject.toLowerCase() === (sub || '').toLowerCase());
+  if (subMatch) return subMatch;
+
+  // Global subject fallback
+  const globalSubMatch = NOTE_FILES.find(n => n.subject.toLowerCase() === (sub || '').toLowerCase());
+  return globalSubMatch || NOTE_FILES[0];
+};
 
 // ── API Key ── hardcoded so it is always correct, never stale
 const OPENROUTER_API_KEY =
@@ -192,6 +243,7 @@ const getSubjectsList = exam => {
 export default function TestGenerator() {
   const theme = useTheme();
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   // Form State
   const [examName, setExamName] = useState('JEE');
   const [generationType, setGenerationType] = useState('Topic Wise');
@@ -217,6 +269,21 @@ export default function TestGenerator() {
 
   const [displayedScore, setDisplayedScore] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Advanced Practical Features States (Ideas 1, 2, 4)
+  const [flaggedQuestions, setFlaggedQuestions] = useState({});
+  const [questionTimes, setQuestionTimes] = useState({});
+  const [lastActiveIdx, setLastActiveIdx] = useState(0);
+  const [blueprintList, setBlueprintList] = useState([]);
+  const [blueprintChapter, setBlueprintChapter] = useState('');
+  const [blueprintCount, setBlueprintCount] = useState('');
+
+  // Subjective / Written Evaluator States
+  const [testFormat, setTestFormat] = useState('Objective'); // 'Objective' | 'Subjective'
+  const [userSubjectiveTexts, setUserSubjectiveTexts] = useState({});
+  const [userSubjectiveImages, setUserSubjectiveImages] = useState({});
+  const [gradedAnswers, setGradedAnswers] = useState({});
+  const [isGrading, setIsGrading] = useState(false);
 
   useEffect(() => {
     if (appState === 'results') {
@@ -275,7 +342,153 @@ export default function TestGenerator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examName, generationType]);
 
+  const submitSubjectiveTest = async () => {
+    setIsGrading(true);
+    setAppState('generating');
+
+    try {
+      const gradingPromises = questions.map(async (q, idx) => {
+        const studentText = userSubjectiveTexts[idx] || 'None';
+        const studentImage = userSubjectiveImages[idx]?.base64;
+
+        const systemPrompt = 
+          'You are an expert academic examiner. Grade the student\'s subjective written response.\n\n' +
+          'RESPONSE FORMAT: You MUST return ONLY a valid JSON object. Do not wrap in markdown or code blocks. Nothing else.\n' +
+          'Format: {"marksAwarded": number, "corrections": "string details of errors/correct steps", "feedback": "overall brief comment"}\n\n' +
+          'CRITICAL RULES:\n' +
+          '- Evaluate correctness, diagram labels, or derivations strictly.\n' +
+          '- marksAwarded must be a number between 0 and ' + (q.maxMarks || 10) + '.\n' +
+          '- Output raw JSON starting with { and ending with }';
+
+        const userPrompt = 
+          'Question: ' + q.question + '\n' +
+          'Max Marks: ' + (q.maxMarks || 10) + '\n' +
+          'Ideal Solution: ' + (q.idealAnswer || '') + '\n' +
+          'Grading Rubric: ' + (q.rubric || '') + '\n\n' +
+          'Student\'s Typed Response: ' + studentText + '\n\n' +
+          'Evaluate this work. If there is an uploaded image, check it for diagram labels, mathematical steps, and derivations.';
+
+        const messages = [
+          { role: 'user', content: [
+            { type: 'text', text: userPrompt }
+          ]}
+        ];
+
+        if (studentImage) {
+          messages[0].content.push({
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${studentImage}`
+            }
+          });
+        }
+
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer ' + OPENROUTER_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'openrouter/free',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messages
+            ],
+            temperature: 0.1
+          })
+        });
+
+        if (!res.ok) throw new Error('API failed');
+        const json = await res.json();
+        const rawText = json.choices?.[0]?.message?.content || '{}';
+        
+        // Robust regex to extract JSON object between the outer braces
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        const cleanJsonText = jsonMatch ? jsonMatch[0] : '{}';
+        return JSON.parse(cleanJsonText);
+      });
+
+      const results = await Promise.all(gradingPromises);
+      
+      let totalMarks = 0;
+      let maxPossibleMarks = 0;
+      const gradesMap = {};
+
+      results.forEach((res, idx) => {
+        const q = questions[idx];
+        const max = q.maxMarks || 10;
+        
+        // Sanitize scoreVal to prevent NaN from breaking animation intervals
+        const scoreRaw = res ? parseFloat(res.marksAwarded) : 0;
+        const scoreVal = isNaN(scoreRaw) ? 0 : scoreRaw;
+        
+        totalMarks += scoreVal;
+        maxPossibleMarks += max;
+
+        gradesMap[idx] = {
+          marksAwarded: scoreVal,
+          maxMarks: max,
+          corrections: (res && res.corrections) || 'No specific errors found.',
+          feedback: (res && res.feedback) || 'Good attempt.'
+        };
+      });
+
+      setGradedAnswers(gradesMap);
+
+      const calculatedScoreData = {
+        marks: totalMarks,
+        correct: results.filter(r => {
+          const m = r ? parseFloat(r.marksAwarded) : 0;
+          return (isNaN(m) ? 0 : m) >= (questions[0]?.maxMarks || 10) * 0.75;
+        }).length,
+        incorrect: results.filter(r => {
+          const m = r ? parseFloat(r.marksAwarded) : 0;
+          return (isNaN(m) ? 0 : m) < (questions[0]?.maxMarks || 10) * 0.75;
+        }).length,
+        unattempted: 0,
+        maxMarks: maxPossibleMarks,
+      };
+
+      setScoreData(calculatedScoreData);
+
+      // Save to local test history
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const existing = await AsyncStorage.getItem('@studify_test_history');
+        let history = existing ? JSON.parse(existing) : [];
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: examName,
+          type: 'Subjective AI Test',
+          subject: subject || 'General',
+          score: `${totalMarks}/${maxPossibleMarks}`,
+          rawScore: totalMarks,
+          maxMarks: maxPossibleMarks,
+          accuracy: maxPossibleMarks > 0 ? Math.round((totalMarks / maxPossibleMarks) * 100) : 0,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: 'Subjective Attempt',
+          timestamp: Date.now()
+        };
+        history.unshift(newRecord);
+        await AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      } catch (_) {}
+
+      setIsGrading(false);
+      setAppState('results');
+    } catch (e) {
+      console.warn('Failed subjective grading', e);
+      Alert.alert('Grading Error', 'AI Examiner failed to parse your written work. Please retry.');
+      setIsGrading(false);
+      setAppState('testing');
+    }
+  };
+
   const submitTest = useCallback(() => {
+    if (testFormat === 'Subjective') {
+      submitSubjectiveTest();
+      return;
+    }
     console.log('ST_DEBUG: submitTest called');
     console.log('ST_DEBUG: questions count:', questions.length);
     console.log('ST_DEBUG: userAnswers:', JSON.stringify(userAnswers));
@@ -329,16 +542,52 @@ export default function TestGenerator() {
       JSON.stringify(calculatedScoreData),
     );
 
+    // Save test result to AsyncStorage for real-time Analysis tracking
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.getItem('@studify_test_history').then(existingHistory => {
+        let history = [];
+        if (existingHistory) {
+          try {
+            history = JSON.parse(existingHistory);
+          } catch (_) {}
+        }
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: examName,
+          type: 'AI Test',
+          subject: subject || 'General',
+          score: `${marks}/${questions.length * correctMark}`,
+          rawScore: marks,
+          maxMarks: questions.length * correctMark,
+          accuracy: questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: '15m 00s',
+          timestamp: Date.now()
+        };
+        history.unshift(newRecord);
+        AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      });
+    } catch (e) {
+      console.warn('Failed to save score to history', e);
+    }
+
     setScoreData(calculatedScoreData);
     setAppState('results');
     setTimeLeft(null);
-  }, [examName, questions, userAnswers]);
+  }, [examName, questions, userAnswers, subject]);
 
-  // Handle countdown timer
+  // Handle countdown timer & time per question analytics
   useEffect(() => {
     if (appState === 'testing' && timeLeft !== null && timeLeft > 0) {
       const timerId = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
+
+        // Pacing Tracker: Track seconds spent on the last active question
+        setQuestionTimes(prev => ({
+          ...prev,
+          [lastActiveIdx]: (prev[lastActiveIdx] || 0) + 1
+        }));
       }, 1000);
       return () => clearTimeout(timerId);
     } else if (appState === 'testing' && timeLeft === 0) {
@@ -347,7 +596,7 @@ export default function TestGenerator() {
       ]);
       submitTest();
     }
-  }, [timeLeft, appState, submitTest]);
+  }, [timeLeft, appState, submitTest, lastActiveIdx]);
 
   const handleFormChange = ({name, value}) => {
     if (name === 'examName') {
@@ -370,6 +619,14 @@ export default function TestGenerator() {
     setUserAnswers({});
 
     let finalNumQuestions = parseInt(numQuestions) || 5;
+    let blueprintInstruction = '';
+
+    if (blueprintList.length > 0 && generationType !== 'Complete Paper') {
+      finalNumQuestions = blueprintList.reduce((acc, bp) => acc + bp.count, 0);
+      blueprintInstruction = '\n- Custom Topic Blueprint Weightage: ' + 
+        blueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
+    }
+
     if (finalNumQuestions > 50) {
       finalNumQuestions = 50;
     }
@@ -393,38 +650,47 @@ export default function TestGenerator() {
       }
     }
 
-    // ── Exact same prompts as the working web API route ──
-    const systemPrompt =
-      'You are an expert academic test creator. Create high-quality MCQ questions.\n\n' +
-      'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
-      'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string"}\n\n' +
-      'CRITICAL RULES:\n' +
-      '- Exactly ' +
-      finalNumQuestions +
-      ' question objects in the array.\n' +
-      '- Exactly 4 options per question. Never 3, never 5.\n' +
-      '- correctAnswer must exactly match one of the 4 options.\n' +
-      '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
-      '- DO NOT wrap the response in code fences or markdown.\n' +
-      '- Output ONLY the raw JSON array starting with [ and ending with ].';
+    // ── Optimized prompts to support next level questions, paragraph passages, and explanations ──
+    const systemPrompt = testFormat === 'Subjective'
+      ? 'You are an expert academic test creator. Create high-quality Subjective (Written/Derivation/Diagram) questions.\n\n' +
+        'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no code fences.\n\n' +
+        'Each element must be: {"question": "string", "idealAnswer": "string", "maxMarks": number, "rubric": "string"}\n\n' +
+        'CRITICAL RULES:\n' +
+        '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
+        '- maxMarks should be a reasonable integer (e.g. 5 or 10) depending on complexity.\n' +
+        '- idealAnswer must provide a detailed step-by-step textbook standard correct derivation, numerical steps, or diagram description.\n' +
+        '- rubric must detail exactly how to award marks (e.g. "3 marks for thylakoid diagram, 2 marks for labels").\n' +
+        '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
+        '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
+        '- Output ONLY the raw JSON array starting with [ and ending with ].'
+      : 'You are an expert academic test creator. Create high-quality MCQ questions.\n\n' +
+        'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
+        'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string", "explanation": "string"}\n\n' +
+        'CRITICAL RULES:\n' +
+        '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
+        '- Exactly 4 options per question. Never 3, never 5.\n' +
+        '- correctAnswer must exactly match one of the 4 options.\n' +
+        '- explanation must provide a detailed step-by-step reasoning explaining why the correctAnswer is correct and how to solve it.\n' +
+        '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
+        '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
+        '- DO NOT wrap the response in code fences or markdown.\n' +
+        '- Output ONLY the raw JSON array starting with [ and ending with ].';
 
-    const userPrompt =
-      'Create EXACTLY ' +
-      finalNumQuestions +
-      ' MCQ questions:\n' +
-      '- Exam: ' +
-      examName +
-      '\n' +
-      '- Type: ' +
-      generationType +
-      '\n' +
-      '- Subject: ' +
-      (finalSubject || 'General') +
-      '\n' +
-      '- Difficulty: ' +
-      difficulty +
-      '\n\n' +
-      'Remember: plain text only, no LaTeX. Output raw JSON array only.';
+    const userPrompt = testFormat === 'Subjective'
+      ? 'Create EXACTLY ' + finalNumQuestions + ' Subjective written/derivation/diagram questions:\n' +
+        '- Exam: ' + examName + '\n' +
+        '- Type: ' + generationType + '\n' +
+        '- Subject: ' + (finalSubject || 'General') + '\n' +
+        '- Difficulty: ' + difficulty + '\n' +
+        blueprintInstruction + '\n\n' +
+        'Remember: Include complex subjective problems, derivations, drawing/sketching requests, or paragraph analyses matching the exam syllabus. Output raw JSON array only.'
+      : 'Create EXACTLY ' + finalNumQuestions + ' MCQ questions:\n' +
+        '- Exam: ' + examName + '\n' +
+        '- Type: ' + generationType + '\n' +
+        '- Subject: ' + (finalSubject || 'General') + '\n' +
+        '- Difficulty: ' + difficulty + '\n' +
+        blueprintInstruction + '\n\n' +
+        'Remember: Make the questions highly academic, rigorous, and matching next-level expectations for prestigious exams like JEE Advanced, NEET, GATE, and CUET. Plain text only, no LaTeX. Output raw JSON array only.';
 
     try {
       const response = await fetch(
@@ -504,41 +770,77 @@ export default function TestGenerator() {
       try {
         parsedQuestions = JSON.parse(content);
         parsedQuestions = parsedQuestions.map(function (q) {
-          if (!Array.isArray(q.options)) {
-            q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
-          }
-          while (q.options.length < 4) {
-            q.options.push('None of the above');
-          }
-          if (q.options.length > 4) {
-            q.options = q.options.slice(0, 4);
-            if (!q.options.includes(q.correctAnswer)) {
+          if (testFormat !== 'Subjective') {
+            if (!Array.isArray(q.options)) {
+              q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
+            }
+            while (q.options.length < 4) {
+              q.options.push('None of the above');
+            }
+            if (q.options.length > 4) {
+              q.options = q.options.slice(0, 4);
+              if (!q.options.includes(q.correctAnswer)) {
+                q.correctAnswer = q.options[0];
+              }
+            }
+            if (!q.correctAnswer) {
               q.correctAnswer = q.options[0];
             }
-          }
-          if (!q.correctAnswer) {
-            q.correctAnswer = q.options[0];
+          } else {
+            // Ensure subjective fields are initialized
+            if (!q.maxMarks) q.maxMarks = 10;
+            if (!q.idealAnswer) {
+              q.idealAnswer = q.ideal_answer || q.solution || q.answer || '';
+            }
+            if (!q.rubric) {
+              q.rubric = q.marking_scheme || q.markingScheme || '';
+            }
           }
           return q;
         });
       } catch (_e) {
-        // Regex fallback — same as web app
-        var questionRegex =
-          /\{"question"\s*:\s*"([^"]*?)"\s*,\s*"options"\s*:\s*\[([^\]]*?)\]\s*,\s*"correctAnswer"\s*:\s*"([^"]*?)"\}/g;
-        var m;
-        while ((m = questionRegex.exec(content)) !== null) {
-          var opts = m[2].split(',').map(function (s) {
-            return s.trim().replace(/^"|"$/g, '');
+        var objectBlocks = content.match(/\{[\s\S]*?\}/g) || [];
+        
+        if (testFormat === 'Subjective') {
+          objectBlocks.forEach(function (block) {
+            var qMatch = block.match(/"question"\s*:\s*"([^"]*?)"/);
+            if (qMatch) {
+              var aMatch = block.match(/"(?:idealAnswer|ideal_answer|solution|answer)"\s*:\s*"([^"]*?)"/);
+              var mMatch = block.match(/"maxMarks"\s*:\s*(\d+)/);
+              var rMatch = block.match(/"(?:rubric|marking_scheme|markingScheme)"\s*:\s*"([^"]*?)"/);
+              
+              parsedQuestions.push({
+                question: qMatch[1],
+                idealAnswer: aMatch ? aMatch[1] : 'Solution details not available.',
+                maxMarks: mMatch ? parseInt(mMatch[1]) : 10,
+                rubric: rMatch ? rMatch[1] : 'Marking scheme not available.'
+              });
+            }
           });
-          parsedQuestions.push({
-            question: m[1],
-            options:
-              opts.length >= 4
-                ? opts.slice(0, 4)
-                : opts.concat(Array(4 - opts.length).fill('None of the above')),
-            correctAnswer: m[3],
+        } else {
+          objectBlocks.forEach(function (block) {
+            var qMatch = block.match(/"question"\s*:\s*"([^"]*?)"/);
+            if (qMatch) {
+              var optMatch = block.match(/"options"\s*:\s*\[([^\]]*?)\]/);
+              var opts = [];
+              if (optMatch) {
+                opts = optMatch[1].split(',').map(function (s) {
+                  return s.trim().replace(/^"|"$/g, '');
+                });
+              }
+              var cMatch = block.match(/"correctAnswer"\s*:\s*"([^"]*?)"/);
+              var eMatch = block.match(/"explanation"\s*:\s*"([^"]*?)"/);
+              
+              parsedQuestions.push({
+                question: qMatch[1],
+                options: opts.length >= 4 ? opts.slice(0, 4) : opts.concat(Array(4 - opts.length).fill('None of the above')),
+                correctAnswer: cMatch ? cMatch[1] : (opts[0] || ''),
+                explanation: eMatch ? eMatch[1] : 'Explanation not available.'
+              });
+            }
           });
         }
+        
         if (parsedQuestions.length === 0) {
           throw new Error('AI returned malformed content. Please try again.');
         }
@@ -585,6 +887,34 @@ export default function TestGenerator() {
 
   const handleSelectOption = (qIndex, optionValue) => {
     setUserAnswers(prev => ({...prev, [qIndex]: optionValue}));
+    setLastActiveIdx(qIndex);
+  };
+
+  const handleAddBlueprint = () => {
+    if (!blueprintChapter.trim() || !blueprintCount.trim()) {
+      Alert.alert('Error', 'Please enter a chapter name and question count.');
+      return;
+    }
+    const count = parseInt(blueprintCount, 10);
+    if (isNaN(count) || count <= 0) {
+      Alert.alert('Error', 'Question count must be a positive number.');
+      return;
+    }
+    // Prevent exceeding total questions if they build custom blueprint
+    setBlueprintList(prev => [...prev, { chapter: blueprintChapter.trim(), count }]);
+    setBlueprintChapter('');
+    setBlueprintCount('');
+  };
+
+  const handleRemoveBlueprint = index => {
+    setBlueprintList(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const toggleFlag = idx => {
+    setFlaggedQuestions(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
   };
 
   const formatTime = seconds => {
@@ -604,11 +934,62 @@ export default function TestGenerator() {
     return parts.join(':');
   };
 
+  const handleTypeSubjective = (idx, text) => {
+    setUserSubjectiveTexts(prev => ({
+      ...prev,
+      [idx]: text
+    }));
+    setLastActiveIdx(idx);
+  };
+
+  const handleSelectImage = (idx, method) => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.5,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    };
+    const callback = (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Failed to select image');
+        return;
+      }
+      const asset = response.assets?.[0];
+      if (asset) {
+        setUserSubjectiveImages(prev => ({
+          ...prev,
+          [idx]: {
+            uri: asset.uri,
+            base64: asset.base64
+          }
+        }));
+        setLastActiveIdx(idx);
+      }
+    };
+    if (method === 'camera') {
+      launchCamera(options, callback);
+    } else {
+      launchImageLibrary(options, callback);
+    }
+  };
+
   const resetGenerator = () => {
     setAppState('setup');
     setQuestions([]);
     setUserAnswers({});
     setTimeLeft(null);
+    setFlaggedQuestions({});
+    setQuestionTimes({});
+    setLastActiveIdx(0);
+    setBlueprintList([]);
+    setBlueprintChapter('');
+    setBlueprintCount('');
+    setUserSubjectiveTexts({});
+    setUserSubjectiveImages({});
+    setGradedAnswers({});
+    setIsGrading(false);
   };
 
   // State setup render
@@ -652,6 +1033,19 @@ export default function TestGenerator() {
                 value={examName}
                 updateFormValue={handleFormChange}
                 list={classList}
+              />
+            </View>
+
+            <View style={{marginTop: 15}}>
+              <Dropdown
+                label="Test Format"
+                name="testFormat"
+                value={testFormat}
+                updateFormValue={({value}) => setTestFormat(value)}
+                list={[
+                  {label: 'Objective (MCQs)', value: 'Objective'},
+                  {label: 'Subjective (Written / Diagrams)', value: 'Subjective'}
+                ]}
               />
             </View>
 
@@ -704,14 +1098,88 @@ export default function TestGenerator() {
 
             {generationType !== 'Complete Paper' && (
               <View style={{marginTop: 15}}>
-                <TextInput
-                  label="Number of Questions"
-                  name="numQuestions"
-                  defaultValue={numQuestions}
-                  updateFormValue={handleFormChange}
-                  keyboard="numeric"
-                  placeholder="5"
-                />
+                {blueprintList.length === 0 ? (
+                  <TextInput
+                    label="Number of Questions"
+                    name="numQuestions"
+                    defaultValue={numQuestions}
+                    updateFormValue={handleFormChange}
+                    keyboard="numeric"
+                    placeholder="5"
+                  />
+                ) : (
+                  <View style={{backgroundColor: '#e8f5e9', padding: 10, borderRadius: 8, borderColor: '#4caf50', borderWidth: 1}}>
+                    <Text style={{color: '#2e7d32', fontWeight: 'bold', fontSize: 12}}>
+                      Total Blueprint Questions: {blueprintList.reduce((acc, bp) => acc + bp.count, 0)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {generationType !== 'Complete Paper' && (
+              <View style={{marginTop: 15, borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingTop: 15}}>
+                <Text style={{fontWeight: 'bold', fontSize: 13, marginBottom: 8, color: theme.colors.onSurface}}>
+                  Custom Topic Blueprint (Optional)
+                </Text>
+
+                <View style={{flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 10}}>
+                  <View style={{flex: 2}}>
+                    <RNTextInput
+                      placeholder="Chapter/Topic name"
+                      value={blueprintChapter}
+                      onChangeText={setBlueprintChapter}
+                      placeholderTextColor="#999"
+                      style={{
+                        height: 48,
+                        borderColor: '#ccc',
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        color: theme.colors.onSurface
+                      }}
+                    />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <RNTextInput
+                      placeholder="Qs"
+                      value={blueprintCount}
+                      onChangeText={setBlueprintCount}
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                      style={{
+                        height: 48,
+                        borderColor: '#ccc',
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        color: theme.colors.onSurface,
+                        textAlign: 'center'
+                      }}
+                    />
+                  </View>
+                  <TouchableOpacity 
+                    onPress={handleAddBlueprint}
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      height: 48,
+                      width: 48,
+                      borderRadius: 10,
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                    <Icon name="plus" size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                {blueprintList.map((bp, bpIdx) => (
+                  <View key={bpIdx} style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eef6f5', padding: 10, borderRadius: 8, marginBottom: 6}}>
+                    <Text style={{fontSize: 12, fontWeight: 'bold', color: '#007171'}}>{bp.chapter} ({bp.count} Qs)</Text>
+                    <TouchableOpacity onPress={() => handleRemoveBlueprint(bpIdx)}>
+                      <Icon name="close" size={18} color="#c62828" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             )}
           </Card.Content>
@@ -844,6 +1312,13 @@ export default function TestGenerator() {
                         MCQ
                       </Text>
                     </View>
+                    <TouchableOpacity onPress={() => toggleFlag(idx)} style={{padding: 4}}>
+                      <Icon
+                        name={flaggedQuestions[idx] ? 'bookmark' : 'bookmark-outline'}
+                        size={24}
+                        color={flaggedQuestions[idx] ? '#ff9800' : '#888'}
+                      />
+                    </TouchableOpacity>
                   </View>
 
                   <Text
@@ -855,62 +1330,160 @@ export default function TestGenerator() {
                     {q.question}
                   </Text>
 
-                  <View style={styles.optionsList}>
-                    {q.options?.map((opt, optIdx) => {
-                      const letter = String.fromCharCode(65 + optIdx);
-                      const isSelected = uAnswer === opt;
+                  {testFormat === 'Subjective' ? (
+                    <View style={{marginTop: 15, gap: 12}}>
+                      <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.colors.onSurfaceVariant}}>
+                        Your Written Work (Max Marks: {q.maxMarks || 10})
+                      </Text>
 
-                      return (
+                      {/* Multiline TextInput for subjective typing */}
+                      <RNTextInput
+                        multiline
+                        numberOfLines={4}
+                        placeholder="Type your explanation, numerical steps, or derivation summary..."
+                        value={userSubjectiveTexts[idx] || ''}
+                        onChangeText={(text) => handleTypeSubjective(idx, text)}
+                        placeholderTextColor="#999"
+                        style={{
+                          minHeight: 100,
+                          borderColor: '#ccc',
+                          borderWidth: 1,
+                          borderRadius: 10,
+                          padding: 12,
+                          textAlignVertical: 'top',
+                          color: theme.colors.onSurface,
+                          backgroundColor: theme.dark ? theme.colors.elevation.level1 : '#fafafa'
+                        }}
+                      />
+
+                      {/* Photo uploads row */}
+                      <View style={{flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 5}}>
                         <TouchableOpacity
-                          key={optIdx}
-                          onPress={() => handleSelectOption(idx, opt)}
-                          style={[
-                            styles.optionButton,
-                            theme.dark && {
-                              backgroundColor: theme.colors.surface,
-                              borderColor: theme.colors.outlineVariant,
-                            },
-                            isSelected && {
-                              borderColor: theme.colors.primary,
-                              backgroundColor: theme.dark
-                                ? 'rgba(0, 113, 113, 0.15)'
-                                : '#e0f2f1',
-                            },
-                          ]}>
-                          <View style={styles.optionContent}>
-                            <View
-                              style={[
-                                styles.letterCircle,
-                                theme.dark && {
-                                  backgroundColor:
-                                    theme.colors.elevation.level3,
-                                },
-                                isSelected && {
-                                  backgroundColor: theme.colors.primary,
-                                },
-                              ]}>
+                          onPress={() => handleSelectImage(idx, 'camera')}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#eef6f5',
+                            paddingVertical: 10,
+                            borderRadius: 8,
+                            borderColor: '#007171',
+                            borderWidth: 1,
+                            gap: 6
+                          }}>
+                          <Icon name="camera-outline" size={18} color="#007171" />
+                          <Text style={{color: '#007171', fontWeight: 'bold', fontSize: 11}}>Camera Work</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleSelectImage(idx, 'gallery')}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#eef6f5',
+                            paddingVertical: 10,
+                            borderRadius: 8,
+                            borderColor: '#007171',
+                            borderWidth: 1,
+                            gap: 6
+                          }}>
+                          <Icon name="image-outline" size={18} color="#007171" />
+                          <Text style={{color: '#007171', fontWeight: 'bold', fontSize: 11}}>Upload Work</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Uploaded photo thumbnail preview */}
+                      {userSubjectiveImages[idx]?.uri && (
+                        <View style={{marginTop: 10, position: 'relative', width: 100, height: 100}}>
+                          <Image
+                            source={{uri: userSubjectiveImages[idx].uri}}
+                            style={{width: 100, height: 100, borderRadius: 8, resizeMode: 'cover'}}
+                          />
+                          <TouchableOpacity
+                            onPress={() => {
+                              setUserSubjectiveImages(prev => {
+                                const updated = {...prev};
+                                delete updated[idx];
+                                return updated;
+                              });
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: -5,
+                              right: -5,
+                              backgroundColor: '#c62828',
+                              borderRadius: 10,
+                              width: 20,
+                              height: 20,
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <Icon name="close" size={14} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                  ) : (
+                    <View style={styles.optionsList}>
+                      {q.options?.map((opt, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        const isSelected = uAnswer === opt;
+
+                        return (
+                          <TouchableOpacity
+                            key={optIdx}
+                            onPress={() => handleSelectOption(idx, opt)}
+                            style={[
+                              styles.optionButton,
+                              theme.dark && {
+                                backgroundColor: theme.colors.surface,
+                                borderColor: theme.colors.outlineVariant,
+                              },
+                              isSelected && {
+                                borderColor: theme.colors.primary,
+                                backgroundColor: theme.dark
+                                  ? 'rgba(0, 113, 113, 0.15)'
+                                  : '#e0f2f1',
+                              },
+                            ]}>
+                            <View style={styles.optionContent}>
+                              <View
+                                style={[
+                                  styles.letterCircle,
+                                  theme.dark && {
+                                    backgroundColor:
+                                      theme.colors.elevation.level3,
+                                  },
+                                  isSelected && {
+                                    backgroundColor: theme.colors.primary,
+                                  },
+                                ]}>
+                                <Text
+                                  style={{
+                                    color: isSelected
+                                      ? 'white'
+                                      : theme.colors.onSurfaceVariant,
+                                    fontWeight: 'bold',
+                                  }}>
+                                  {letter}
+                                </Text>
+                              </View>
                               <Text
-                                style={{
-                                  color: isSelected
-                                    ? 'white'
-                                    : theme.colors.onSurfaceVariant,
-                                  fontWeight: 'bold',
-                                }}>
-                                {letter}
+                                style={[
+                                  styles.optionText,
+                                  {color: theme.colors.onSurface},
+                                ]}>
+                                {opt}
                               </Text>
                             </View>
-                            <Text
-                              style={[
-                                styles.optionText,
-                                {color: theme.colors.onSurface},
-                              ]}>
-                              {opt}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </Card.Content>
               </Card>
             );
@@ -1120,6 +1693,24 @@ export default function TestGenerator() {
                           ]}>
                           MCQ
                         </Text>
+                        <Text
+                          style={[
+                            styles.typeBadge,
+                            {
+                              backgroundColor: '#e0f2f1',
+                              color: '#007171',
+                              fontWeight: 'bold',
+                              marginLeft: 6
+                            },
+                          ]}>
+                          ⏱️ {questionTimes[idx] || 0}s
+                        </Text>
+                        {flaggedQuestions[idx] && (
+                          <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6, gap: 2}}>
+                            <Icon name="bookmark" size={10} color="#ff9800" />
+                            <Text style={{color: '#ff9800', fontSize: 9, fontWeight: 'bold'}}>For Revision</Text>
+                          </View>
+                        )}
                       </View>
                       <Icon
                         name={isCorrect ? 'check-circle' : 'close-circle'}
@@ -1137,82 +1728,164 @@ export default function TestGenerator() {
                       {q.question}
                     </Text>
 
-                    <View style={styles.optionsList}>
-                      {q.options?.map((opt, optIdx) => {
-                        const letter = String.fromCharCode(65 + optIdx);
-                        const isSelected = uA === opt;
-                        const isActualCorrect = isAnswerCorrect(q, opt);
+                    {testFormat === 'Subjective' ? (
+                      <View style={{marginTop: 10, gap: 10}}>
+                        
+                        {/* Student response summary */}
+                        <View style={{backgroundColor: theme.colors.elevation.level1, padding: 10, borderRadius: 8}}>
+                          <Text style={{fontWeight: 'bold', fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            Your Submitted Response:
+                          </Text>
+                          <Text style={{fontSize: 13, marginTop: 4, color: theme.colors.onSurface}}>
+                            {userSubjectiveTexts[idx] || "No text answer typed."}
+                          </Text>
+                          {userSubjectiveImages[idx]?.uri && (
+                            <Image
+                              source={{uri: userSubjectiveImages[idx].uri}}
+                              style={{width: '100%', height: 180, borderRadius: 8, marginTop: 8, resizeMode: 'contain'}}
+                            />
+                          )}
+                        </View>
 
-                        let borderClr = theme.dark
-                          ? theme.colors.outlineVariant
-                          : '#ccc';
-                        let bgClr = theme.dark ? theme.colors.surface : '#fff';
+                        {/* AI grading report */}
+                        <View style={{borderColor: '#007171', borderWidth: 1, padding: 12, borderRadius: 8, backgroundColor: theme.dark ? 'rgba(0,113,113,0.1)' : '#f0fbfb', gap: 6}}>
+                          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <Text style={{fontWeight: 'bold', fontSize: 13, color: '#007171'}}>AI Examiner Evaluation:</Text>
+                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#007171'}}>
+                              Marks: {gradedAnswers[idx]?.marksAwarded || 0} / {gradedAnswers[idx]?.maxMarks || 10}
+                            </Text>
+                          </View>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface, marginTop: 4}}>
+                            Comments:
+                          </Text>
+                          <Text style={{fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            {gradedAnswers[idx]?.feedback || 'No comments provided.'}
+                          </Text>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface, marginTop: 4}}>
+                            Correction details:
+                          </Text>
+                          <Text style={{fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            {gradedAnswers[idx]?.corrections || 'No specific errors noted.'}
+                          </Text>
+                        </View>
 
-                        if (isActualCorrect) {
-                          borderClr = '#2e7d32';
-                          bgClr = theme.dark
-                            ? 'rgba(46, 125, 50, 0.15)'
-                            : '#e8f5e9';
-                        } else if (isSelected && !isCorrect) {
-                          borderClr = '#c62828';
-                          bgClr = theme.dark
-                            ? 'rgba(198, 40, 40, 0.15)'
-                            : '#ffebee';
-                        }
+                        {/* Ideal textbook standard response */}
+                        <View style={{backgroundColor: '#e8f5e9', padding: 12, borderRadius: 8, borderColor: '#2e7d32', borderWidth: 1, gap: 4}}>
+                          <Text style={{fontWeight: 'bold', fontSize: 12, color: '#2e7d32'}}>Model Textbook Solution:</Text>
+                          <Text style={{fontSize: 12, color: '#1b5e20'}}>{q.idealAnswer || 'No solution provided.'}</Text>
+                          {q.rubric && (
+                            <>
+                              <Text style={{fontWeight: 'bold', fontSize: 11, color: '#2e7d32', marginTop: 4}}>Marking Scheme Rubric:</Text>
+                              <Text style={{fontSize: 11, color: '#1b5e20'}}>{q.rubric}</Text>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.optionsList}>
+                          {q.options?.map((opt, optIdx) => {
+                            const letter = String.fromCharCode(65 + optIdx);
+                            const isSelected = uA === opt;
+                            const isActualCorrect = isAnswerCorrect(q, opt);
 
-                        return (
-                          <View
-                            key={optIdx}
-                            style={[
-                              styles.optionButton,
-                              {borderColor: borderClr, backgroundColor: bgClr},
-                            ]}>
-                            <View style={styles.optionContent}>
+                            let borderClr = theme.dark
+                              ? theme.colors.outlineVariant
+                              : '#ccc';
+                            let bgClr = theme.dark ? theme.colors.surface : '#fff';
+
+                            if (isActualCorrect) {
+                              borderClr = '#2e7d32';
+                              bgClr = theme.dark
+                                ? 'rgba(46, 125, 50, 0.15)'
+                                : '#e8f5e9';
+                            } else if (isSelected && !isCorrect) {
+                              borderClr = '#c62828';
+                              bgClr = theme.dark
+                                ? 'rgba(198, 40, 40, 0.15)'
+                                : '#ffebee';
+                            }
+
+                            return (
                               <View
+                                key={optIdx}
                                 style={[
-                                  styles.letterCircle,
-                                  theme.dark && {
-                                    backgroundColor:
-                                      theme.colors.elevation.level3,
-                                  },
-                                  isActualCorrect
-                                    ? {backgroundColor: '#2e7d32'}
-                                    : isSelected
-                                    ? {backgroundColor: '#c62828'}
-                                    : {},
+                                  styles.optionButton,
+                                  {borderColor: borderClr, backgroundColor: bgClr},
                                 ]}>
-                                <Text
-                                  style={{
-                                    color:
-                                      isActualCorrect || isSelected
-                                        ? 'white'
-                                        : theme.colors.onSurfaceVariant,
-                                    fontWeight: 'bold',
-                                  }}>
-                                  {letter}
-                                </Text>
+                                <View style={styles.optionContent}>
+                                  <View
+                                    style={[
+                                      styles.letterCircle,
+                                      theme.dark && {
+                                        backgroundColor:
+                                          theme.colors.elevation.level3,
+                                      },
+                                      isActualCorrect
+                                        ? {backgroundColor: '#2e7d32'}
+                                        : isSelected
+                                        ? {backgroundColor: '#c62828'}
+                                        : {},
+                                    ]}>
+                                    <Text
+                                      style={{
+                                        color:
+                                          isActualCorrect || isSelected
+                                            ? 'white'
+                                            : theme.colors.onSurfaceVariant,
+                                        fontWeight: 'bold',
+                                      }}>
+                                      {letter}
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={[
+                                      styles.optionText,
+                                      {color: theme.colors.onSurface},
+                                      isActualCorrect && {
+                                        color: theme.dark ? '#81c784' : '#1b5e20',
+                                        fontWeight: 'bold',
+                                      },
+                                      isSelected &&
+                                        !isCorrect && {
+                                          color: theme.dark ? '#e57373' : '#b71c1c',
+                                          textDecorationLine: 'line-through',
+                                        },
+                                    ]}>
+                                    {opt}
+                                  </Text>
+                                </View>
                               </View>
-                              <Text
-                                style={[
-                                  styles.optionText,
-                                  {color: theme.colors.onSurface},
-                                  isActualCorrect && {
-                                    color: theme.dark ? '#81c784' : '#1b5e20',
-                                    fontWeight: 'bold',
-                                  },
-                                  isSelected &&
-                                    !isCorrect && {
-                                      color: theme.dark ? '#e57373' : '#b71c1c',
-                                      textDecorationLine: 'line-through',
-                                    },
-                                ]}>
-                                {opt}
+                            );
+                          })}
+                        </View>
+                        {q.explanation && (
+                          <View style={[
+                            styles.explanationContainer,
+                            {
+                              backgroundColor: theme.dark
+                                ? 'rgba(0, 113, 113, 0.08)'
+                                : '#f0fbfb',
+                              borderColor: theme.dark
+                                ? 'rgba(0, 113, 113, 0.25)'
+                                : '#b2dfdf',
+                            }
+                          ]}>
+                            <View style={styles.explanationHeader}>
+                              <Icon name="information-outline" size={16} color={theme.dark ? '#80cbc4' : '#007171'} />
+                              <Text style={[styles.explanationTitle, {color: theme.dark ? '#80cbc4' : '#007171'}]}>
+                                Explanation:
                               </Text>
                             </View>
+                            <Text style={[styles.explanationText, {color: theme.colors.onSurface}]}>
+                              {q.explanation}
+                            </Text>
                           </View>
-                        );
-                      })}
-                    </View>
+                        )}
+                      </>
+                    )}
+
+                    {/* Review Related Notes button removed as requested */}
                   </Card.Content>
                 </Card>
               );
@@ -1511,5 +2184,25 @@ const styles = StyleSheet.create({
     color: '#c62828',
     fontSize: 12,
     lineHeight: 16,
+  },
+  explanationContainer: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  explanationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  explanationTitle: {
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  explanationText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
