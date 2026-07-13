@@ -75,7 +75,7 @@ const WebviewScreen = ({route}) => {
   const postLoadScript = `
     (function() {
       function hideHeaderFooter() {
-        var selectors = '.top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe, [class*="widget"], [class*="floating"]';
+        var selectors = '.top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe, .tawk-min-container, .tawk-button, [class*="chat"], [class*="widget"]';
         var elements = document.querySelectorAll(selectors);
         for (var i = 0; i < elements.length; i++) {
           elements[i].style.setProperty('display', 'none', 'important');
@@ -84,6 +84,33 @@ const WebviewScreen = ({route}) => {
           elements[i].style.setProperty('opacity', '0', 'important');
         }
         
+        // Ensure form inputs wrapped in .form-floating are ALWAYS VISIBLE
+        var formInputs = document.querySelectorAll('.form-floating, .form-group, .form-control, input, select, textarea');
+        for (var f = 0; f < formInputs.length; f++) {
+          formInputs[f].style.setProperty('display', 'block', 'important');
+          formInputs[f].style.setProperty('visibility', 'visible', 'important');
+          formInputs[f].style.setProperty('opacity', '1', 'important');
+        }
+
+        // Replace all text nodes so bottom batch name matches top header (Gyanveer -> Aster, Vijaydeep -> Nebula, Vidya -> Nova)
+        try {
+          var walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null, false);
+          var node;
+          while ((node = walker.nextNode())) {
+            if (node.nodeValue) {
+              if (node.nodeValue.indexOf('Gyanveer') !== -1) {
+                node.nodeValue = node.nodeValue.replace(/Gyanveer/g, 'Aster');
+              }
+              if (node.nodeValue.indexOf('Vijaydeep') !== -1) {
+                node.nodeValue = node.nodeValue.replace(/Vijaydeep/g, 'Nebula');
+              }
+              if (node.nodeValue.indexOf('Vidya') !== -1) {
+                node.nodeValue = node.nodeValue.replace(/Vidya/g, 'Nova');
+              }
+            }
+          }
+        } catch (e) {}
+
         var wrappers = document.querySelectorAll('body, html, .main-wrapper');
         for (var j = 0; j < wrappers.length; j++) {
           wrappers[j].style.setProperty('padding-top', '0', 'important');

@@ -57,13 +57,13 @@ const serviceItems = [
 ];
 
 const schoolClassList = [
-  {label: 'Class 6th', value: 'Class 6th'},
-  {label: 'Class 7th', value: 'Class 7th'},
-  {label: 'Class 8th', value: 'Class 8th'},
-  {label: 'Class 9th', value: 'Class 9th'},
-  {label: 'Class 10th', value: 'Class 10th'},
-  {label: 'Class 11th', value: 'Class 11th'},
-  {label: 'Class 12th', value: 'Class 12th'},
+  {label: 'Class 6th (Aster)', value: 'Class 6th (Aster)'},
+  {label: 'Class 7th (Aster)', value: 'Class 7th (Aster)'},
+  {label: 'Class 8th (Aster)', value: 'Class 8th (Aster)'},
+  {label: 'Class 9th (Nebula)', value: 'Class 9th (Nebula)'},
+  {label: 'Class 10th (Nebula)', value: 'Class 10th (Nebula)'},
+  {label: 'Class 11th (Nova)', value: 'Class 11th (Nova)'},
+  {label: 'Class 12th (Nova)', value: 'Class 12th (Nova)'},
   {label: 'After 10th (Stream Choose)', value: 'After 10th (Stream Choose)'},
   {label: 'After 12th (Career Choose)', value: 'After 12th (Career Choose)'},
 ];
@@ -114,7 +114,7 @@ const Counselling = () => {
     rcode: '',
   });
 
-  const updateFormValue = (name, value) => {
+  const updateFormValue = ({name, value}) => {
     setForm(prev => ({...prev, [name]: value}));
   };
 
@@ -402,7 +402,7 @@ const Counselling = () => {
                   ]}
                   onPress={() => {
                     setStudentType('School Student');
-                    updateFormValue('classOrYear', '');
+                    updateFormValue({name: 'classOrYear', value: ''});
                   }}>
                   <Text
                     size="small"
@@ -425,7 +425,7 @@ const Counselling = () => {
                   ]}
                   onPress={() => {
                     setStudentType('College Student');
-                    updateFormValue('classOrYear', '');
+                    updateFormValue({name: 'classOrYear', value: ''});
                   }}>
                   <Text
                     size="small"

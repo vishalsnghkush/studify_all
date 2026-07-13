@@ -210,7 +210,7 @@ const Activities = () => {
     state: '',
   });
 
-  const updateFormValue = (name, value) => {
+  const updateFormValue = ({name, value}) => {
     setForm(prev => ({...prev, [name]: value}));
   };
 

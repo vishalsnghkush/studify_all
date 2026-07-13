@@ -103,7 +103,11 @@ const Search = ({navigation}) => {
                   <TouchableRipple
                     key={item.id.toString()}
                     onPress={() => {
-                      navigation.navigate('Pdf', {url: item.pdf_url});
+                      navigation.navigate('Pdf', {
+                        url: item.pdf_url,
+                        title: item.title || 'Note',
+                        subject: item.subject || 'General'
+                      });
                     }}
                     rippleColor="rgba(0,113,113,0.1)"
                     style={[

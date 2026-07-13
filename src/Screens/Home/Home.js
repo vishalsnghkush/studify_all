@@ -960,6 +960,60 @@ const Home = () => {
           />
         </BouncyButton>
 
+        {/* Focus Space (Pomodoro) Banner Card */}
+        <BouncyButton
+          onPress={() => navigation.navigate('FocusSpace')}
+          style={[
+            styles.focusBanner,
+            dark && {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}>
+          <View style={styles.focusTextContainer}>
+            <Text
+              style={[
+                styles.focusSubtitle,
+                dark && {color: colors.onSurfaceVariant},
+              ]}>
+              <Text
+                style={[
+                  styles.subtitleBoldFocus,
+                  dark && {color: colors.primary},
+                ]}>
+                Boost
+              </Text>{' '}
+              concentration & co-study live
+            </Text>
+            <Text
+              style={[
+                styles.focusTitle,
+                dark && {color: colors.onSurface},
+              ]}>
+              Pomodoro Focus Space
+            </Text>
+            <View
+              style={[
+                styles.focusBtn,
+                dark && {backgroundColor: colors.primary},
+              ]}>
+              <Text style={styles.focusBtnText}>Enter Room</Text>
+              <Icon
+                name="chevron-right"
+                size={13}
+                color="#ffffff"
+                style={styles.chevronIcon}
+              />
+            </View>
+          </View>
+          <Icon
+            name="timer-sand"
+            size={48}
+            color={colors.primary}
+            style={styles.focusIcon}
+          />
+        </BouncyButton>
+
         {/* Internship Banner */}
         <BouncyButton
           onPress={() => navigation.navigate('Internship')}
@@ -1757,6 +1811,60 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   subtitleBoldCounseling: {
+    fontWeight: 'bold',
+  },
+  focusBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#ede7f6',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d1c4e9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  focusTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  focusSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  focusTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  focusBtn: {
+    backgroundColor: '#673ab8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  focusBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  focusIcon: {
+    marginRight: 10,
+  },
+  subtitleBoldFocus: {
     fontWeight: 'bold',
   },
 });

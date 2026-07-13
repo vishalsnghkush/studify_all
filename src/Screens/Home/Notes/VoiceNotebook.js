@@ -672,7 +672,7 @@ export default function VoiceNotebook({ navigation }) {
             color: ${textColor};
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
             border-radius: 4px;
-            padding: 40px 30px 40px 30px;
+            padding: 30px 30px 40px 30px;
             box-sizing: border-box;
             outline: none;
             position: relative;
@@ -681,7 +681,7 @@ export default function VoiceNotebook({ navigation }) {
             ${pageStyle === 'ruled' ? `
               background-image: linear-gradient(${lineColor} 1px, transparent 1px);
               background-size: 100% 30px;
-              background-position: 0 35px;
+              background-position: 0 7px;
               background-attachment: local;
             ` : ''}
 
@@ -690,7 +690,7 @@ export default function VoiceNotebook({ navigation }) {
               background-image: linear-gradient(${lineColor} 1px, transparent 1px),
                                 linear-gradient(90deg, ${lineColor} 1px, transparent 1px);
               background-size: 30px 30px;
-              background-position: 0 35px;
+              background-position: 0 7px;
               background-attachment: local;
             ` : ''}
           }
@@ -718,7 +718,7 @@ export default function VoiceNotebook({ navigation }) {
           ` : ''}
 
           /* Aligns text directly to next line (No double-line margin!) */
-          .page-sheet p, .page-sheet div {
+          .page-sheet p, .page-sheet div, .page-sheet span {
             margin: 0; 
             line-height: 30px;
             font-size: 16px;
@@ -767,11 +767,48 @@ export default function VoiceNotebook({ navigation }) {
             border-bottom: 1px solid #333;
             flex-wrap: wrap;
           }
+          #sketchpad-container {
+            flex: 1;
+            position: relative;
+            background-color: ${pageColor};
+            box-sizing: border-box;
+            display: flex;
+
+            /* Ruled Paper Style background */
+            ${pageStyle === 'ruled' ? `
+              background-image: linear-gradient(${lineColor} 1px, transparent 1px);
+              background-size: 100% 30px;
+              background-position: 0 35px;
+            ` : ''}
+
+            /* Grid Paper Style background */
+            ${pageStyle === 'grid' ? `
+              background-image: linear-gradient(${lineColor} 1px, transparent 1px),
+                                linear-gradient(90deg, ${lineColor} 1px, transparent 1px);
+              background-size: 30px 30px;
+              background-position: 0 35px;
+            ` : ''}
+          }
           #sketchpad {
             flex: 1;
-            background: #1E1E1E;
+            background: transparent;
             touch-action: none;
+            z-index: 2;
           }
+          /* Left margin line for ruled drawing pad */
+          ${pageStyle === 'ruled' ? `
+            #sketchpad-container::before {
+              content: '';
+              position: absolute;
+              left: 50px;
+              top: 0;
+              bottom: 0;
+              width: 1.5px;
+              background-color: ${marginColor};
+              z-index: 1;
+              pointer-events: none;
+            }
+          ` : ''}
           .palette {
             display: flex;
             gap: 6px;
@@ -867,7 +904,7 @@ export default function VoiceNotebook({ navigation }) {
 
           <div id="pages-wrapper">
             ${currentPage.content.indexOf('page-sheet') !== -1 ? currentPage.content : `
-              <div class="page-sheet" contenteditable="${!isReadOnly}" id="page-1" oninput="saveContent()">
+              <div class="page-sheet" contenteditable="${!isReadOnly}" id="page-1" oninput="saveContent()" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off">
                 ${currentPage.content}
               </div>
             `}
@@ -885,7 +922,7 @@ export default function VoiceNotebook({ navigation }) {
           <div id="canvas-toolbar">
             <button class="tool-btn" onclick="closeDrawingPad()">Cancel</button>
             <div class="palette">
-              <div class="color-dot active" style="background: #FFF;" onclick="setCanvasColor('#FFF', this)"></div>
+              <div class="color-dot active" style="background: ${textColor};" onclick="setCanvasColor('${textColor}', this)"></div>
               <div class="color-dot" style="background: #FF4C4C;" onclick="setCanvasColor('#FF4C4C', this)"></div>
               <div class="color-dot" style="background: #4C9CFF;" onclick="setCanvasColor('#4C9CFF', this)"></div>
               <div class="color-dot" style="background: #4CFF4C;" onclick="setCanvasColor('#4CFF4C', this)"></div>
@@ -907,7 +944,9 @@ export default function VoiceNotebook({ navigation }) {
             <button class="tool-btn" onclick="insertCanvasDrawing()" style="background: #008080;">Insert inline</button>
             <button class="tool-btn" onclick="saveCanvasAsPage()" style="background: #FF8C00;">Save as Page</button>
           </div>
-          <canvas id="sketchpad"></canvas>
+          <div id="sketchpad-container">
+            <canvas id="sketchpad"></canvas>
+          </div>
         </div>
 
         <script>
@@ -953,6 +992,10 @@ export default function VoiceNotebook({ navigation }) {
             newPage.className = 'page-sheet';
             newPage.contentEditable = !${isReadOnly};
             newPage.id = 'page-' + pageNum;
+            newPage.setAttribute('spellcheck', 'false');
+            newPage.setAttribute('autocorrect', 'off');
+            newPage.setAttribute('autocapitalize', 'off');
+            newPage.setAttribute('autocomplete', 'off');
             newPage.innerHTML = content;
             newPage.oninput = saveContent;
             
@@ -1117,7 +1160,7 @@ export default function VoiceNotebook({ navigation }) {
           const canvas = document.getElementById('sketchpad');
           const ctx = canvas.getContext('2d');
           let drawing = false;
-          let canvasColor = '#FFF';
+          let canvasColor = '${textColor}';
           let canvasBrushSize = 4;
           
           let canvasHistory = [];
@@ -1218,25 +1261,36 @@ export default function VoiceNotebook({ navigation }) {
             saveCanvasState();
           }
 
+          function getTouchPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0] || (e.changedTouches && e.changedTouches[0]);
+            return {
+              x: touch ? (touch.clientX - rect.left) : 0,
+              y: touch ? (touch.clientY - rect.top) : 0
+            };
+          }
+
           canvas.addEventListener('touchstart', (e) => {
             drawing = true;
-            const touch = e.touches[0];
+            const pos = getTouchPos(e);
             ctx.beginPath();
-            ctx.moveTo(touch.clientX, touch.clientY - 60);
+            ctx.moveTo(pos.x, pos.y);
             e.preventDefault();
-          });
+          }, { passive: false });
 
           canvas.addEventListener('touchmove', (e) => {
             if (!drawing) return;
-            const touch = e.touches[0];
-            ctx.lineTo(touch.clientX, touch.clientY - 60);
+            const pos = getTouchPos(e);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             e.preventDefault();
-          });
+          }, { passive: false });
 
-          canvas.addEventListener('touchend', () => {
-            drawing = false;
-            saveCanvasState();
+          canvas.addEventListener('touchend', (e) => {
+            if (drawing) {
+              drawing = false;
+              saveCanvasState();
+            }
           });
 
           function insertCanvasDrawing() {
@@ -1251,84 +1305,307 @@ export default function VoiceNotebook({ navigation }) {
             closeDrawingPad();
           }
 
+          function getNewWords(oldText, newText) {
+            const oldWords = oldText.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            const newWords = newText.trim().split(/\s+/).filter(Boolean);
+            
+            if (newWords.length === 0) return '';
+            if (oldWords.length === 0) return newText;
+
+            // Find matching words count at the start
+            let matchCount = 0;
+            const maxCheck = Math.min(oldWords.length, newWords.length);
+            for (let i = 0; i < maxCheck; i++) {
+              if (newWords[i].toLowerCase() === oldWords[i]) {
+                matchCount++;
+              } else {
+                break;
+              }
+            }
+
+            // If the matching words cover the entire newText, there are no new words to insert
+            if (matchCount === newWords.length) {
+              return '';
+            }
+
+            // If we have a prefix match, return only the remaining new words
+            if (matchCount > 0) {
+              return newWords.slice(matchCount).join(' ');
+            }
+
+            // Otherwise, it is a completely new segment (e.g. user paused and restarted)
+            return newText;
+          }
+
           // Web Speech Recognition
           let recognition;
           let isListening = false;
           let shouldBeListening = false;
-
-          try {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = () => {
-              isListening = true;
-              document.getElementById('mic-btn').textContent = '⏹️ Stop Voice';
-              document.getElementById('mic-btn').classList.add('active');
-              document.getElementById('speech-overlay').style.display = 'flex';
-            };
-
-            recognition.onresult = (event) => {
-              let finalTranscript = '';
-              let interimTranscript = '';
-
-              for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const result = event.results[i];
-                if (result.isFinal) {
-                  finalTranscript += result[0].transcript;
-                } else {
-                  interimTranscript += result[0].transcript;
-                }
-              }
-
-              document.getElementById('speech-preview').textContent = finalTranscript || interimTranscript || 'Listening...';
-
-              if (finalTranscript) {
-                const lowercaseText = finalTranscript.toLowerCase().trim();
+          let finalResultsOffset = 0;
+          let speechStartRange = null;
+   
+           try {
+             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+             recognition = new SpeechRecognition();
+             recognition.continuous = true;
+             recognition.interimResults = true;
+             recognition.lang = 'en-US';
+  
+             recognition.onstart = () => {
+                isListening = true;
+                finalResultsOffset = 0;
                 
-                if (lowercaseText === 'next paragraph' || lowercaseText === 'new paragraph') {
-                  formatDoc('insertHTML', '<p><br></p>');
-                } else if (lowercaseText === 'bullet point' || lowercaseText === 'new point') {
-                  formatDoc('insertHTML', '<ul><li>&nbsp;</li></ul>');
-                } else if (lowercaseText === 'highlight selection' || lowercaseText === 'highlight') {
-                  highlightSelection();
-                } else if (lowercaseText === 'bold') {
-                  formatDoc('bold');
-                } else if (lowercaseText === 'italic') {
-                  formatDoc('italic');
-                } else if (lowercaseText === 'color red') {
-                  formatDoc('foreColor', '#FF4C4C');
-                } else if (lowercaseText === 'color blue') {
-                  formatDoc('foreColor', '#4C9CFF');
-                } else if (lowercaseText === 'color green') {
-                  formatDoc('foreColor', '#4CFF4C');
-                } else if (lowercaseText === 'clear page') {
-                  const wrapper = document.getElementById('pages-wrapper');
-                  wrapper.lastElementChild.innerHTML = '<p><br></p>';
-                  saveContent();
+                // Ensure focus and cursor are active on a page-sheet, then save the selection range
+                const wrapper = document.getElementById('pages-wrapper');
+                let activeSheet = document.activeElement;
+                if (!activeSheet || !activeSheet.classList.contains('page-sheet')) {
+                  activeSheet = wrapper.lastElementChild;
+                  activeSheet.focus();
+                }
+                
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                  speechStartRange = sel.getRangeAt(0).cloneRange();
                 } else {
-                  formatDoc('insertText', ' ' + finalTranscript);
+                  speechStartRange = document.createRange();
+                  speechStartRange.selectNodeContents(activeSheet);
+                  speechStartRange.collapse(false);
+                  sel.removeAllRanges();
+                  sel.addRange(speechStartRange);
                 }
-              }
-            };
 
-            recognition.onend = () => {
-              if (shouldBeListening) {
-                // If ended automatically by browser silence timeouts, restart listening
-                try {
-                  recognition.start();
-                } catch (err) {
-                  console.warn('Speech engine restart failed:', err);
+                document.getElementById('mic-btn').textContent = '⏹️ Stop Voice';
+                document.getElementById('mic-btn').classList.add('active');
+                document.getElementById('speech-overlay').style.display = 'flex';
+              };
+ 
+              recognition.onresult = (event) => {
+                let cleanFinalTranscript = '';
+                let lastPhrase = '';
+                
+                for (let i = 0; i < event.results.length; ++i) {
+                  if (event.results[i].isFinal) {
+                    let phrase = event.results[i][0].transcript.trim();
+                    if (phrase) {
+                      if (lastPhrase && phrase.toLowerCase().startsWith(lastPhrase.toLowerCase())) {
+                        let index = cleanFinalTranscript.toLowerCase().lastIndexOf(lastPhrase.toLowerCase());
+                        if (index !== -1) {
+                          cleanFinalTranscript = cleanFinalTranscript.substring(0, index) + phrase;
+                        } else {
+                          cleanFinalTranscript = phrase;
+                        }
+                      } else {
+                        cleanFinalTranscript = (cleanFinalTranscript ? cleanFinalTranscript + ' ' : '') + phrase;
+                      }
+                      lastPhrase = phrase;
+                    }
+                  }
                 }
-              } else {
-                isListening = false;
-                document.getElementById('mic-btn').textContent = '🎙️ Start Voice';
-                document.getElementById('mic-btn').classList.remove('active');
-                document.getElementById('speech-overlay').style.display = 'none';
-              }
-            };
+ 
+                let displayFinal = cleanFinalTranscript.trim();
+                
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                  if (!event.results[i].isFinal) {
+                    interimTranscript = event.results[i][0].transcript;
+                  }
+                }
+                let displayInterim = interimTranscript.trim();
+ 
+                // Update the preview badge
+                document.getElementById('speech-preview').textContent = displayFinal || displayInterim || 'Listening...';
+ 
+                if (speechStartRange) {
+                  if (displayFinal) {
+                    let lowercaseText = displayFinal.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_\`~()]/g,"").trim();
+ 
+                    // Check for formatting commands at the end of final text
+                    let isCommandTriggered = false;
+                    let cleanText = displayFinal;
+                    let commandType = '';
+ 
+                    if (lowercaseText === 'next paragraph' || lowercaseText === 'new paragraph' || lowercaseText === 'paragraph' || lowercaseText === 'next page' || lowercaseText === 'new page' || lowercaseText === 'page') {
+                      isCommandTriggered = true;
+                      cleanText = '';
+                      commandType = 'paragraph';
+                    } else if (lowercaseText === 'bullet point' || lowercaseText === 'new point' || lowercaseText === 'bullet' || lowercaseText === 'bulletin' || lowercaseText === 'bullet points') {
+                      isCommandTriggered = true;
+                      cleanText = '';
+                      commandType = 'bullet';
+                    } else if (lowercaseText === 'clear page') {
+                      isCommandTriggered = true;
+                      cleanText = '';
+                      commandType = 'clear';
+                    } else if (lowercaseText === 'bold' || lowercaseText === 'italic') {
+                      isCommandTriggered = true;
+                      cleanText = '';
+                      commandType = lowercaseText;
+                    } else if (lowercaseText.endsWith('next paragraph') || lowercaseText.endsWith('new paragraph') || lowercaseText.endsWith('next page') || lowercaseText.endsWith('new page') || lowercaseText.endsWith(' paragraph') || lowercaseText.endsWith(' page')) {
+                      isCommandTriggered = true;
+                      commandType = 'paragraph';
+                      let cutIndex = displayFinal.toLowerCase().lastIndexOf('paragraph');
+                      if (cutIndex === -1) cutIndex = displayFinal.toLowerCase().lastIndexOf('page');
+                      
+                      let rawClean = displayFinal.substring(0, cutIndex).trim();
+                      if (rawClean.toLowerCase().endsWith('next')) {
+                        rawClean = rawClean.substring(0, rawClean.toLowerCase().lastIndexOf('next')).trim();
+                      }
+                      if (rawClean.toLowerCase().endsWith('new')) {
+                        rawClean = rawClean.substring(0, rawClean.toLowerCase().lastIndexOf('new')).trim();
+                      }
+                      cleanText = rawClean;
+                    } else if (lowercaseText.endsWith('bullet point') || lowercaseText.endsWith('new point') || lowercaseText.endsWith('bulletin') || lowercaseText.endsWith('bullet points') || lowercaseText.endsWith(' bullet')) {
+                      isCommandTriggered = true;
+                      commandType = 'bullet';
+                      let cutIndex = displayFinal.toLowerCase().lastIndexOf('point');
+                      if (cutIndex === -1) cutIndex = displayFinal.toLowerCase().lastIndexOf('bulletin');
+                      if (cutIndex === -1) cutIndex = displayFinal.toLowerCase().lastIndexOf('bullet');
+                      
+                      let rawClean = displayFinal.substring(0, cutIndex).trim();
+                      if (rawClean.toLowerCase().endsWith('new')) {
+                        rawClean = rawClean.substring(0, rawClean.toLowerCase().lastIndexOf('new')).trim();
+                      }
+                      cleanText = rawClean;
+                    }
+ 
+                    if (isCommandTriggered) {
+                      // 1. Select and delete the old text in this session
+                      const sel = window.getSelection();
+                      sel.removeAllRanges();
+                      const endRange = document.createRange();
+                      endRange.setStart(speechStartRange.startContainer, speechStartRange.startOffset);
+                      const activeSheet = document.activeElement || document.getElementById('pages-wrapper').lastElementChild;
+                      endRange.setEnd(activeSheet, activeSheet.childNodes.length);
+                      sel.addRange(endRange);
+                      document.execCommand('delete');
+ 
+                      // 2. Insert the clean text before command
+                      if (cleanText) {
+                        let refinedActive = '';
+                        let lastActiveP = '';
+                        for (let idx = finalResultsOffset; idx < event.results.length; ++idx) {
+                          if (event.results[idx].isFinal) {
+                            let phrase = event.results[idx][0].transcript.trim();
+                            if (phrase) {
+                              if (lastActiveP && phrase.toLowerCase().startsWith(lastActiveP.toLowerCase())) {
+                                let index = refinedActive.toLowerCase().lastIndexOf(lastActiveP.toLowerCase());
+                                if (index !== -1) {
+                                  refinedActive = refinedActive.substring(0, index) + phrase;
+                                } else {
+                                  refinedActive = phrase;
+                                }
+                              } else {
+                                refinedActive = (refinedActive ? refinedActive + ' ' : '') + phrase;
+                              }
+                              lastActiveP = phrase;
+                            }
+                          }
+                        }
+                        
+                        let commandWord = displayFinal.substring(cleanText.length).trim().toLowerCase();
+                        if (commandWord && refinedActive.toLowerCase().endsWith(commandWord)) {
+                          refinedActive = refinedActive.substring(0, refinedActive.toLowerCase().lastIndexOf(commandWord)).trim();
+                        }
+ 
+                        if (refinedActive.trim()) {
+                          document.execCommand('insertText', false, ' ' + refinedActive.trim());
+                        }
+                      }
+ 
+                      // 3. Execute formatting command
+                      if (commandType === 'paragraph') {
+                        formatDoc('insertHTML', '<p><br></p>');
+                      } else if (commandType === 'bullet') {
+                        formatDoc('insertHTML', '<ul><li>&nbsp;</li></ul>');
+                      } else if (commandType === 'clear') {
+                        if (activeSheet) activeSheet.innerHTML = '<p><br></p>';
+                        saveContent();
+                      } else if (commandType === 'bold') {
+                        formatDoc('bold');
+                      } else if (commandType === 'italic') {
+                        formatDoc('italic');
+                      }
+ 
+                      // 4. Reset start range to the new cursor position for the next part of the session
+                      sel.removeAllRanges();
+                      const newRange = document.createRange();
+                      newRange.selectNodeContents(activeSheet);
+                      newRange.collapse(false);
+                      sel.addRange(newRange);
+                      speechStartRange = newRange.cloneRange();
+ 
+                      // 5. Restart recognition results offset
+                      finalResultsOffset = event.results.length;
+                    } else {
+                      // No command: update the document text cleanly using the refined loop
+                      let activeFinalText = '';
+                      let activeLastPhrase = '';
+                      for (let idx = finalResultsOffset; idx < event.results.length; ++idx) {
+                        if (event.results[idx].isFinal) {
+                          let phrase = event.results[idx][0].transcript.trim();
+                          if (phrase) {
+                            if (activeLastPhrase && phrase.toLowerCase().startsWith(activeLastPhrase.toLowerCase())) {
+                              let index = activeFinalText.toLowerCase().lastIndexOf(activeLastPhrase.toLowerCase());
+                              if (index !== -1) {
+                                  activeFinalText = activeFinalText.substring(0, index) + phrase;
+                              } else {
+                                  activeFinalText = phrase;
+                              }
+                            } else {
+                              activeFinalText = (activeFinalText ? activeFinalText + ' ' : '') + phrase;
+                            }
+                            activeLastPhrase = phrase;
+                          }
+                        }
+                      }
+                      
+                      const sel = window.getSelection();
+                      sel.removeAllRanges();
+                      const endRange = document.createRange();
+                      endRange.setStart(speechStartRange.startContainer, speechStartRange.startOffset);
+                      const activeSheet = document.activeElement || document.getElementById('pages-wrapper').lastElementChild;
+                      endRange.setEnd(activeSheet, activeSheet.childNodes.length);
+                      sel.addRange(endRange);
+                      document.execCommand('delete');
+ 
+                      let textToInsert = (activeFinalText ? activeFinalText : '') + (displayInterim ? ' ' + displayInterim : '');
+                      if (textToInsert.trim()) {
+                        document.execCommand('insertText', false, ' ' + textToInsert.trim());
+                      }
+                    }
+                  } else if (displayInterim) {
+                    // Update interim text cleanly
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    const endRange = document.createRange();
+                    endRange.setStart(speechStartRange.startContainer, speechStartRange.startOffset);
+                    const activeSheet = document.activeElement || document.getElementById('pages-wrapper').lastElementChild;
+                    endRange.setEnd(activeSheet, activeSheet.childNodes.length);
+                    sel.addRange(endRange);
+                    document.execCommand('delete');
+ 
+                    if (displayInterim.trim()) {
+                      document.execCommand('insertText', false, ' ' + displayInterim.trim());
+                    }
+                  }
+                }
+              };
+  
+              recognition.onend = () => {
+                if (shouldBeListening) {
+                  // If ended automatically by browser silence timeouts, restart listening
+                  try {
+                    recognition.start();
+                  } catch (err) {
+                    console.warn('Speech engine restart failed:', err);
+                  }
+                } else {
+                  isListening = false;
+                  document.getElementById('mic-btn').textContent = '🎙️ Start Voice';
+                  document.getElementById('mic-btn').classList.remove('active');
+                  document.getElementById('speech-overlay').style.display = 'none';
+                }
+              };
 
             recognition.onerror = (e) => {
               alert('Speech Recognition Error: "' + e.error + '"\\n\\nIf Gboard speech-to-text works on your keyboard, use that. Otherwise, Google Speech Services is missing or disabled in your Android emulator settings.');
