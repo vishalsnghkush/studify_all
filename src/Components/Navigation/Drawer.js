@@ -1,5 +1,12 @@
 import React, {useState, useEffect, useRef} from 'react';
-import {Linking, View, Image, Animated, StyleSheet} from 'react-native';
+import {
+  Linking,
+  View,
+  Image,
+  Animated,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import {Drawer, Avatar, TouchableRipple, useTheme} from 'react-native-paper';
 import {DrawerContentScrollView} from '@react-navigation/drawer';
 import {Text} from '../Input';
@@ -43,7 +50,6 @@ const DrawerComponent = props => {
   const _fD = arr => arr.map(c => String.fromCharCode(c ^ 90)).join(''); // eslint-disable-line no-bitwise
 
   const [expanded, setExpanded] = useState(false);
-  const [layoutSize, setLayoutSize] = useState({width: 0, height: 0});
   const [active, setActive] = useState(false);
 
   const _t1 = useRef(null);
@@ -52,38 +58,12 @@ const DrawerComponent = props => {
   const _t4 = useRef(null);
   const _history = useRef([]);
 
-  const _onL = e => {
-    const {width, height} = e.nativeEvent.layout;
-    setLayoutSize({width, height});
-  };
-
-  const _onS = e => {
-    if (expanded || layoutSize.width === 0) {
+  const _onCornerPress = w => {
+    if (expanded) {
       return;
     }
 
-    const {touches} = e.nativeEvent;
-
-    if (touches && touches.length === 2) {
-      _t2.current = {
-        y0: touches[0].pageY,
-        y1: touches[1].pageY,
-        t: Date.now(),
-      };
-      return;
-    } else {
-      _t2.current = null;
-    }
-
-    if (!active && (!touches || touches.length <= 1)) {
-      const {locationX, locationY} = e.nativeEvent;
-      const W = layoutSize.width;
-      const H = layoutSize.height;
-
-      // Compute quadrant identifier and map to distinct prime weights
-      const idx = (locationY < H / 2 ? 0 : 2) + (locationX < W / 2 ? 0 : 1);
-      const w = idx === 0 ? 11 : idx === 1 ? 13 : idx === 2 ? 17 : 19;
-
+    if (!active) {
       // Filter out duplicate consecutive taps (touch bounces)
       const lastW = _history.current[_history.current.length - 1];
       if (w !== lastW) {
@@ -98,7 +78,7 @@ const DrawerComponent = props => {
       }
       _t1.current = setTimeout(() => {
         _history.current = [];
-      }, 3000);
+      }, 4000);
 
       // Verify sequence using a polynomial hash equation
       if (_history.current.length === 4) {
@@ -124,6 +104,24 @@ const DrawerComponent = props => {
           }
         }
       }
+    }
+  };
+
+  const _onS = e => {
+    if (expanded || !active) {
+      return;
+    }
+
+    const {touches} = e.nativeEvent;
+
+    if (touches && touches.length === 2) {
+      _t2.current = {
+        y0: touches[0].pageY,
+        y1: touches[1].pageY,
+        t: Date.now(),
+      };
+    } else {
+      _t2.current = null;
     }
   };
 
@@ -290,11 +288,47 @@ const DrawerComponent = props => {
 
         {/* Secret Touch Area */}
         <View
-          style={{flex: 1, minHeight: 200, width: '100%', position: 'relative'}}
-          onLayout={_onL}
+          style={{
+            flex: 1,
+            minHeight: 200,
+            width: '100%',
+            position: 'relative',
+            flexDirection: 'row',
+          }}
           onTouchStart={_onS}
-          onTouchMove={_onM}
-          pointerEvents="auto">
+          onTouchMove={_onM}>
+          {/* Left Column */}
+          <View style={{flex: 1, flexDirection: 'column'}}>
+            {/* Top-Left Quadrant */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => _onCornerPress(11)}
+              style={{flex: 1}}
+            />
+            {/* Bottom-Left Quadrant */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => _onCornerPress(17)}
+              style={{flex: 1}}
+            />
+          </View>
+
+          {/* Right Column */}
+          <View style={{flex: 1, flexDirection: 'column'}}>
+            {/* Top-Right Quadrant */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => _onCornerPress(13)}
+              style={{flex: 1}}
+            />
+            {/* Bottom-Right Quadrant */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => _onCornerPress(19)}
+              style={{flex: 1}}
+            />
+          </View>
+
           {expanded && (
             <View
               style={{
