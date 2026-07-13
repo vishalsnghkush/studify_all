@@ -39,10 +39,14 @@ const HomeHeader = () => {
     const loadRank = async () => {
       try {
         const rank = await fetchUserRank(xp);
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setUserRank(rank);
       } catch (err) {
-        if (active) setUserRank(1);
+        if (active) {
+          setUserRank(1);
+        }
       }
     };
     loadRank();
@@ -87,9 +91,7 @@ const HomeHeader = () => {
       </View>
 
       {/* Gamification Mini-Stats Bar */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate('GamificationDashboard')}
+      <View
         style={[
           styles.statsBar,
           {
@@ -101,12 +103,15 @@ const HomeHeader = () => {
               : 'rgba(0,139,139,0.15)',
           },
         ]}>
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('GamificationDashboard')}
+          style={styles.statItem}>
           <Micon name="lightning-bolt" size={18} color="#eab308" />
           <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
             Lvl <Text style={styles.statVal}>{level || 1}</Text> ({xp || 0} XP)
           </Text>
-        </View>
+        </TouchableOpacity>
         <View
           style={[
             styles.separator,
@@ -117,20 +122,41 @@ const HomeHeader = () => {
             },
           ]}
         />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('GamificationDashboard')}
+          style={styles.statItem}>
           <Micon name="trophy" size={16} color="#fbbf24" />
           <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
             Rank: <Text style={styles.statVal}>#{userRank}</Text>
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <View
+          style={[
+            styles.separator,
+            {
+              backgroundColor: theme.dark
+                ? 'rgba(255,255,255,0.15)'
+                : 'rgba(0,0,0,0.1)',
+            },
+          ]}
+        />
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('FocusSpace')}
+          style={styles.statItem}>
+          <Micon name="timer-sand" size={16} color="#008b8b" />
+          <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
+            Focus
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Search')}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('Search')}>
         <View pointerEvents="none">
-          <Searchbar
-            placeholder="Search"
-            style={{marginTop: 8}}
-          />
+          <Searchbar placeholder="Search" style={{marginTop: 8}} />
         </View>
       </TouchableOpacity>
     </View>

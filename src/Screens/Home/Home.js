@@ -551,17 +551,23 @@ const Home = () => {
             onPress={() => navigation.navigate('PersonalizedLearning')}
             style={[
               styles.statBox,
-              { backgroundColor: '#e0f7fa', borderColor: '#b2ebf2' },
+              {backgroundColor: '#e0f7fa', borderColor: '#b2ebf2'},
               dark && {
                 backgroundColor: 'rgba(0,188,212,0.1)',
                 borderColor: 'rgba(0,188,212,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#b2ebf2'}]}>
+            <View
+              style={[styles.statIconWrapper, {backgroundColor: '#b2ebf2'}]}>
               <Icon name="clipboard-check" size={15} color="#00838f" />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#006064'}, dark && {color: colors.onSurface}]}>
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#006064'},
+                  dark && {color: colors.onSurface},
+                ]}>
                 {completedTasks}/{totalTasks}
               </Text>
               <Text
@@ -579,29 +585,39 @@ const Home = () => {
             onPress={() => navigation.navigate('VoiceNotebook')}
             style={[
               styles.statBox,
-              { backgroundColor: '#ede7f6', borderColor: '#d1c4e9' },
+              {backgroundColor: '#ede7f6', borderColor: '#d1c4e9'},
               dark && {
                 backgroundColor: 'rgba(103,58,183,0.1)',
                 borderColor: 'rgba(103,58,183,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#d1c4e9', position: 'relative'}]}>
+            <View
+              style={[
+                styles.statIconWrapper,
+                {backgroundColor: '#d1c4e9', position: 'relative'},
+              ]}>
               <Icon name="notebook-outline" size={16} color="#512da8" />
-              <View style={{
-                position: 'absolute',
-                bottom: -3,
-                right: -3,
-                backgroundColor: dark ? '#201630' : '#ede7f6',
-                borderRadius: 6,
-                padding: 1,
-                borderWidth: 1,
-                borderColor: '#d1c4e9',
-              }}>
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: -3,
+                  right: -3,
+                  backgroundColor: dark ? '#201630' : '#ede7f6',
+                  borderRadius: 6,
+                  padding: 1,
+                  borderWidth: 1,
+                  borderColor: '#d1c4e9',
+                }}>
                 <Icon name="microphone" size={9} color="#512da8" />
               </View>
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#311b92'}, dark && {color: colors.onSurface}]}>
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#311b92'},
+                  dark && {color: colors.onSurface},
+                ]}>
                 {notebooksCount}
               </Text>
               <Text
@@ -619,17 +635,23 @@ const Home = () => {
             onPress={() => navigation.navigate('GamificationDashboard')}
             style={[
               styles.statBox,
-              { backgroundColor: '#fff3e0', borderColor: '#ffe0b2' },
+              {backgroundColor: '#fff3e0', borderColor: '#ffe0b2'},
               dark && {
                 backgroundColor: 'rgba(255,152,0,0.1)',
                 borderColor: 'rgba(255,152,0,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#ffe0b2'}]}>
+            <View
+              style={[styles.statIconWrapper, {backgroundColor: '#ffe0b2'}]}>
               <Icon name="fire" size={15} color="#e65100" />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#e65100'}, dark && {color: colors.onSurface}]}>
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#e65100'},
+                  dark && {color: colors.onSurface},
+                ]}>
                 {(() => {
                   const count = gamificationState?.streak || 1;
                   return `${count}d`;
@@ -957,60 +979,6 @@ const Home = () => {
             size={48}
             color={colors.primary}
             style={styles.counselingIcon}
-          />
-        </BouncyButton>
-
-        {/* Focus Space (Pomodoro) Banner Card */}
-        <BouncyButton
-          onPress={() => navigation.navigate('FocusSpace')}
-          style={[
-            styles.focusBanner,
-            dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
-            },
-          ]}>
-          <View style={styles.focusTextContainer}>
-            <Text
-              style={[
-                styles.focusSubtitle,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
-              <Text
-                style={[
-                  styles.subtitleBoldFocus,
-                  dark && {color: colors.primary},
-                ]}>
-                Boost
-              </Text>{' '}
-              concentration & co-study live
-            </Text>
-            <Text
-              style={[
-                styles.focusTitle,
-                dark && {color: colors.onSurface},
-              ]}>
-              Pomodoro Focus Space
-            </Text>
-            <View
-              style={[
-                styles.focusBtn,
-                dark && {backgroundColor: colors.primary},
-              ]}>
-              <Text style={styles.focusBtnText}>Enter Room</Text>
-              <Icon
-                name="chevron-right"
-                size={13}
-                color="#ffffff"
-                style={styles.chevronIcon}
-              />
-            </View>
-          </View>
-          <Icon
-            name="timer-sand"
-            size={48}
-            color={colors.primary}
-            style={styles.focusIcon}
           />
         </BouncyButton>
 
