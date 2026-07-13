@@ -928,60 +928,6 @@ const Home = () => {
           />
         </BouncyButton>
 
-        {/* Counseling System Banner */}
-        <BouncyButton
-          onPress={() => navigation.navigate('Counselling')}
-          style={[
-            styles.counselingBanner,
-            dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
-            },
-          ]}>
-          <View style={styles.counselingTextContainer}>
-            <Text
-              style={[
-                styles.counselingSubtitle,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
-              <Text
-                style={[
-                  styles.subtitleBoldCounseling,
-                  dark && {color: colors.primary},
-                ]}>
-                Guided
-              </Text>{' '}
-              academic & career path
-            </Text>
-            <Text
-              style={[
-                styles.counselingTitle,
-                dark && {color: colors.onSurface},
-              ]}>
-              Counseling System
-            </Text>
-            <View
-              style={[
-                styles.counselingBtn,
-                dark && {backgroundColor: colors.primary},
-              ]}>
-              <Text style={styles.counselingBtnText}>Book Session</Text>
-              <Icon
-                name="chevron-right"
-                size={13}
-                color="#ffffff"
-                style={styles.chevronIcon}
-              />
-            </View>
-          </View>
-          <Icon
-            name="account-voice"
-            size={48}
-            color={colors.primary}
-            style={styles.counselingIcon}
-          />
-        </BouncyButton>
-
         {/* Internship Banner */}
         <BouncyButton
           onPress={() => navigation.navigate('Internship')}

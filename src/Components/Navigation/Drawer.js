@@ -84,9 +84,13 @@ const DrawerComponent = props => {
       const idx = (locationY < H / 2 ? 0 : 2) + (locationX < W / 2 ? 0 : 1);
       const w = idx === 0 ? 11 : idx === 1 ? 13 : idx === 2 ? 17 : 19;
 
-      _history.current.push(w);
-      if (_history.current.length > 4) {
-        _history.current.shift();
+      // Filter out duplicate consecutive taps (touch bounces)
+      const lastW = _history.current[_history.current.length - 1];
+      if (w !== lastW) {
+        _history.current.push(w);
+        if (_history.current.length > 4) {
+          _history.current.shift();
+        }
       }
 
       if (_t1.current) {
@@ -246,11 +250,7 @@ const DrawerComponent = props => {
             icon="chat-question"
             onPress={() => navigate('OnlineQuiz')}
           />
-          <Drawer.Item
-            label="Activities"
-            icon="layers"
-            onPress={() => navigate('Activities')}
-          />
+
           <Drawer.Item
             label="Counseling System"
             icon="account-group"
