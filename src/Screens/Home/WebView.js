@@ -14,6 +14,7 @@ const WebviewScreen = ({route}) => {
   const {colors} = useTheme();
   const isDark = useSelector(state => state.initial.isDark);
   const isStudifySite = url.includes('studifysuccess.com');
+  const isGoogleDrive = url.includes('drive.google.com');
 
   const injectedBeforeLoadScript = `
     (function() {
@@ -33,6 +34,48 @@ const WebviewScreen = ({route}) => {
             padding-top: 0 !important; \\
             margin-top: 0 !important; \\
             background-color: ${isDark ? '#121212' : '#ffffff'} !important; \\
+          } \\
+        ';
+      }
+
+      if (${isGoogleDrive}) {
+        css += ' \\
+          .ndfHFb-c43HA-b30Snd, \\
+          .ndfHFb-c43HA-AznF2e, \\
+          .ndfHFb-c43HA-tW352c, \\
+          .ndfHFb-c43HA-z5C9Gb, \\
+          div[class*="drive-viewer-chrome"], \\
+          div[class*="ndfHFb-c43HA-ti6hGc"], \\
+          div[class*="ndfHFb-c43HA-b30Snd"], \\
+          .drive-viewer-toolbar, \\
+          .drive-viewer-chrome { \\
+            display: none !important; \\
+            visibility: hidden !important; \\
+            height: 0 !important; \\
+            opacity: 0 !important; \\
+            z-index: -99999 !important; \\
+          } \\
+          .ndfHFb-c43HA-O46rAc, \\
+          div[class*="drive-viewer-content"] { \\
+            top: 0 !important; \\
+            height: 100% !important; \\
+            width: 100% !important; \\
+            padding-top: 0 !important; \\
+            margin-top: 0 !important; \\
+          } \\
+          body, html { \\
+            margin: 0 !important; \\
+            padding: 0 !important; \\
+            overflow: hidden !important; \\
+            background: #000000 !important; \\
+            margin-top: -56px !important; \\
+            height: calc(100% + 56px) !important; \\
+          } \\
+          /* Crop the top header of the iframe/viewer out of view by shifting up by 56px */ \\
+          iframe, .drive-viewer-iframe, [class*="drive-viewer"] { \\
+            margin-top: -56px !important; \\
+            height: calc(100% + 56px) !important; \\
+            border: none !important; \\
           } \\
         ';
       }

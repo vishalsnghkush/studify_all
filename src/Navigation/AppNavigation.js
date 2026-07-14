@@ -34,6 +34,8 @@ import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
+import Lectures from '../Screens/Home/Notes/Lectures';
+import LecturePlayer from '../Screens/Home/Notes/LecturePlayer';
 import NcertSolutions from '../Screens/Home/Notes/NcertSolutions';
 import ImportantQuestions from '../Screens/Home/Notes/ImportantQuestions';
 import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
@@ -132,6 +134,16 @@ const AppNavigation = () => {
         name="FreeNotes"
         component={FreeNotes}
         options={{title: 'YouTube Notes'}}
+      />
+      <Stack.Screen
+        name="Lectures"
+        component={Lectures}
+        options={{title: 'Lectures'}}
+      />
+      <Stack.Screen
+        name="LecturePlayer"
+        component={LecturePlayer}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="NcertSolutions"

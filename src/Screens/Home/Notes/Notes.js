@@ -26,6 +26,22 @@ const Notes = ({navigation}) => {
       actionText: 'Watch & Learn',
     },
     {
+      title: 'Lectures',
+      descWords: [
+        {text: 'High-quality ', highlight: false},
+        {text: 'video lectures ', highlight: true},
+        {text: 'for class chapters.', highlight: false},
+      ],
+      url: 'Lectures',
+      isStack: true,
+      color: dark ? 'rgba(74, 20, 140, 0.12)' : '#f3e5f5',
+      borderColor: '#4a148c',
+      icon: 'video-outline',
+      badge: 'LECTURES',
+      category: 'free',
+      actionText: 'Watch Lectures',
+    },
+    {
       title: 'NCERT Solutions',
       descWords: [
         {text: 'Step-by-step ', highlight: false},
