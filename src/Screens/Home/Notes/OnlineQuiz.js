@@ -13,6 +13,7 @@ import {useTheme} from 'react-native-paper';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../../Redux/Slices/GamificationSlice';
+import {trackEngagement, setRecentNote} from '../../../Utils/EngagementTracker';
 
 const {width} = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 column layout with padding
@@ -76,6 +77,16 @@ const OnlineQuiz = () => {
 
   const handlePress = (url, title) => {
     dispatch(triggerActivity('quiz_started'));
+
+    trackEngagement('General', 'quiz');
+    setRecentNote({
+      name: title,
+      subject: 'General',
+      type: 'quiz',
+      board: '',
+      class: title,
+      subtopic: ''
+    });
 
     // Log the quiz practice attempt in history
     try {

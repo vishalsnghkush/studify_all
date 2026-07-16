@@ -1,5 +1,5 @@
 import {View, FlatList, Image, ScrollView} from 'react-native';
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {Screen} from '../../../Components/Screen';
 import Dropdown from '../../../Components/Input/Dropdown';
 import useApi from '../../../Components/Api/Api';
@@ -8,6 +8,8 @@ import {ActivityIndicator, TouchableRipple, useTheme} from 'react-native-paper';
 import {Text} from '../../../Components/Input';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Dimensions} from 'react-native';
+import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
+
 
 const {width} = Dimensions.get('window');
 
@@ -93,11 +95,37 @@ const classList = [
   },
 ];
 
-const Notes = ({navigation}) => {
+const Notes = ({navigation, route}) => {
   const {colors, dark} = useTheme();
   const [form, setForm] = useState();
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState({});
+  const [topSubjects, setTopSubjects] = useState([]);
+
+  useEffect(() => {
+    const loadTopSubjects = async () => {
+      try {
+        const top = await getTopEngagedSubjects(3);
+        setTopSubjects(top);
+      } catch (e) {
+        console.log('Error loading top subjects in notes', e);
+      }
+    };
+    loadTopSubjects();
+  }, [form]);
+
+  // Read navigation parameters (autofill)
+  useEffect(() => {
+    if (route?.params?.subject) {
+      setTopSubjects(prev => {
+        const sub = route.params.subject;
+        if (!prev.some(s => s.toLowerCase() === sub.toLowerCase())) {
+          return [sub, ...prev];
+        }
+        return prev;
+      });
+    }
+  }, [route?.params]);
   const refetch = async vale => {
     setIsLoading(true);
     try {
@@ -270,17 +298,147 @@ const Notes = ({navigation}) => {
                 We couldn't find any YouTube notes for Class {form} at this moment. Check back soon!
               </Text>
             </View>
-          ) : (
-            <FlatList
-              data={data?.data}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={{paddingBottom: 40}}
-              renderItem={({item}) => {
+          ) : (() => {
+            const recommendedNotes = (data?.data || []).filter(item => 
+              topSubjects.some(sub => (item.subject || '').toLowerCase().includes(sub.toLowerCase()))
+            );
+
+            // Reorder notes: push recommended subjects to the top of the main list!
+            const sortedNotes = [...(data?.data || [])].sort((a, b) => {
+              const aIsRec = topSubjects.some(sub => (a.subject || '').toLowerCase().includes(sub.toLowerCase()));
+              const bIsRec = topSubjects.some(sub => (b.subject || '').toLowerCase().includes(sub.toLowerCase()));
+              if (aIsRec && !bIsRec) return -1;
+              if (!aIsRec && bIsRec) return 1;
+              return 0;
+            });
+
+            return (
+              <FlatList
+                data={sortedNotes}
+                keyExtractor={(item, index) => item?.id ? item.id.toString() : (item?._id ? item._id.toString() : index.toString())}
+                contentContainerStyle={{paddingBottom: 40}}
+                ListHeaderComponent={
+                  topSubjects.length > 0 ? (
+                    <View style={{marginBottom: 20}}>
+                      {recommendedNotes.length > 0 && (
+                        <>
+                          <Text style={{fontWeight: 'bold', fontSize: 16, color: colors.onSurface, marginBottom: 12}}>
+                            ✨ Recommended for You
+                          </Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 12, paddingBottom: 6}}>
+                            {recommendedNotes.slice(0, 5).map(item => {
+                              const subjectInfo = getSubjectInfo(item.subject);
+                              return (
+                                <TouchableRipple
+                                  key={`rec-${item.id}`}
+                                  onPress={async () => {
+                                    await trackEngagement(item.subject, 'note');
+                                    await setRecentNote({
+                                      name: item.name,
+                                      subject: item.subject,
+                                      type: 'note',
+                                      pdf_url: item.pdf_url,
+                                      chapter_name: item.chapter_name,
+                                      chapter_no: item.chapter_no
+                                    });
+                                    navigation.navigate('Pdf', {
+                                      url: item.pdf_url,
+                                      title: item.name,
+                                      subject: item.subject,
+                                    });
+                                  }}
+                                  style={{
+                                    width: 220,
+                                    backgroundColor: dark ? colors.surface : '#f6fbfb',
+                                    borderColor: dark ? colors.outlineVariant : '#007171',
+                                    borderWidth: 1.5,
+                                    borderRadius: 16,
+                                    padding: 12,
+                                    marginRight: 12,
+                                    elevation: 1,
+                                  }}>
+                                  <View>
+                                    <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+                                      <View style={[{backgroundColor: subjectInfo.bg, padding: 6, borderRadius: 8}]}>
+                                        <Micon name={subjectInfo.icon} size={18} color={subjectInfo.color} />
+                                      </View>
+                                      <View style={{backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6}}>
+                                        <Text style={{fontSize: 9, fontWeight: 'bold', color: subjectInfo.color}}>{item.subject}</Text>
+                                      </View>
+                                    </View>
+                                    <Text numberOfLines={2} style={{fontWeight: 'bold', fontSize: 13, color: colors.onSurface, height: 36, lineHeight: 18}}>
+                                      {item.name}
+                                    </Text>
+                                    <Text numberOfLines={1} style={{fontSize: 10, color: colors.outline, marginTop: 6}}>
+                                      {item.chapter_name}
+                                    </Text>
+                                  </View>
+                                </TouchableRipple>
+                              );
+                            })}
+                          </ScrollView>
+                        </>
+                      )}
+
+                      {/* Cross-section recommendation to Quiz */}
+                      <TouchableRipple
+                        onPress={() => {
+                          const topSub = topSubjects[0] || 'General';
+                          navigation.navigate('TestGenerator', {
+                            subject: topSub.charAt(0).toUpperCase() + topSub.slice(1),
+                          });
+                        }}
+                        style={{
+                          backgroundColor: dark ? 'rgba(103, 58, 183, 0.12)' : '#fdfafc',
+                          borderColor: dark ? '#673ab7' : '#d946ef',
+                          borderWidth: 1.5,
+                          borderRadius: 16,
+                          padding: 12,
+                          marginTop: recommendedNotes.length > 0 ? 16 : 0,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          elevation: 1,
+                        }}>
+                        <>
+                          <View style={{backgroundColor: '#673ab7', padding: 8, borderRadius: 8}}>
+                            <Micon name="brain" size={20} color="white" />
+                          </View>
+                          <View style={{flex: 1}}>
+                            <Text style={{fontWeight: 'bold', fontSize: 13, color: colors.onSurface}}>
+                              🧠 Ready to test your knowledge?
+                            </Text>
+                            <Text style={{fontSize: 11, color: colors.outline, marginTop: 2}}>
+                              Generate a custom practice quiz on {topSubjects[0].charAt(0).toUpperCase() + topSubjects[0].slice(1)} right now!
+                            </Text>
+                          </View>
+                          <Micon name="chevron-right" size={20} color={colors.primary} />
+                        </>
+                      </TouchableRipple>
+
+                      <View style={{height: 1, backgroundColor: colors.outlineVariant, marginVertical: 15}} />
+                    </View>
+                  ) : null
+                }
+                renderItem={({item}) => {
                 const subjectInfo = getSubjectInfo(item.subject);
                 return (
                   <TouchableRipple
-                    onPress={() => {
-                      navigation.navigate('Pdf', {url: item.pdf_url});
+                    onPress={async () => {
+                      await trackEngagement(item.subject, 'note');
+                      await setRecentNote({
+                        name: item.name,
+                        subject: item.subject,
+                        type: 'note',
+                        pdf_url: item.pdf_url,
+                        chapter_name: item.chapter_name,
+                        chapter_no: item.chapter_no
+                      });
+                      navigation.navigate('Pdf', {
+                        url: item.pdf_url,
+                        title: item.name,
+                        subject: item.subject,
+                      });
                     }}
                     style={[
                       styles.noteCard,
@@ -316,6 +474,24 @@ const Notes = ({navigation}) => {
                               {item.subject}
                             </Text>
                           </View>
+                          {topSubjects.some(sub => (item.subject || '').toLowerCase().includes(sub.toLowerCase())) && (
+                            <View
+                              style={{
+                                backgroundColor: dark ? 'rgba(76, 175, 80, 0.15)' : '#e8f5e9',
+                                paddingHorizontal: 8,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                marginLeft: 8,
+                                borderWidth: 0.8,
+                                borderColor: '#4caf50',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 2,
+                              }}>
+                              <Micon name="star-face" size={10} color="#4caf50" />
+                              <Text style={{fontSize: 9, fontWeight: 'bold', color: '#4caf50'}}>Recommended</Text>
+                            </View>
+                          )}
                           <Text
                             style={[styles.metaText, {color: colors.outline}]}>
                             Ch : {item.chapter_no}
@@ -341,7 +517,8 @@ const Notes = ({navigation}) => {
                 );
               }}
             />
-          )}
+            );
+          })()}
         </View>
       )}
     </Screen>

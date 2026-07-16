@@ -14,6 +14,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import {
+  getAllSubjectStats,
+  getTopEngagedSubjects,
+  getPinnedSubject,
+  setPinnedSubject
+} from '../../Utils/EngagementTracker';
+
 
 const PersonalizedLearning = () => {
   const navigation = useNavigation();
@@ -32,6 +39,44 @@ const PersonalizedLearning = () => {
   const [tempDate, setTempDate] = useState(new Date());
   const [tempTotalChapters, setTempTotalChapters] = useState('10');
   const [tempCompletedChapters, setTempCompletedChapters] = useState('0');
+
+  // Personalization local states
+  const [subjectStats, setSubjectStats] = useState({});
+  const [pinnedSub, setPinnedSub] = useState(null);
+  const [repetitionNudge, setRepetitionNudge] = useState(null);
+
+  const loadPersonalizationData = useCallback(async () => {
+    try {
+      const stats = await getAllSubjectStats();
+      setSubjectStats(stats);
+
+      const pinned = await getPinnedSubject();
+      setPinnedSub(pinned);
+
+      const top = await getTopEngagedSubjects(1);
+      if (top && top.length > 0) {
+        const topSubjectName = top[0];
+        const topSubjectData = stats[topSubjectName];
+        if (topSubjectData && topSubjectData.lastOpenedTime) {
+          const diffMs = Date.now() - topSubjectData.lastOpenedTime;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          if (diffDays >= 3) {
+            setRepetitionNudge({
+              subject: topSubjectName,
+              days: diffDays
+            });
+          } else {
+            setRepetitionNudge(null);
+          }
+        }
+      } else {
+        setRepetitionNudge(null);
+      }
+    } catch (e) {
+      console.log('Error loading personalization data', e);
+    }
+  }, []);
+
 
   const loadExamTarget = useCallback(async () => {
     try {
@@ -112,8 +157,10 @@ const PersonalizedLearning = () => {
     useCallback(() => {
       loadDashboardData();
       loadExamTarget();
-    }, [loadDashboardData, loadExamTarget]),
+      loadPersonalizationData();
+    }, [loadDashboardData, loadExamTarget, loadPersonalizationData]),
   );
+
 
   const handleToggleTask = async id => {
     try {
@@ -387,6 +434,89 @@ const PersonalizedLearning = () => {
             style={styles.progressBar}
           />
         </Card>
+
+        {/* Local Personalization Section */}
+        {(repetitionNudge || Object.keys(subjectStats).length > 0) && (
+          <View style={{ marginBottom: 20 }}>
+
+            {/* 2. Spaced Repetition Nudge (if active) */}
+            {repetitionNudge && (
+              <Card style={[styles.nudgeCard, { backgroundColor: theme.dark ? '#3a1f1f' : '#fdf2f2', borderColor: '#f8b4b4', borderWidth: 1 }]}>
+                <Card.Content style={styles.nudgeContent}>
+                  <Icon name="alarm" size={24} color="#f87171" style={{ marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', color: '#f87171', fontSize: 13 }}>Spaced Repetition Alert</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.onSurface, marginTop: 2 }}>
+                      You studied <Text style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{repetitionNudge.subject}</Text> {repetitionNudge.days} days ago. A quick 5-minute recap helps retain 90% of memory!
+                    </Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            )}
+
+            {/* 3. Learning Diet (Balance Meter) */}
+            <Card style={[styles.dietCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+              <Card.Content>
+                <View style={styles.dietHeader}>
+                  <Icon name="scale-balance" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.dietTitle, { color: theme.colors.onSurface }]}>Your Subject Learning Diet</Text>
+                </View>
+                <Text style={{ fontSize: 11, color: theme.colors.outline, marginBottom: 12 }}>
+                  Tracks which subjects you focus on. Pin a subject to prioritize recommendations!
+                </Text>
+
+                {Object.keys(subjectStats).length === 0 ? (
+                  <View style={styles.emptyDiet}>
+                    <Icon name="book-open-outline" size={32} color="#aaa" />
+                    <Text style={{ fontSize: 12, color: theme.colors.outline, marginTop: 6, textAlign: 'center' }}>
+                      No study sessions tracked. Open notes or create quizzes to see your distribution!
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {Object.entries(subjectStats).map(([subj, data]) => {
+                      const totalClicks = Object.values(subjectStats).reduce((sum, d) => sum + d.count, 0) || 1;
+                      const percentage = Math.round((data.count / totalClicks) * 100);
+                      const isPinned = pinnedSub?.toLowerCase() === subj.toLowerCase();
+
+                      return (
+                        <View key={subj} style={styles.dietRow}>
+                          <View style={{ flex: 1 }}>
+                            <View style={styles.dietLabelRow}>
+                              <Text style={[styles.dietSubjectName, { color: theme.colors.onSurface }]}>{subj}</Text>
+                              <Text style={{ fontSize: 11, color: theme.colors.outline }}>{percentage}% ({data.count} clicks)</Text>
+                            </View>
+                            <ProgressBar
+                              progress={data.count / totalClicks}
+                              color={isPinned ? '#ef4444' : theme.colors.primary}
+                              style={styles.dietBar}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            onPress={async () => {
+                              const nextPin = isPinned ? null : subj;
+                              await setPinnedSubject(nextPin);
+                              setPinnedSub(nextPin);
+                              await loadPersonalizationData();
+                            }}
+                            style={{ padding: 6, marginLeft: 8 }}
+                          >
+                            <Icon
+                              name={isPinned ? 'pin' : 'pin-outline'}
+                              size={18}
+                              color={isPinned ? '#ef4444' : theme.colors.outline}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </Card.Content>
+            </Card>
+          </View>
+        )}
+
 
         {/* Feature Cards Grid (Test Generator & Full Planner) */}
         <View style={styles.featuresRow}>
@@ -1234,6 +1364,98 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  personaCard: {
+    borderRadius: 16,
+    elevation: 2,
+    marginBottom: 12,
+  },
+  personaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  personaIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  personaTextDetails: {
+    flex: 1,
+  },
+  personaLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pulseIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  personaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 2,
+  },
+  personaDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  nudgeCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    elevation: 1,
+  },
+  nudgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  dietCard: {
+    borderRadius: 16,
+    elevation: 2,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  dietHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  dietTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyDiet: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  dietRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dietLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dietSubjectName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+  },
+  dietBar: {
+    height: 6,
+    borderRadius: 3,
+  },
 });
+
 
 export default PersonalizedLearning;

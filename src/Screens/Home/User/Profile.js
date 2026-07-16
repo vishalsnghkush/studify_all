@@ -1,8 +1,10 @@
 import {View, Switch, Image} from 'react-native';
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {Text} from '../../../Components/Input';
 import {Screen, CardHorizontal} from '../../../Components/Screen';
 import {Avatar, useTheme} from 'react-native-paper';
+import {isIncognito, setIncognito} from '../../../Utils/EngagementTracker';
+
 import {useDispatch, useSelector} from 'react-redux';
 import {setUserLogout, setTheme, setUser} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
@@ -15,10 +17,25 @@ const Profile = ({navigation}) => {
   const {colors} = useTheme();
   const {isDark, user} = useSelector(state => state.initial);
   const [isSwitchOn, setIsSwitchOn] = useState(isDark);
+  const [incognitoMode, setIncognitoMode] = useState(false);
+
+  useEffect(() => {
+    const loadProfilePersonalization = async () => {
+      try {
+        const incog = await isIncognito();
+        setIncognitoMode(incog);
+      } catch (e) {
+        console.log('Error loading profile personalization', e);
+      }
+    };
+    loadProfilePersonalization();
+  }, []);
+
   const onToggleSwitch = () => {
     dispatch(setTheme());
     setIsSwitchOn(!isSwitchOn);
   };
+
 
   return (
     <Screen NoHeader style={{justifyContent: 'center'}}>
@@ -62,6 +79,7 @@ const Profile = ({navigation}) => {
             Class: {user.class}
           </Text>
         )}
+
       </View>
       <View style={{marginTop: 10}}>
         <CardHorizontal
@@ -87,6 +105,23 @@ const Profile = ({navigation}) => {
           }}
         /> */}
         <CardHorizontal
+          title="Incognito Study Mode"
+          leftIcon="incognito"
+          rightIcon={
+            <View pointerEvents="none">
+              <Switch
+                value={incognitoMode}
+                trackColor={{false: '#afafaf81'}}
+              />
+            </View>
+          }
+          onPress={async () => {
+            const nextVal = !incognitoMode;
+            await setIncognito(nextVal);
+            setIncognitoMode(nextVal);
+          }}
+        />
+        <CardHorizontal
           title="Dark Mode"
           leftIcon="weather-night"
           rightIcon={
@@ -99,6 +134,7 @@ const Profile = ({navigation}) => {
           }
           onPress={onToggleSwitch}
         />
+
 
         <CardHorizontal
           title="Terms & Conditions"

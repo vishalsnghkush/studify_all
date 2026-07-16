@@ -27,6 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { requestMicrophonePermission, requestImagePermissions } from '../../../Utils/Permission';
+import { trackEngagement, setRecentNote } from '../../../Utils/EngagementTracker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -174,12 +175,30 @@ export default function VoiceNotebook({ navigation }) {
     setCurrentNotebook(notebook);
     loadPages(notebook.id);
     setViewState('pages');
+    trackEngagement('General', 'note');
+    setRecentNote({
+      name: `Notebook: ${notebook.title}`,
+      subject: 'General',
+      type: 'note',
+      board: '',
+      class: '',
+      subtopic: ''
+    });
   };
 
   const handleSelectPage = async (page) => {
     await requestMicrophonePermission();
     setCurrentPage(page);
     setViewState('editor');
+    trackEngagement('General', 'note');
+    setRecentNote({
+      name: `Page: ${page.title}`,
+      subject: 'General',
+      type: 'note',
+      board: '',
+      class: '',
+      subtopic: ''
+    });
   };
 
   const handleCreateNotebook = async () => {

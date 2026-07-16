@@ -1,9 +1,10 @@
 import {View, FlatList, Image, ScrollView, Dimensions} from 'react-native';
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {Screen} from '../../../Components/Screen';
 import {ActivityIndicator, TouchableRipple, useTheme} from 'react-native-paper';
 import {Text} from '../../../Components/Input';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
 
 const {width} = Dimensions.get('window');
 
@@ -245,6 +246,19 @@ const lecturesData = {
 const Lectures = ({navigation}) => {
   const {colors, dark} = useTheme();
   const [selectedClass, setSelectedClass] = useState();
+  const [topSubjects, setTopSubjects] = useState([]);
+
+  useEffect(() => {
+    const loadTopSubjects = async () => {
+      try {
+        const top = await getTopEngagedSubjects(3);
+        setTopSubjects(top);
+      } catch (e) {
+        console.log('Error loading top subjects in lectures', e);
+      }
+    };
+    loadTopSubjects();
+  }, [selectedClass]);
 
   const handleSelectClass = (clsValue) => {
     setSelectedClass(clsValue);
@@ -400,15 +414,137 @@ const Lectures = ({navigation}) => {
               </Text>
             </View>
           ) : (
-            <FlatList
-              data={currentLectures}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{paddingBottom: 40}}
-              renderItem={({item}) => {
-                const subjectInfo = getSubjectInfo(item.subject);
+            (() => {
+              const recommendedLectures = (currentLectures || []).filter(item => 
+                topSubjects.some(sub => (item.subject || '').toLowerCase().includes(sub.toLowerCase()))
+              );
+
+              // Reorder lectures: push recommended subjects to the top of the main list!
+              const sortedLectures = [...(currentLectures || [])].sort((a, b) => {
+                const aIsRec = topSubjects.some(sub => (a.subject || '').toLowerCase().includes(sub.toLowerCase()));
+                const bIsRec = topSubjects.some(sub => (b.subject || '').toLowerCase().includes(sub.toLowerCase()));
+                if (aIsRec && !bIsRec) return -1;
+                if (!aIsRec && bIsRec) return 1;
+                return 0;
+              });
+
+              return (
+                <FlatList
+                  data={sortedLectures}
+                  keyExtractor={item => item.id}
+                  contentContainerStyle={{paddingBottom: 40}}
+                  ListHeaderComponent={
+                    topSubjects.length > 0 ? (
+                      <View style={{marginBottom: 20}}>
+                        {recommendedLectures.length > 0 && (
+                          <>
+                            <Text style={{fontWeight: 'bold', fontSize: 16, color: colors.onSurface, marginBottom: 12}}>
+                              ✨ Recommended for You
+                            </Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 12, paddingBottom: 6}}>
+                              {recommendedLectures.slice(0, 5).map(item => {
+                                const subjectInfo = getSubjectInfo(item.subject);
+                                return (
+                                  <TouchableRipple
+                                    key={`rec-${item.id}`}
+                                    onPress={async () => {
+                                      await trackEngagement(item.subject || 'General', 'lecture');
+                                      await setRecentNote({
+                                        name: item.name,
+                                        subject: item.subject || 'General',
+                                        type: 'lecture',
+                                        board: '',
+                                        class: selectedClass || '',
+                                        subtopic: item.chapter_name || ''
+                                      });
+                                      navigation.navigate('LecturePlayer', {
+                                        lecture: item,
+                                      });
+                                    }}
+                                    style={{
+                                      width: 220,
+                                      backgroundColor: dark ? colors.surface : '#faf5ff',
+                                      borderColor: dark ? colors.outlineVariant : '#8b5cf6',
+                                      borderWidth: 1.5,
+                                      borderRadius: 16,
+                                      padding: 12,
+                                      marginRight: 12,
+                                      elevation: 1,
+                                    }}>
+                                    <View>
+                                      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+                                        <View style={[{backgroundColor: subjectInfo.bg, padding: 6, borderRadius: 8}]}>
+                                          <Micon name="video-outline" size={18} color={subjectInfo.color} />
+                                        </View>
+                                        <View style={{backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6}}>
+                                          <Text style={{fontSize: 9, fontWeight: 'bold', color: subjectInfo.color}}>{item.subject}</Text>
+                                        </View>
+                                      </View>
+                                      <Text numberOfLines={2} style={{fontWeight: 'bold', fontSize: 13, color: colors.onSurface, height: 36, lineHeight: 18}}>
+                                        {item.name}
+                                      </Text>
+                                      <Text numberOfLines={1} style={{fontSize: 10, color: colors.outline, marginTop: 6}}>
+                                        {item.chapter_name}
+                                      </Text>
+                                    </View>
+                                  </TouchableRipple>
+                                );
+                              })}
+                            </ScrollView>
+                          </>
+                        )}
+
+                        {/* Cross-section recommendation to Notes */}
+                        <TouchableRipple
+                          onPress={() => {
+                            navigation.navigate('Notes');
+                          }}
+                          style={{
+                            backgroundColor: dark ? 'rgba(0, 113, 113, 0.12)' : '#eefbfb',
+                            borderColor: dark ? '#007171' : '#009688',
+                            borderWidth: 1.5,
+                            borderRadius: 16,
+                            padding: 12,
+                            marginTop: recommendedLectures.length > 0 ? 16 : 0,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 12,
+                            elevation: 1,
+                          }}>
+                          <>
+                            <View style={{backgroundColor: '#007171', padding: 8, borderRadius: 8}}>
+                              <Micon name="file-document-outline" size={20} color="white" />
+                            </View>
+                            <View style={{flex: 1}}>
+                              <Text style={{fontWeight: 'bold', fontSize: 13, color: colors.onSurface}}>
+                                📝 Read summary notes!
+                              </Text>
+                              <Text style={{fontSize: 11, color: colors.outline, marginTop: 2}}>
+                                Review textbook summaries and NCERT Solutions for {topSubjects[0].charAt(0).toUpperCase() + topSubjects[0].slice(1)} first.
+                              </Text>
+                            </View>
+                            <Micon name="chevron-right" size={20} color={colors.primary} />
+                          </>
+                        </TouchableRipple>
+
+                        <View style={{height: 1, backgroundColor: colors.outlineVariant, marginVertical: 15}} />
+                      </View>
+                    ) : null
+                  }
+                  renderItem={({item}) => {
+                    const subjectInfo = getSubjectInfo(item.subject);
                 return (
                   <TouchableRipple
                     onPress={() => {
+                      trackEngagement(item.subject || 'General', 'lecture');
+                      setRecentNote({
+                        name: item.name,
+                        subject: item.subject || 'General',
+                        type: 'lecture',
+                        board: '',
+                        class: selectedClass?.label || '',
+                        subtopic: item.chapter_name || ''
+                      });
                       navigation.navigate('LecturePlayer', {
                         lecture: item,
                       });
@@ -447,6 +583,24 @@ const Lectures = ({navigation}) => {
                               {item.subject}
                             </Text>
                           </View>
+                          {topSubjects.some(sub => (item.subject || '').toLowerCase().includes(sub.toLowerCase())) && (
+                            <View
+                              style={{
+                                backgroundColor: dark ? 'rgba(76, 175, 80, 0.15)' : '#e8f5e9',
+                                paddingHorizontal: 8,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                marginLeft: 8,
+                                borderWidth: 0.8,
+                                borderColor: '#4caf50',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 2,
+                              }}>
+                              <Micon name="star-face" size={10} color="#4caf50" />
+                              <Text style={{fontSize: 9, fontWeight: 'bold', color: '#4caf50'}}>Recommended</Text>
+                            </View>
+                          )}
                           <Text
                             style={[styles.metaText, {color: colors.outline}]}>
                             Ch: {item.chapter_no}
@@ -466,7 +620,8 @@ const Lectures = ({navigation}) => {
                 );
               }}
             />
-          )}
+            );
+          })())}
         </View>
       )}
     </Screen>

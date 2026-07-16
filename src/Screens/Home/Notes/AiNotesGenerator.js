@@ -12,11 +12,17 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
+import { SvgXml } from 'react-native-svg';
+import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
+
+import { PremiumLoader } from '../../../Components/PremiumLoader';
 
 // App components
 import {Screen} from '../../../Components/Screen';
-import {Text, Button} from '../../../Components/Input';
-import Dropdown from '../../../Components/Input/Dropdown';
+import {Text} from '../../../Components/Input';
+import {CurriculumSelector} from '../../../Components/CurriculumSelector';
+import GlassButton from '../../../Components/Input/GlassButton';
+import GlassDropdown from '../../../Components/Input/GlassDropdown';
 
 const BOARD_OPTIONS = [
   {label: 'CBSE Board', value: 'CBSE'},
@@ -49,7 +55,7 @@ const SUBJECT_OPTIONS = [
 const OPENROUTER_API_KEY =
   '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';
 
-export default function AiNotesGenerator() {
+export default function AiNotesGenerator({ route }) {
   const theme = useTheme();
   const navigation = useNavigation();
 
@@ -60,9 +66,11 @@ export default function AiNotesGenerator() {
   // Form inputs
   const [board, setBoard] = useState('CBSE');
   const [studentClass, setStudentClass] = useState('Class 10');
-  const [subject, setSubject] = useState('Physics');
+  const [stream, setStream] = useState('');
+  const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
   const [subtopic, setSubtopic] = useState('');
+  const [notesLength, setNotesLength] = useState('Detailed');
 
   // Active notes content
   const [generatedNotes, setGeneratedNotes] = useState('');
@@ -71,11 +79,43 @@ export default function AiNotesGenerator() {
 
   // Library state
   const [savedNotes, setSavedNotes] = useState([]);
+  const [topSubject, setTopSubject] = useState('');
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  useEffect(() => {
+    const fetchRecommendation = async () => {
+      try {
+        const top = await getTopEngagedSubjects(1);
+        if (top && top.length > 0) {
+          setTopSubject(top[0]);
+        }
+      } catch (e) {
+        console.log('Error loading recommendations in notes generator', e);
+      }
+    };
+    if (appState === 'setup') {
+      fetchRecommendation();
+    }
+  }, [appState]);
 
   // Load saved notes library on start
   useEffect(() => {
     loadSavedNotes();
   }, []);
+
+  // Read navigation parameters (autofill)
+  useEffect(() => {
+    if (route?.params?.subject) {
+      const formatted = route.params.subject.charAt(0).toUpperCase() + route.params.subject.slice(1);
+      setSubject(formatted);
+    }
+    if (route?.params?.topic) {
+      setTopic(route.params.topic);
+    }
+  }, [route?.params]);
 
   const loadSavedNotes = async () => {
     try {
@@ -174,7 +214,7 @@ export default function AiNotesGenerator() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
+            model: 'openrouter/free',
             messages: [
               {role: 'system', content: systemPrompt},
               {role: 'user', content: userPrompt},
@@ -234,6 +274,16 @@ export default function AiNotesGenerator() {
     setAppState('generating');
     setGeneratedNotes('');
     setLoadingMessage('Creating syllabus outline...');
+
+    trackEngagement(subject || 'General', 'note');
+    setRecentNote({
+      name: topic.trim(),
+      subject: subject,
+      type: 'note',
+      board: board,
+      class: studentClass,
+      subtopic: subtopic.trim() || ''
+    });
 
     const targetSubtopic = subtopic.trim() ? ` (${subtopic.trim()})` : '';
     const fullTopicTitle = `${topic.trim()}${targetSubtopic}`;
@@ -305,26 +355,44 @@ export default function AiNotesGenerator() {
           }:\n${subtopicTitle}...`,
         );
 
-        const sectionSystemPrompt =
-          'You are a premier textbook writer. Write a comprehensive, detailed textbook section for the given subtopic.\n\n' +
-          'CRITICAL QUALITY RULES:\n' +
-          '- Write exhaustive, rich, detailed, and comprehensive content. Do not write a short summary.\n' +
-          '- Maximize formatting: Use Markdown headers (###), bold text, bullet points, and numbered lists.\n' +
-          '- Wrap Key Concepts, Important Notes, and Solved Examples in markdown blockquotes (lines starting with > ). For example:\n' +
-          '  > **Key Concept:** Define the core idea here...\n' +
-          '  > **Important Note:** Crucial formula or exam tip to remember...\n' +
-          '- Ensure definitions are formal and textbook-standard.\n' +
-          '- DIAGRAMS / ILLUSTRATIONS: For technical concepts (especially Chemistry structures/bonds, Physics forces/circuits, Mathematics graphs/coordinate systems, Biology flowcharts), you MUST include a clean chalkboard-style vector illustration inside a markdown code block of type "svg" (e.g. ```svg \n <svg viewBox="0 0 300 150">...</svg> \n ```). Make sure the SVG tags are valid, use bright chalk colors ("white", "#a3e635" (lime green), "#60a5fa" (sky blue), "#f472b6" (pink), "#f59e0b" (yellow)), and set viewBox="0 0 300 150" with width="100%" and height="100%". Do not use black colors.\n' +
-          '- STRICT MATH RULE: NEVER use LaTeX notation (like \\( \\), \\[ \\], \\frac, \\mathbf, etc.) or backslashes. Write math equations in readable plain text.';
+        const isShort = notesLength === 'Short';
+        const sectionSystemPrompt = isShort
+          ? 'You are a premier textbook writer. Write a concise summary and short notes for the given subtopic.\n\n' +
+            'CRITICAL QUALITY RULES:\n' +
+            '- Write a brief, easy-to-read summary. Keep explanations short and to the point.\n' +
+            '- Maximize formatting: Use Markdown headers (###), bold text, bullet points, and numbered lists.\n' +
+            '- Wrap Key Concepts, Important Notes, and Solved Examples in markdown blockquotes (lines starting with > ). For example:\n' +
+            '  > **Key Concept:** Define the core idea here...\n' +
+            '  > **Important Note:** Crucial formula or exam tip to remember...\n' +
+            '- Ensure definitions are accurate but concise.\n' +
+            '- DIAGRAMS / ILLUSTRATIONS: You can include a clean chalkboard-style vector illustration inside a markdown code block of type "svg" (e.g. ```svg \n <svg viewBox="0 0 300 150">...</svg> \n ```). Make sure the SVG tags are valid, use bright chalk colors ("white", "#a3e635", "#60a5fa", "#f472b6", "#f59e0b"), and set viewBox="0 0 300 150" with width="100%" and height="100%". Do not use black colors.\n' +
+            '- STRICT MATH RULE: NEVER use LaTeX notation (like \\( \\), \\[ \\], \\frac, \\mathbf, etc.) or backslashes. Write math equations in readable plain text.'
+          : 'You are a premier textbook writer. Write a comprehensive, detailed textbook section for the given subtopic.\n\n' +
+            'CRITICAL QUALITY RULES:\n' +
+            '- Write exhaustive, rich, detailed, and comprehensive content. Do not write a short summary.\n' +
+            '- Maximize formatting: Use Markdown headers (###), bold text, bullet points, and numbered lists.\n' +
+            '- Wrap Key Concepts, Important Notes, and Solved Examples in markdown blockquotes (lines starting with > ). For example:\n' +
+            '  > **Key Concept:** Define the core idea here...\n' +
+            '  > **Important Note:** Crucial formula or exam tip to remember...\n' +
+            '- Ensure definitions are formal and textbook-standard.\n' +
+            '- DIAGRAMS / ILLUSTRATIONS: For technical concepts (especially Chemistry structures/bonds, Physics forces/circuits, Mathematics graphs/coordinate systems, Biology flowcharts), you MUST include a clean chalkboard-style vector illustration inside a markdown code block of type "svg" (e.g. ```svg \n <svg viewBox="0 0 300 150">...</svg> \n ```). Make sure the SVG tags are valid, use bright chalk colors ("white", "#a3e635" (lime green), "#60a5fa" (sky blue), "#f472b6" (pink), "#f59e0b" (yellow)), and set viewBox="0 0 300 150" with width="100%" and height="100%". Do not use black colors.\n' +
+            '- STRICT MATH RULE: NEVER use LaTeX notation (like \\( \\), \\[ \\], \\frac, \\mathbf, etc.) or backslashes. Write math equations in readable plain text.';
 
-        const sectionUserPrompt =
-          `Write a highly detailed chapter section for:\n` +
-          `- Main Chapter Topic: ${topic.trim()}\n` +
-          `- Current Section Subtopic: ${subtopicTitle}\n` +
-          `- Board: ${board}\n` +
-          `- Class Level: ${studentClass}\n` +
-          `- Subject: ${subject}\n\n` +
-          `Provide full theoretical explanations, deep concepts, equations, illustrative examples, and a chalkboard SVG diagram in a \`\`\`svg code block if the concept is visual.`;
+        const sectionUserPrompt = isShort
+          ? `Write a concise summary section for:\n` +
+            `- Main Chapter Topic: ${topic.trim()}\n` +
+            `- Current Section Subtopic: ${subtopicTitle}\n` +
+            `- Board: ${board}\n` +
+            `- Class Level: ${studentClass}\n` +
+            `- Subject: ${subject}\n\n` +
+            `Provide brief theoretical summaries, key equations, a quick example, and a chalkboard SVG diagram in a \`\`\`svg code block if it is visual.`
+          : `Write a highly detailed chapter section for:\n` +
+            `- Main Chapter Topic: ${topic.trim()}\n` +
+            `- Current Section Subtopic: ${subtopicTitle}\n` +
+            `- Board: ${board}\n` +
+            `- Class Level: ${studentClass}\n` +
+            `- Subject: ${subject}\n\n` +
+            `Provide full theoretical explanations, deep concepts, equations, illustrative examples, and a chalkboard SVG diagram in a \`\`\`svg code block if the concept is visual.`;
 
         const sectionResponse = await resilientOpenRouterFetch(
           sectionSystemPrompt,
@@ -668,12 +736,19 @@ export default function AiNotesGenerator() {
           return <View key={idx} style={{height: 6}} />;
         case 'diagram': {
           const svgText = block.text.trim();
-          const cleanSvg = svgText
+          let cleanSvg = svgText
             .replace(/stroke\s*=\s*["']black["']/gi, 'stroke="white"')
             .replace(/stroke\s*=\s*["']#000000["']/gi, 'stroke="white"')
-            .replace(/stroke\s*=\s*["']#000["']/gi, 'stroke="white"')
-            .replace(/fill\s*=\s*["']black["']/gi, 'fill="none"')
-            .replace(/fill\s*=\s*["']#000000["']/gi, 'fill="none"');
+            .replace(/stroke\s*=\s*["']#000["']/gi, 'stroke="white"');
+            
+          cleanSvg = cleanSvg
+              .replace(/fill\s*=\s*["']#000000["']/gi, 'fill="none"')
+              .replace(/fill\s*=\s*["']#333["']/gi, 'fill="none"')
+              .replace(/stroke\s*=\s*["']#333["']/gi, 'stroke="#60a5fa"');
+            
+            // Auto-fix LLM SVG syntax errors
+            cleanSvg = cleanSvg.replace(/viewBox=["'][^"']*["']/gi, 'viewBox="0 0 300 150"');
+            cleanSvg = cleanSvg.replace(/<rect[^>]*width=["']300["'][^>]*fill=["']#(1a1a1a|000000|222222|333333)["'][^>]*\/?>/gi, '');
 
           const notesBoardBg = theme.dark ? '#1e293b' : '#f1f5f9';
 
@@ -692,46 +767,19 @@ export default function AiNotesGenerator() {
                 justifyContent: 'center',
                 height: 180,
               }}>
-              <WebView
-                originWhitelist={['*']}
-                source={{
-                  html: `
-                  <html>
-                  <head>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                    <style>
-                      html, body {
-                        background-color: ${notesBoardBg};
-                        margin: 0;
-                        padding: 0;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        overflow: hidden;
-                        height: 100%;
-                        width: 100%;
-                      }
-                      svg {
-                        width: 100%;
-                        height: 100%;
-                        max-width: 100%;
-                        max-height: 100%;
-                      }
-                    </style>
-                  </head>
-                  <body>
-                    ${cleanSvg}
-                  </body>
-                  </html>
-                `,
-                }}
-                style={{
-                  height: 160,
-                  width: '100%',
-                  backgroundColor: notesBoardBg,
-                }}
-                scrollEnabled={false}
-                javaScriptEnabled={true}
+              <SvgXml 
+                xml={cleanSvg} 
+                width="100%" 
+                height="100%" 
+                onError={(e) => console.log('SVG Parse Error:', e)}
+                fallback={
+                  <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                    <Icon name="image-broken-variant" size={40} color={theme.dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"} />
+                    <Text style={{color: theme.dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', fontSize: 12, marginTop: 8}}>
+                      Diagram generation failed
+                    </Text>
+                  </View>
+                }
               />
             </View>
           );
@@ -908,31 +956,33 @@ export default function AiNotesGenerator() {
 
   return (
     <Screen NoHeader style={{backgroundColor: theme.colors.background}}>
-      {/* Dynamic Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme.colors.surface,
-            borderBottomColor: theme.colors.outlineVariant,
-          },
-        ]}>
-        <TouchableOpacity
-          onPress={() => {
-            if (appState === 'viewing') {
-              setAppState('setup');
-            } else {
-              navigation.goBack();
-            }
-          }}
-          style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {appState === 'viewing' ? 'Study Guide' : 'Notes Generator'}
-        </Text>
-        <View style={{width: 40}} />
-      </View>
+      {/* Custom Header (Hidden in setup since navigation header already says "AI Study Notes Generator") */}
+      {appState !== 'setup' && (
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outlineVariant,
+            },
+          ]}>
+          <TouchableOpacity
+            onPress={() => {
+              if (appState === 'viewing') {
+                setAppState('setup');
+              } else {
+                navigation.goBack();
+              }
+            }}
+            style={styles.backBtn}>
+            <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {appState === 'viewing' ? 'Study Guide' : 'Notes Generator'}
+          </Text>
+          <View style={{width: 40}} />
+        </View>
+      )}
 
       {appState === 'setup' && (
         <View style={{flex: 1}}>
@@ -990,31 +1040,45 @@ export default function AiNotesGenerator() {
               <Card
                 style={[
                   styles.heroCard,
-                  {backgroundColor: theme.colors.surface},
+                  {
+                    backgroundColor: theme.dark ? '#1e293b' : '#ffffff',
+                    shadowColor: '#006d5b',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 15,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 4,
+                  },
                 ]}>
                 <Card.Content style={styles.heroRow}>
-                  <View style={styles.heroIconCircle}>
+                  <View style={[styles.heroIconCircle, { 
+                    backgroundColor: '#008374',
+                    shadowColor: '#008374',
+                    shadowOpacity: 0.6,
+                    shadowRadius: 12,
+                    shadowOffset: { width: 0, height: 0 },
+                    elevation: 8,
+                  }]}>
                     <Icon
-                      name="book-open-page-variant"
-                      size={26}
+                      name="book-open-variant"
+                      size={28}
                       color="white"
                     />
                   </View>
-                  <View style={{flex: 1, marginLeft: 14}}>
+                  <View style={{flex: 1, marginLeft: 16}}>
                     <Text
                       style={{
-                        fontWeight: 'bold',
-                        fontSize: 15,
-                        color: theme.colors.onSurface,
+                        fontWeight: '700',
+                        fontSize: 16,
+                        color: theme.dark ? '#f1f5f9' : '#0f172a',
                       }}>
                       Deep Study Package 📖
                     </Text>
                     <Text
                       style={{
-                        fontSize: 11,
-                        color: theme.colors.outline,
-                        marginTop: 2,
-                        lineHeight: 15,
+                        fontSize: 12,
+                        color: theme.dark ? '#94a3b8' : '#475569',
+                        marginTop: 4,
+                        lineHeight: 16,
                       }}>
                       Create progressive, board-aligned notes (easy to complex),
                       complete with formulas, numericals, and sample revision
@@ -1024,68 +1088,66 @@ export default function AiNotesGenerator() {
                 </Card.Content>
               </Card>
 
+              {topSubject ? (
+                <Card
+                  onPress={() => {
+                    const formatted = topSubject.charAt(0).toUpperCase() + topSubject.slice(1);
+                    setSubject(formatted);
+                  }}
+                  style={{
+                    marginBottom: 16,
+                    backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                    borderWidth: 1,
+                    borderColor: theme.dark ? '#007171' : '#b2dfdb',
+                    borderRadius: 12,
+                    elevation: 1,
+                  }}>
+                  <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                    <Icon name="brain" size={24} color={theme.dark ? '#a3e635' : '#007171'} style={{marginRight: 10}} />
+                    <View style={{flex: 1}}>
+                      <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#004d40'}}>
+                        💡 Suggested Notes: {topSubject.charAt(0).toUpperCase() + topSubject.slice(1)}
+                      </Text>
+                      <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#007171', marginTop: 2}}>
+                        You study {topSubject} often. Tap to auto-select this subject!
+                      </Text>
+                    </View>
+                    <Icon name="chevron-right" size={18} color={theme.dark ? 'white' : '#004d40'} />
+                  </Card.Content>
+                </Card>
+              ) : null}
+
               {/* Form Input Fields */}
-              <Dropdown
-                label="Select Board / Level"
-                name="board"
-                value={board}
-                list={BOARD_OPTIONS}
-                updateFormValue={({value}) => setBoard(value)}
+              <CurriculumSelector
+                board={board} setBoard={setBoard}
+                studentClass={studentClass} setStudentClass={setStudentClass}
+                stream={stream} setStream={setStream}
+                subject={subject} setSubject={setSubject}
+                topic={topic} setTopic={setTopic}
+                subtopic={subtopic} setSubtopic={setSubtopic}
               />
 
-              <Dropdown
-                label="Select Class / Grade"
-                name="studentClass"
-                value={studentClass}
-                list={CLASS_OPTIONS}
-                updateFormValue={({value}) => setStudentClass(value)}
-              />
-
-              <Dropdown
-                label="Select Subject"
-                name="subject"
-                value={subject}
-                list={SUBJECT_OPTIONS}
-                updateFormValue={({value}) => setSubject(value)}
-              />
-
-              <Text style={styles.inputLabel}>Topic Name</Text>
-              <RNTextInput
-                placeholder="e.g. Quadratic Equations, Photosynthesis"
-                value={topic}
-                onChangeText={setTopic}
-                placeholderTextColor={theme.colors.outline}
-                style={[
-                  styles.textInput,
-                  {
-                    color: theme.colors.onSurface,
-                    borderColor: theme.colors.outlineVariant,
-                    backgroundColor: theme.colors.surface,
-                  },
+              <GlassDropdown
+                label="Notes Type"
+                value={notesLength}
+                options={[
+                  { label: 'Detailed Notes (Complete coverage)', value: 'Detailed' },
+                  { label: 'Short Notes (3-4 pages summary)', value: 'Short' }
                 ]}
+                onSelect={setNotesLength}
+                icon="text-box-outline"
+                placeholder="Select notes length..."
               />
 
-              <Text style={styles.inputLabel}>Subtopic Focus (Optional)</Text>
-              <RNTextInput
-                placeholder="e.g. Nature of Roots, Light Reaction"
-                value={subtopic}
-                onChangeText={setSubtopic}
-                placeholderTextColor={theme.colors.outline}
-                style={[
-                  styles.textInput,
-                  {
-                    color: theme.colors.onSurface,
-                    borderColor: theme.colors.outlineVariant,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              />
-
-              <Button
-                style={styles.generateBtn}
-                name="Generate Study Notes"
+              <GlassButton
+                label="Generate Study Notes"
+                icon="sparkles"
                 onPress={triggerGeneration}
+                disabled={!topic || !subject || !board || !studentClass}
               />
+              <Text style={{ textAlign: 'center', color: theme.dark ? '#52525b' : '#a1a1aa', fontSize: 12, marginTop: -10, marginBottom: 20 }}>
+                powered by AI
+              </Text>
             </ScrollView>
           ) : (
             /* Saved Library tab list */
@@ -1170,32 +1232,15 @@ export default function AiNotesGenerator() {
       )}
 
       {appState === 'generating' && (
-        <View style={styles.centered}>
-          <ActivityIndicator size={60} color={theme.colors.primary} />
-          <Text
-            style={[
-              styles.loadingTitle,
-              {
-                color: theme.colors.primary,
-                textAlign: 'center',
-                marginHorizontal: 20,
-              },
-            ]}
-            size="medium">
-            {loadingMessage || 'AI is writing your Study Notes...'}
-          </Text>
-          <Text
-            style={{
-              color: theme.colors.onSurfaceVariant,
-              fontSize: 12,
-              textAlign: 'center',
-              marginTop: 8,
-              paddingHorizontal: 40,
-            }}>
-            Because we generate complete, highly detailed notes (10-15 pages
-            long) subtopic by subtopic, this takes about 30-45 seconds.
-          </Text>
-        </View>
+        <PremiumLoader 
+           title={loadingMessage || 'AI is writing your Study Notes...'} 
+           accentColor={theme.colors.primary} 
+           subTitle={
+             notesLength === 'Detailed'
+               ? "Because we generate complete, highly detailed notes (10-15 pages long) subtopic by subtopic, this takes about 30-45 seconds."
+               : "We are generating concise short notes. This will be ready in just a few seconds."
+           }
+        />
       )}
 
       {appState === 'viewing' && (

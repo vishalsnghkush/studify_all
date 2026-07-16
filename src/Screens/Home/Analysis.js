@@ -27,6 +27,7 @@ export default function Analysis({navigation}) {
   const [activeExam, setActiveExam] = useState('JEE');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedBar, setSelectedBar] = useState(null);
+  const [expandedHistory, setExpandedHistory] = useState({});
 
   // States for real data
   const [realHistory, setRealHistory] = useState([]);
@@ -204,17 +205,30 @@ export default function Analysis({navigation}) {
   const notesAnalytics = useMemo(() => {
     const totalReads = pdfReads.length;
     const subMap = {};
+    const timeMap = {};
+
     pdfReads.forEach(item => {
       const sub = item.subject || 'General';
       subMap[sub] = (subMap[sub] || 0) + 1;
+      timeMap[sub] = (timeMap[sub] || 0) + (item.duration || 0);
     });
 
     const distribution = Object.keys(subMap).map((sub, idx) => {
       const count = subMap[sub];
+      const totalSecs = timeMap[sub] || 0;
+      
+      let durationStr = '0s';
+      if (totalSecs > 0) {
+        const m = Math.floor(totalSecs / 60);
+        const s = totalSecs % 60;
+        durationStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+      }
+
       const colorsList = ['#007171', '#ff9800', '#4caf50', '#2196f3'];
       return {
         subject: sub,
         count,
+        durationStr,
         percent: totalReads > 0 ? Math.round((count / totalReads) * 100) : 0,
         color: colorsList[idx % colorsList.length]
       };
@@ -419,13 +433,18 @@ export default function Analysis({navigation}) {
                   <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
                     <Icon name="chart-donut" size={20} color="#673ab7" />
                     <Text style={{fontWeight: 'bold', fontSize: 14, marginLeft: 8}}>
-                      Note Study Focus (Time Distribution)
+                      Note Study Focus & Reading Durations
                     </Text>
                   </View>
                   {notesAnalytics.distribution.map((dist, idx) => (
-                    <View key={idx} style={{marginBottom: 10}}>
+                    <View key={idx} style={{marginBottom: 12}}>
                       <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
-                        <Text style={{fontSize: 12, fontWeight: 'bold'}}>{dist.subject}</Text>
+                        <View style={{flex: 1}}>
+                          <Text style={{fontSize: 12, fontWeight: 'bold'}}>{dist.subject}</Text>
+                          <Text style={{fontSize: 10, color: '#888', marginTop: 2}}>
+                            Opened {dist.count} times • Duration: {dist.durationStr}
+                          </Text>
+                        </View>
                         <Text style={{fontSize: 12, color: dist.color, fontWeight: 'bold'}}>{dist.percent}%</Text>
                       </View>
                       <ProgressBar progress={dist.percent / 100} color={dist.color} style={{height: 6, borderRadius: 3}} />
@@ -712,40 +731,84 @@ export default function Analysis({navigation}) {
                 {/* HISTORY TAB */}
                 {activeTab === 'history' && (
                   <View style={styles.tabView}>
-                    {examStats.history.map((hist, index) => (
-                      <Card key={index} style={[styles.historyCard, {backgroundColor: theme.colors.surface}]}>
-                        <Card.Content>
-                          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                            <Text style={{fontWeight: 'bold', fontSize: 15, color: theme.colors.primary}}>
-                              {hist.id}
-                            </Text>
-                            <View style={styles.historyBadge}>
-                              <Text style={{fontSize: 10, fontWeight: 'bold', color: theme.colors.primary}}>
-                                {hist.type || 'AI Test'}
-                              </Text>
+                    {examStats.history.map((hist, index) => {
+                      const isExpanded = !!expandedHistory[hist.id];
+                      return (
+                        <Card
+                          key={index}
+                          style={[styles.historyCard, {backgroundColor: theme.colors.surface}]}
+                          onPress={() => {
+                            setExpandedHistory(prev => ({
+                              ...prev,
+                              [hist.id]: !prev[hist.id]
+                            }));
+                          }}>
+                          <Card.Content>
+                            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                                <Text style={{fontWeight: 'bold', fontSize: 15, color: theme.colors.primary}}>
+                                  {hist.id}
+                                </Text>
+                                <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.outline} />
+                              </View>
+                              <View style={styles.historyBadge}>
+                                <Text style={{fontSize: 10, fontWeight: 'bold', color: theme.colors.primary}}>
+                                  {hist.type || 'AI Test'}
+                                </Text>
+                              </View>
                             </View>
-                          </View>
-                          <View style={styles.histGrid}>
-                            <View>
-                              <Text style={styles.histLabel}>Subject</Text>
-                              <Text style={styles.histVal}>{hist.subject}</Text>
+                            <View style={styles.histGrid}>
+                              <View>
+                                <Text style={styles.histLabel}>Subject</Text>
+                                <Text style={styles.histVal}>{hist.subject}</Text>
+                              </View>
+                              <View>
+                                <Text style={styles.histLabel}>Score</Text>
+                                <Text style={[styles.histVal, {color: '#4caf50'}]}>{hist.score}</Text>
+                              </View>
+                              <View>
+                                <Text style={styles.histLabel}>Accuracy</Text>
+                                <Text style={styles.histVal}>{hist.accuracy}%</Text>
+                              </View>
                             </View>
-                            <View>
-                              <Text style={styles.histLabel}>Score</Text>
-                              <Text style={[styles.histVal, {color: '#4caf50'}]}>{hist.score}</Text>
+                            <View style={styles.histFooter}>
+                              <Icon name="calendar" size={14} color="#888" />
+                              <Text style={styles.histFooterText}>{hist.date} • Duration: {hist.time || '15m 00s'}</Text>
                             </View>
-                            <View>
-                              <Text style={styles.histLabel}>Accuracy</Text>
-                              <Text style={styles.histVal}>{hist.accuracy}%</Text>
-                            </View>
-                          </View>
-                          <View style={styles.histFooter}>
-                            <Icon name="calendar" size={14} color="#888" />
-                            <Text style={styles.histFooterText}>{hist.date} • Duration: {hist.time || '15m 00s'}</Text>
-                          </View>
-                        </Card.Content>
-                      </Card>
-                    ))}
+
+                            {isExpanded && hist.questionTimes && (
+                              <View style={{marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: theme.colors.outlineVariant || 'rgba(0,0,0,0.06)'}}>
+                                <Text style={{fontWeight: 'bold', fontSize: 12, color: theme.colors.onSurface, marginBottom: 8}}>
+                                  ⏱️ Question Pacing Breakdown:
+                                </Text>
+                                <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+                                  {Object.keys(hist.questionTimes).map((qIdx) => {
+                                    const sec = hist.questionTimes[qIdx] || 0;
+                                    return (
+                                      <View
+                                        key={qIdx}
+                                        style={{
+                                          backgroundColor: theme.dark ? '#2a2a2a' : '#f9f9f9',
+                                          paddingHorizontal: 8,
+                                          paddingVertical: 6,
+                                          borderRadius: 8,
+                                          borderWidth: 1,
+                                          borderColor: theme.dark ? '#3a3a3a' : '#e0e0e0',
+                                          minWidth: 55,
+                                          alignItems: 'center',
+                                        }}>
+                                        <Text style={{fontSize: 9, color: '#888'}}>Q{parseInt(qIdx) + 1}</Text>
+                                        <Text style={{fontSize: 11, fontWeight: 'bold', color: theme.colors.primary, marginTop: 2}}>{sec}s</Text>
+                                      </View>
+                                    );
+                                  })}
+                                </View>
+                              </View>
+                            )}
+                          </Card.Content>
+                        </Card>
+                      );
+                    })}
                   </View>
                 )}
               </View>

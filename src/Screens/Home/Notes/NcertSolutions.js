@@ -11,6 +11,7 @@ import {Text} from '../../../Components/Input';
 import {useNavigation} from '@react-navigation/native';
 import {useTheme} from 'react-native-paper';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {trackEngagement, setRecentNote} from '../../../Utils/EngagementTracker';
 
 const {width} = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 column layout with padding
@@ -71,7 +72,16 @@ const NcertSolutions = () => {
     },
   ];
 
-  const handlePress = url => {
+  const handlePress = (url, title) => {
+    trackEngagement('General', 'note');
+    setRecentNote({
+      name: `NCERT - ${title}`,
+      subject: 'General',
+      type: 'note',
+      board: '',
+      class: title,
+      subtopic: ''
+    });
     navigation.navigate('WebView', {url});
   };
 
@@ -99,7 +109,7 @@ const NcertSolutions = () => {
           {classes.map((item, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handlePress(item.url)}
+              onPress={() => handlePress(item.url, item.title)}
               style={[
                 styles.card,
                 {

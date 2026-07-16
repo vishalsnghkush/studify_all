@@ -22,6 +22,8 @@ import {useTheme} from 'react-native-paper';
 import {useSelector, useDispatch} from 'react-redux';
 import {checkStreak} from '../../Redux/Slices/GamificationSlice';
 import {syncGamificationToFirebase} from '../../Utils/GamificationSync';
+import {getRecentNote, getTopEngagedSubjects} from '../../Utils/EngagementTracker';
+
 
 const Home = () => {
   const navigation = useNavigation();
@@ -61,6 +63,47 @@ const Home = () => {
     'Doubts Solve 💬',
     'Mind Maps 🧠',
   ];
+
+  const [personalPhrases, setPersonalPhrases] = useState(phrases);
+  const [recentNote, setRecentNoteState] = useState(null);
+
+  // Dynamic Mascot phrases based on top subject and time
+  const loadMascotPhrases = async () => {
+    try {
+      const top = await getTopEngagedSubjects(1);
+      const hours = new Date().getHours();
+      let timeGreet = 'Study time!';
+      if (hours >= 5 && hours < 12) timeGreet = 'Morning focus!';
+      else if (hours >= 12 && hours < 17) timeGreet = 'Afternoon study!';
+      else if (hours >= 17 && hours < 22) timeGreet = 'Evening review!';
+      else timeGreet = 'Night quiz!';
+
+      let subName = '';
+      if (top && top.length > 0) {
+        subName = top[0].charAt(0).toUpperCase() + top[0].slice(1);
+      }
+
+      const defaultPhrases = [
+        'Generate Notes 📚',
+        'Chapter Summary 🔍',
+        'NCERT Solutions 💡',
+        'Generate Questions ❓',
+        'Create Test ⚡',
+      ];
+
+      const newPhrases = [...defaultPhrases];
+      if (subName) {
+        newPhrases.unshift(`Revise ${subName}! 🧠`);
+        newPhrases.unshift(`Let's study ${subName}! 📖`);
+      }
+      newPhrases.unshift(`${timeGreet} 🕒`);
+
+      setPersonalPhrases(newPhrases);
+    } catch (e) {
+      console.log('Error loading mascot phrases', e);
+    }
+  };
+
 
   // Dizzy & Expression animation refs and state
   const dizzyAnim = useRef(new Animated.Value(0)).current;
@@ -145,7 +188,7 @@ const Home = () => {
         useNativeDriver: true,
       }).start(() => {
         // Change phrase and fade in
-        setPhraseIndex(prev => (prev + 1) % phrases.length);
+        setPhraseIndex(prev => (prev + 1) % personalPhrases.length);
         Animated.timing(textOpacity, {
           toValue: 1,
           duration: 350,
@@ -155,7 +198,8 @@ const Home = () => {
     }, 4000); // changes every 4 seconds
 
     return () => clearInterval(interval);
-  }, [textOpacity, phrases.length]);
+  }, [textOpacity, personalPhrases.length]);
+
 
   const triggerSpin = () => {
     if (isAnimating.current || isDizzy) {
@@ -523,10 +567,16 @@ const Home = () => {
       } else {
         setNotebooksCount(1); // default Manual notebook
       }
+
+      // Load recent note & personalize mascot
+      const note = await getRecentNote();
+      setRecentNoteState(note);
+      await loadMascotPhrases();
     } catch (e) {
       console.log('Failed to load dashboard data', e);
     }
   }, []);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -668,6 +718,41 @@ const Home = () => {
             </View>
           </BouncyButton>
         </View>
+
+        {recentNote && (
+          <BouncyButton
+            onPress={() => {
+              if (recentNote.type === 'note') {
+                navigation.navigate('Pdf', { url: recentNote.pdf_url });
+              } else {
+                navigation.navigate('AiLecturePlayer');
+              }
+            }}
+            style={[
+              styles.recentCard,
+              { backgroundColor: colors.surface, borderColor: colors.outlineVariant }
+            ]}
+          >
+            <View style={styles.recentRow}>
+              <View style={styles.recentIconBox}>
+                <Icon name={recentNote.type === 'note' ? 'file-pdf-box' : 'play-circle'} size={24} color="#e53935" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.primary, textTransform: 'uppercase' }}>
+                  Jump Back In
+                </Text>
+                <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: 'bold', color: colors.onSurface }}>
+                  {recentNote.name}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.outline, textTransform: 'capitalize' }}>
+                  Subject: {recentNote.subject} • {recentNote.type}
+                </Text>
+              </View>
+              <Icon name="arrow-right-circle" size={24} color={colors.primary} />
+            </View>
+          </BouncyButton>
+        )}
+
 
         {/* 3. Promo Banner Slides */}
         <Banner />
@@ -1055,7 +1140,8 @@ const Home = () => {
                 dark && styles.cloudTextDark,
                 {opacity: textOpacity},
               ]}>
-              {phrases[phraseIndex]}
+              {personalPhrases[phraseIndex]}
+
             </Animated.Text>
           </TouchableOpacity>
 
@@ -1146,7 +1232,33 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
+  recentCard: {
+    marginHorizontal: 20,
+    marginTop: 5,
+    marginBottom: 15,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recentIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffebee',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   mainContainer: {
+
     flex: 1,
   },
   screenContainer: {

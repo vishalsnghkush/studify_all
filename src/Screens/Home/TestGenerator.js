@@ -13,14 +13,19 @@ import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // App Custom Components
+import { PremiumLoader } from '../../Components/PremiumLoader';
 import {Screen} from '../../Components/Screen';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 import {Text, TextInput, Button} from '../../Components/Input';
+import {CurriculumSelector} from '../../Components/CurriculumSelector';
+import GlassButton from '../../Components/Input/GlassButton';
 import {useNavigation} from '@react-navigation/native';
 import Dropdown from '../../Components/Input/Dropdown';
 import {Confetti} from '../../Components/Screen/Confetti';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {trackEngagement, getTopEngagedSubjects} from '../../Utils/EngagementTracker';
+
 
 // Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
 // Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
@@ -245,13 +250,20 @@ export default function TestGenerator({ route }) {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   // Form State
-  const [examName, setExamName] = useState('JEE');
-  const [generationType, setGenerationType] = useState('Topic Wise');
+  const [board, setBoard] = useState('CBSE');
+  const [studentClass, setStudentClass] = useState('Class 10');
+  const [stream, setStream] = useState('');
   const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
+  const [subtopic, setSubtopic] = useState('');
+  
+  const [generationType, setGenerationType] = useState('Topic Wise');
   const [difficulty, setDifficulty] = useState(
     'actual experience as in actual paper',
   );
   const [numQuestions, setNumQuestions] = useState('5');
+
+  const examName = board === 'Competitive' ? 'JEE/NEET' : `${board} ${studentClass}`;
 
   // App Lifecycle States: 'setup' | 'generating' | 'ready' | 'testing' | 'results'
   const [appState, setAppState] = useState('setup');
@@ -276,6 +288,8 @@ export default function TestGenerator({ route }) {
   const [lastActiveIdx, setLastActiveIdx] = useState(0);
   const [blueprintList, setBlueprintList] = useState([]);
   const [blueprintChapter, setBlueprintChapter] = useState('');
+  const [weakestSubject, setWeakestSubject] = useState('');
+  const [weakestTopic, setWeakestTopic] = useState('');
   const [blueprintCount, setBlueprintCount] = useState('');
 
   // Subjective / Written Evaluator States
@@ -284,6 +298,10 @@ export default function TestGenerator({ route }) {
   const [userSubjectiveImages, setUserSubjectiveImages] = useState({});
   const [gradedAnswers, setGradedAnswers] = useState({});
   const [isGrading, setIsGrading] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     if (appState === 'results') {
@@ -329,18 +347,32 @@ export default function TestGenerator({ route }) {
     }
   }, [appState, scoreData.marks, scoreData.maxMarks, examName]);
 
-  // Update subject dropdown choices when class/exam changes
+
+
+  const [topSubject, setTopSubject] = useState('');
+
   useEffect(() => {
-    const list = getSubjectsList(examName);
-    if (list.length > 0) {
-      if (!list.some(s => s.value === subject)) {
-        setSubject(list[0].value);
+    const fetchRecommendation = async () => {
+      try {
+        const top = await getTopEngagedSubjects(1);
+        if (top && top.length > 0) {
+          setTopSubject(top[0]);
+        }
+      } catch (e) {
+        console.log('Error loading recommendations in quiz generator', e);
       }
-    } else {
-      setSubject('');
+    };
+    if (appState === 'setup') {
+      fetchRecommendation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examName, generationType]);
+  }, [appState]);
+
+  useEffect(() => {
+    if (route?.params?.subject) {
+      setSubject(route.params.subject);
+      setGenerationType('Subject Wise');
+    }
+  }, [route?.params]);
 
   const submitSubjectiveTest = async () => {
     setIsGrading(true);
@@ -452,6 +484,16 @@ export default function TestGenerator({ route }) {
 
       setScoreData(calculatedScoreData);
 
+      // Find weak subjective topics
+      const wrongSubjectiveList = results.map((r, idx) => ({ ...r, idx })).filter(item => {
+        const m = item ? parseFloat(item.marksAwarded) : 0;
+        return (isNaN(m) ? 0 : m) < (questions[item.idx]?.maxMarks || 10) * 0.75;
+      });
+      const weakSub = wrongSubjectiveList.length > 0 ? (questions[wrongSubjectiveList[0].idx]?.subject || subject) : subject;
+      const weakTop = wrongSubjectiveList.length > 0 ? (questions[wrongSubjectiveList[0].idx]?.topic || questions[0]?.topic || topic || '') : (topic || '');
+      setWeakestSubject(weakSub);
+      setWeakestTopic(weakTop);
+
       // Save to local test history
       try {
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
@@ -468,7 +510,8 @@ export default function TestGenerator({ route }) {
           accuracy: maxPossibleMarks > 0 ? Math.round((totalMarks / maxPossibleMarks) * 100) : 0,
           date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           time: 'Subjective Attempt',
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          questionTimes: questionTimes
         };
         history.unshift(newRecord);
         await AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
@@ -552,6 +595,11 @@ export default function TestGenerator({ route }) {
             history = JSON.parse(existingHistory);
           } catch (_) {}
         }
+        const totalDuration = Object.values(questionTimes).reduce((a, b) => a + b, 0);
+        const minutes = Math.floor(totalDuration / 60);
+        const seconds = totalDuration % 60;
+        const durationStr = `${minutes}m ${seconds}s`;
+
         const newRecord = {
           id: 'Session-' + (100 + history.length + 1),
           exam: examName,
@@ -562,8 +610,9 @@ export default function TestGenerator({ route }) {
           maxMarks: questions.length * correctMark,
           accuracy: questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0,
           date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          time: '15m 00s',
-          timestamp: Date.now()
+          time: durationStr,
+          timestamp: Date.now(),
+          questionTimes: questionTimes
         };
         history.unshift(newRecord);
         AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
@@ -571,6 +620,16 @@ export default function TestGenerator({ route }) {
     } catch (e) {
       console.warn('Failed to save score to history', e);
     }
+
+    // Find weak objective topics
+    const wrongObjectiveList = questions.map((q, idx) => ({ q, idx })).filter(item => {
+      const uA = userAnswers[item.idx];
+      return !isAnswerCorrect(item.q, uA);
+    });
+    const weakSub = wrongObjectiveList.length > 0 ? (wrongObjectiveList[0].q.subject || subject) : subject;
+    const weakTop = wrongObjectiveList.length > 0 ? (wrongObjectiveList[0].q.topic || questions[0]?.topic || topic || '') : (topic || '');
+    setWeakestSubject(weakSub);
+    setWeakestTopic(weakTop);
 
     setScoreData(calculatedScoreData);
     setAppState('results');
@@ -599,9 +658,7 @@ export default function TestGenerator({ route }) {
   }, [timeLeft, appState, submitTest, lastActiveIdx]);
 
   const handleFormChange = ({name, value}) => {
-    if (name === 'examName') {
-      setExamName(value);
-    } else if (name === 'generationType') {
+    if (name === 'generationType') {
       setGenerationType(value);
     } else if (name === 'subject') {
       setSubject(value);
@@ -619,10 +676,12 @@ export default function TestGenerator({ route }) {
     setUserAnswers({});
 
     let activeNumQuestions = overrideParams ? overrideParams.numQuestions : (parseInt(numQuestions) || 5);
+    let activeSubject = overrideParams ? overrideParams.subject : subject;
+    trackEngagement(activeSubject || 'General', 'quiz');
+
     let activeBlueprintList = overrideParams ? overrideParams.blueprintList : blueprintList;
     let activeGenerationType = overrideParams ? overrideParams.generationType : generationType;
-    let activeExamName = overrideParams ? overrideParams.examName : examName;
-    let activeSubject = overrideParams ? overrideParams.subject : subject;
+    let activeExamName = overrideParams ? overrideParams.examName : (board === 'Competitive' ? 'JEE/NEET' : `${board} ${studentClass}`);
     let activeTestFormat = overrideParams ? overrideParams.testFormat : testFormat;
 
     let finalNumQuestions = activeNumQuestions;
@@ -644,17 +703,7 @@ export default function TestGenerator({ route }) {
     let finalSubject = activeSubject;
     if (activeGenerationType === 'Complete Paper') {
       finalSubject = 'Complete Syllabus';
-      if (activeExamName === 'JEE') {
-        finalNumQuestions = 75;
-      } else if (activeExamName === 'NEET') {
-        finalNumQuestions = 200;
-      } else if (activeExamName === 'CUET') {
-        finalNumQuestions = 50;
-      } else if (activeExamName === 'GATE') {
-        finalNumQuestions = 65;
-      } else if (activeExamName.startsWith('NCERT')) {
-        finalNumQuestions = 40;
-      }
+      finalNumQuestions = 30; // default for complete paper if custom logic isn't used
     }
 
     // ── Optimized prompts to support next level questions, paragraph passages, and explanations ──
@@ -887,7 +936,6 @@ export default function TestGenerator({ route }) {
         else if (boardLower.includes('6')) matchedExamName = 'NCERT Class 6';
       }
 
-      setExamName(matchedExamName);
       setGenerationType('Topic Wise');
 
       let finalSub = 'General';
@@ -1054,16 +1102,70 @@ export default function TestGenerator({ route }) {
       <Screen style={{paddingBottom: 40}}>
         <View style={styles.headerBanner}>
           <Icon name="robot-excited-outline" size={48} color={theme.colors.primary} style={{alignSelf: 'center', marginBottom: 8}} />
-          <Text
-            style={[styles.title, {color: theme.colors.primary, textAlign: 'center'}]}
-            size="large">
-            AI Test Generator
-          </Text>
+
           <Text style={[styles.subtitle, {color: theme.colors.onSurfaceVariant, textAlign: 'center'}]}>
             Configure your test options to generate a custom, AI-powered test
             based on your exam syllabus.
           </Text>
         </View>
+
+        {topSubject ? (
+          <View style={{gap: 12, marginBottom: 16}}>
+            <Card
+              onPress={() => {
+                const formatted = topSubject.charAt(0).toUpperCase() + topSubject.slice(1);
+                setSubject(formatted);
+                setGenerationType('Subject Wise');
+              }}
+              style={{
+                marginHorizontal: 16,
+                backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                borderWidth: 1.5,
+                borderColor: theme.dark ? '#007171' : '#007171',
+                borderRadius: 12,
+                elevation: 1,
+              }}>
+              <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                <Icon name="brain" size={26} color={theme.dark ? '#a3e635' : '#007171'} style={{marginRight: 12}} />
+                <View style={{flex: 1}}>
+                  <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#004d40'}}>
+                    💡 Suggested Quiz: {topSubject.charAt(0).toUpperCase() + topSubject.slice(1)}
+                  </Text>
+                  <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#007171', marginTop: 2}}>
+                    You study {topSubject} often. Tap to configure a quick quiz on it!
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#004d40'} />
+              </Card.Content>
+            </Card>
+
+            <Card
+              onPress={() => {
+                navigation.navigate('Notes');
+              }}
+              style={{
+                marginHorizontal: 16,
+                backgroundColor: theme.dark ? 'rgba(103, 58, 183, 0.15)' : '#f3e5f5',
+                borderWidth: 1.2,
+                borderColor: theme.dark ? '#673ab7' : '#d1c4e9',
+                borderRadius: 12,
+                elevation: 1,
+              }}>
+              <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                <Icon name="book-open-page-variant" size={24} color={theme.dark ? '#d946ef' : '#673ab7'} style={{marginRight: 12}} />
+                <View style={{flex: 1}}>
+                  <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#4a148c'}}>
+                    📚 Review notes before the test!
+                  </Text>
+                  <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#7b1fa2', marginTop: 2}}>
+                    Read handwritten summary PDFs and NCERT Solutions for {topSubject} first.
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#673ab7'} />
+              </Card.Content>
+            </Card>
+          </View>
+        ) : null}
 
         <Card
           style={[
@@ -1082,17 +1184,16 @@ export default function TestGenerator({ route }) {
             },
           ]}>
           <Card.Content style={{paddingVertical: 10}}>
-            <View style={{marginTop: 5}}>
-              <Dropdown
-                label="Target Exam"
-                name="examName"
-                value={examName}
-                updateFormValue={handleFormChange}
-                list={classList}
-              />
-            </View>
+            <CurriculumSelector
+              board={board} setBoard={setBoard}
+              studentClass={studentClass} setStudentClass={setStudentClass}
+              stream={stream} setStream={setStream}
+              subject={subject} setSubject={setSubject}
+              topic={topic} setTopic={setTopic}
+              subtopic={subtopic} setSubtopic={setSubtopic}
+            />
 
-            <View style={{marginTop: 15}}>
+            <View style={{marginTop: 5}}>
               <Dropdown
                 label="Test Format"
                 name="testFormat"
@@ -1114,33 +1215,6 @@ export default function TestGenerator({ route }) {
                 list={generationTypeList}
               />
             </View>
-
-            {generationType !== 'Complete Paper' && (
-              <View style={{marginTop: 15}}>
-                {generationType === 'Subject Wise' &&
-                getSubjectsList(examName).length > 0 ? (
-                  <Dropdown
-                    label="Select Subject"
-                    name="subject"
-                    value={subject}
-                    updateFormValue={({value}) => setSubject(value)}
-                    list={getSubjectsList(examName)}
-                  />
-                ) : (
-                  <TextInput
-                    label={
-                      generationType === 'Subject Wise'
-                        ? 'Subject Focus'
-                        : 'Topic Focus'
-                    }
-                    name="subject"
-                    defaultValue={subject}
-                    updateFormValue={handleFormChange}
-                    placeholder="e.g. Kinematics, Algebra, Nutrition"
-                  />
-                )}
-              </View>
-            )}
 
             <View style={{marginTop: 15}}>
               <Dropdown
@@ -1248,11 +1322,12 @@ export default function TestGenerator({ route }) {
           </View>
         ) : null}
 
-        <Button
-          name="Generate Live Test"
+        <GlassButton
+          label="Generate Live Test"
           icon="flash"
-          onPress={handleGenerate}
-          style={styles.actionButton}
+          color="#3b82f6"
+          onPress={() => handleGenerate()}
+          disabled={!board || !studentClass}
         />
       </Screen>
     );
@@ -1261,19 +1336,16 @@ export default function TestGenerator({ route }) {
   // Loading State
   if (appState === 'generating') {
     return (
-      <Screen style={styles.centered}>
-        <ActivityIndicator size={60} color={theme.colors.primary} />
-        <Text
-          style={[styles.loadingText, {color: theme.colors.primary}]}
-          size="medium">
-          Creating your bespoke test...
-        </Text>
-        <Text
-          style={[styles.loadingSub, {color: theme.colors.onSurfaceVariant}]}>
-          Connecting to OpenRouter to build exam-specific questions. This can
-          take up to 20 seconds.
-        </Text>
-      </Screen>
+      <PremiumLoader 
+         title="Creating your bespoke test..." 
+         accentColor={theme.colors.primary} 
+         tips={[
+           "Connecting to OpenRouter AI...",
+           "Building exam-specific questions...",
+           "Generating difficulty curve...",
+           "Finalizing multiple-choice options..."
+         ]}
+      />
     );
   }
 
@@ -1705,6 +1777,104 @@ export default function TestGenerator({ route }) {
                 </TouchableOpacity>
               </Card.Content>
             </Card>
+
+            {weakestSubject || weakestTopic ? (
+              <Card
+                style={{
+                  marginHorizontal: 16,
+                  marginTop: 16,
+                  backgroundColor: theme.dark ? 'rgba(198, 40, 40, 0.12)' : '#fff3e0',
+                  borderWidth: 1.2,
+                  borderColor: theme.dark ? '#c62828' : '#ff9800',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content>
+                  <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
+                    <Icon name="bullseye-arrow" size={24} color={theme.dark ? '#ef5350' : '#e65100'} style={{marginRight: 10}} />
+                    <View style={{flex: 1}}>
+                      <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#e65100'}}>
+                        ⚠️ Focus Booster: Weak Topic Detected
+                      </Text>
+                      <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#5d4037', marginTop: 2, lineHeight: 16}}>
+                        You got questions wrong in {weakestTopic || weakestSubject}. Study these recommended modules next!
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{gap: 8, marginTop: 4}}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('AiNotesGenerator', {
+                          subject: weakestSubject,
+                          topic: weakestTopic,
+                        });
+                      }}
+                      style={{
+                        backgroundColor: theme.colors.primary,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="book-open-page-variant" size={14} color="white" />
+                      <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
+                        Generate AI Notes (Auto-filled)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('AiLecturePlayer', {
+                          subject: weakestSubject,
+                          topic: weakestTopic,
+                        });
+                      }}
+                      style={{
+                        backgroundColor: '#007171',
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="play-circle-outline" size={14} color="white" />
+                      <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
+                        Listen to AI Lecture (Auto-filled)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('FreeNotes', {
+                          subject: weakestSubject,
+                        });
+                      }}
+                      style={{
+                        borderColor: theme.colors.primary,
+                        borderWidth: 1.2,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="file-document-outline" size={14} color={theme.colors.primary} />
+                      <Text style={{color: theme.colors.primary, fontWeight: 'bold', fontSize: 11}}>
+                        Study Handwritten Notes
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
 
             <Text
               style={[styles.reviewHeader, {color: theme.colors.onBackground}]}
