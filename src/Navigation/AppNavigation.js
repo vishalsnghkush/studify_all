@@ -24,6 +24,8 @@ import {
   Activities,
   Counselling,
   VoiceNotebook,
+  AiNotesGenerator,
+  AiLecturePlayer,
 } from '../Screens/Home';
 import FocusSpace from '../Screens/Home/FocusSpace';
 import Analysis from '../Screens/Home/Analysis';
@@ -238,6 +240,24 @@ const AppNavigation = () => {
             backgroundColor: '#007171',
           },
           headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="AiNotesGenerator"
+        component={AiNotesGenerator}
+        options={{
+          title: 'AI Study Notes Generator',
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="AiLecturePlayer"
+        component={AiLecturePlayer}
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen

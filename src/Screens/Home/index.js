@@ -21,6 +21,8 @@ import Careers from './Careers';
 import Activities from './Activities';
 import Counselling from './Counselling';
 import VoiceNotebook from './Notes/VoiceNotebook';
+import AiNotesGenerator from './Notes/AiNotesGenerator';
+import AiLecturePlayer from './Notes/AiLecturePlayer';
 import Analysis from './Analysis';
 import FocusSpace from './FocusSpace';
 
@@ -48,6 +50,8 @@ export {
   Activities,
   Counselling,
   VoiceNotebook,
+  AiNotesGenerator,
+  AiLecturePlayer,
   Analysis,
   FocusSpace,
 };

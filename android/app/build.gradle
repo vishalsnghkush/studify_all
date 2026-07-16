@@ -159,7 +159,7 @@ task verifyDrawerIntegrity {
         def expectedHash = "5af0ec1ec36058f626304b2a78d7278f81720176810cb57768d0cbaf70016e41"
         
         def digest = MessageDigest.getInstance("SHA-256")
-        def fileText = drawerFile.text.replaceAll("\r\n", "\n")
+        def fileText = drawerFile.getText("UTF-8").replaceAll("\r\n", "\n")
         def fileBytes = fileText.getBytes("UTF-8")
         digest.update(fileBytes)
         def actualHash = new BigInteger(1, digest.digest()).toString(16).padLeft(64, '0')

@@ -240,7 +240,7 @@ const getSubjectsList = exam => {
   return [];
 };
 
-export default function TestGenerator() {
+export default function TestGenerator({ route }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -612,19 +612,26 @@ export default function TestGenerator() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrideParams = null) => {
     setAppState('generating');
     setError('');
     setQuestions([]);
     setUserAnswers({});
 
-    let finalNumQuestions = parseInt(numQuestions) || 5;
+    let activeNumQuestions = overrideParams ? overrideParams.numQuestions : (parseInt(numQuestions) || 5);
+    let activeBlueprintList = overrideParams ? overrideParams.blueprintList : blueprintList;
+    let activeGenerationType = overrideParams ? overrideParams.generationType : generationType;
+    let activeExamName = overrideParams ? overrideParams.examName : examName;
+    let activeSubject = overrideParams ? overrideParams.subject : subject;
+    let activeTestFormat = overrideParams ? overrideParams.testFormat : testFormat;
+
+    let finalNumQuestions = activeNumQuestions;
     let blueprintInstruction = '';
 
-    if (blueprintList.length > 0 && generationType !== 'Complete Paper') {
-      finalNumQuestions = blueprintList.reduce((acc, bp) => acc + bp.count, 0);
+    if (activeBlueprintList && activeBlueprintList.length > 0 && activeGenerationType !== 'Complete Paper') {
+      finalNumQuestions = activeBlueprintList.reduce((acc, bp) => acc + bp.count, 0);
       blueprintInstruction = '\n- Custom Topic Blueprint Weightage: ' + 
-        blueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
+        activeBlueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
     }
 
     if (finalNumQuestions > 50) {
@@ -634,24 +641,24 @@ export default function TestGenerator() {
       finalNumQuestions = 1;
     }
 
-    let finalSubject = subject;
-    if (generationType === 'Complete Paper') {
+    let finalSubject = activeSubject;
+    if (activeGenerationType === 'Complete Paper') {
       finalSubject = 'Complete Syllabus';
-      if (examName === 'JEE') {
+      if (activeExamName === 'JEE') {
         finalNumQuestions = 75;
-      } else if (examName === 'NEET') {
+      } else if (activeExamName === 'NEET') {
         finalNumQuestions = 200;
-      } else if (examName === 'CUET') {
+      } else if (activeExamName === 'CUET') {
         finalNumQuestions = 50;
-      } else if (examName === 'GATE') {
+      } else if (activeExamName === 'GATE') {
         finalNumQuestions = 65;
-      } else if (examName.startsWith('NCERT')) {
+      } else if (activeExamName.startsWith('NCERT')) {
         finalNumQuestions = 40;
       }
     }
 
     // ── Optimized prompts to support next level questions, paragraph passages, and explanations ──
-    const systemPrompt = testFormat === 'Subjective'
+    const systemPrompt = activeTestFormat === 'Subjective'
       ? 'You are an expert academic test creator. Create high-quality Subjective (Written/Derivation/Diagram) questions.\n\n' +
         'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no code fences.\n\n' +
         'Each element must be: {"question": "string", "idealAnswer": "string", "maxMarks": number, "rubric": "string"}\n\n' +
@@ -676,17 +683,17 @@ export default function TestGenerator() {
         '- DO NOT wrap the response in code fences or markdown.\n' +
         '- Output ONLY the raw JSON array starting with [ and ending with ].';
 
-    const userPrompt = testFormat === 'Subjective'
+    const userPrompt = activeTestFormat === 'Subjective'
       ? 'Create EXACTLY ' + finalNumQuestions + ' Subjective written/derivation/diagram questions:\n' +
-        '- Exam: ' + examName + '\n' +
-        '- Type: ' + generationType + '\n' +
+        '- Exam: ' + activeExamName + '\n' +
+        '- Type: ' + activeGenerationType + '\n' +
         '- Subject: ' + (finalSubject || 'General') + '\n' +
         '- Difficulty: ' + difficulty + '\n' +
         blueprintInstruction + '\n\n' +
         'Remember: Include complex subjective problems, derivations, drawing/sketching requests, or paragraph analyses matching the exam syllabus. Output raw JSON array only.'
       : 'Create EXACTLY ' + finalNumQuestions + ' MCQ questions:\n' +
-        '- Exam: ' + examName + '\n' +
-        '- Type: ' + generationType + '\n' +
+        '- Exam: ' + activeExamName + '\n' +
+        '- Type: ' + activeGenerationType + '\n' +
         '- Subject: ' + (finalSubject || 'General') + '\n' +
         '- Difficulty: ' + difficulty + '\n' +
         blueprintInstruction + '\n\n' +
@@ -770,7 +777,7 @@ export default function TestGenerator() {
       try {
         parsedQuestions = JSON.parse(content);
         parsedQuestions = parsedQuestions.map(function (q) {
-          if (testFormat !== 'Subjective') {
+          if (activeTestFormat !== 'Subjective') {
             if (!Array.isArray(q.options)) {
               q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
             }
@@ -801,7 +808,7 @@ export default function TestGenerator() {
       } catch (_e) {
         var objectBlocks = content.match(/\{[\s\S]*?\}/g) || [];
         
-        if (testFormat === 'Subjective') {
+        if (activeTestFormat === 'Subjective') {
           objectBlocks.forEach(function (block) {
             var qMatch = block.match(/"question"\s*:\s*"([^"]*?)"/);
             if (qMatch) {
@@ -859,6 +866,55 @@ export default function TestGenerator() {
       setAppState('setup');
     }
   };
+
+  // Handle autoStart parameters passed from AI Study Notes Generator
+  useEffect(() => {
+    if (route?.params?.autoStart) {
+      const { board, subject: paramSub, topic, subtopic } = route.params;
+      
+      let matchedExamName = 'NCERT Class 12';
+      if (board) {
+        const boardLower = board.toLowerCase();
+        if (boardLower.includes('jee')) matchedExamName = 'JEE';
+        else if (boardLower.includes('neet')) matchedExamName = 'NEET';
+        else if (boardLower.includes('cuet')) matchedExamName = 'CUET';
+        else if (boardLower.includes('gate')) matchedExamName = 'GATE';
+        else if (boardLower.includes('10')) matchedExamName = 'NCERT Class 10';
+        else if (boardLower.includes('11')) matchedExamName = 'NCERT Class 11';
+        else if (boardLower.includes('9')) matchedExamName = 'NCERT Class 9';
+        else if (boardLower.includes('8')) matchedExamName = 'NCERT Class 8';
+        else if (boardLower.includes('7')) matchedExamName = 'NCERT Class 7';
+        else if (boardLower.includes('6')) matchedExamName = 'NCERT Class 6';
+      }
+
+      setExamName(matchedExamName);
+      setGenerationType('Topic Wise');
+
+      let finalSub = 'General';
+      if (paramSub) {
+        const capSub = paramSub.charAt(0).toUpperCase() + paramSub.slice(1).toLowerCase();
+        setSubject(capSub);
+        finalSub = capSub;
+      }
+
+      const chapterName = subtopic ? `${topic} - ${subtopic}` : topic || 'General';
+      const countVal = 5;
+      const bpList = [{ chapter: chapterName, count: countVal }];
+
+      setBlueprintList(bpList);
+      setNumQuestions('5');
+      setTestFormat('Objective'); // Notes quick quiz is MCQ by default
+
+      handleGenerate({
+        examName: matchedExamName,
+        subject: finalSub,
+        generationType: 'Topic Wise',
+        blueprintList: bpList,
+        numQuestions: 5,
+        testFormat: 'Objective'
+      });
+    }
+  }, [route?.params]);
 
   const startTest = () => {
     setAppState('testing');

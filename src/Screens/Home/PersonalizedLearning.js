@@ -1,5 +1,11 @@
 import React, {useState, useCallback, useEffect} from 'react';
-import {StyleSheet, View, ScrollView, TouchableOpacity, TextInput} from 'react-native';
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Text} from '../../Components/Input';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -49,7 +55,10 @@ const PersonalizedLearning = () => {
       totalChapters: parseInt(tempTotalChapters) || 10,
       completedChapters: parseInt(tempCompletedChapters) || 0,
     };
-    await AsyncStorage.setItem('@studify_exam_target', JSON.stringify(targetObj));
+    await AsyncStorage.setItem(
+      '@studify_exam_target',
+      JSON.stringify(targetObj),
+    );
     setExamTarget(targetObj);
     setIsSettingTarget(false);
   };
@@ -205,6 +214,138 @@ const PersonalizedLearning = () => {
     return '#007171';
   };
 
+  const renderExamTarget = () => {
+    if (!examTarget) {
+      return null;
+    }
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil(
+        (new Date(examTarget.date) - new Date()) / (1000 * 60 * 60 * 24),
+      ),
+    );
+    const remainingChapters = Math.max(
+      0,
+      examTarget.totalChapters - examTarget.completedChapters,
+    );
+    const chaptersPerDay =
+      daysRemaining > 0 ? (remainingChapters / daysRemaining).toFixed(2) : 0;
+    const completionPercent =
+      Math.min(
+        100,
+        Math.round(
+          (examTarget.completedChapters / examTarget.totalChapters) * 100,
+        ),
+      ) || 0;
+
+    let plannerAdvice = 'On track! Spend 30 minutes revising daily.';
+    if (chaptersPerDay > 0.05 && chaptersPerDay <= 0.2) {
+      plannerAdvice = 'Steady pace! Study 1.5 hours daily to finish in time.';
+    } else if (chaptersPerDay > 0.2) {
+      plannerAdvice =
+        'Needs focus! Dedicate 3 hours daily to cover the syllabus.';
+    }
+
+    return (
+      <View
+        style={[
+          styles.targetCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outlineVariant,
+          },
+        ]}>
+        <View style={styles.targetHeader}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+            <View style={styles.targetIconCircle}>
+              <Icon name="bullseye-arrow" size={24} color="#ffffff" />
+            </View>
+            <View>
+              <Text
+                style={[styles.targetTitle, {color: theme.colors.onSurface}]}>
+                {examTarget.title}
+              </Text>
+              <Text
+                style={[styles.targetSubtitle, {color: theme.colors.outline}]}>
+                {daysRemaining > 0
+                  ? `${daysRemaining} days remaining`
+                  : 'Exam today / completed!'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={handleDeleteTarget}
+            style={styles.deleteTargetBtn}>
+            <Icon name="trash-can-outline" size={20} color="#e53935" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress bar */}
+        <View style={styles.targetProgressSection}>
+          <View style={styles.progressLabelRow}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: 'bold',
+                color: theme.colors.onSurface,
+              }}>
+              Syllabus Coverage
+            </Text>
+            <Text style={{fontSize: 12, color: theme.colors.outline}}>
+              {completionPercent}%
+            </Text>
+          </View>
+          <ProgressBar
+            progress={completionPercent / 100}
+            color={theme.colors.primary}
+            style={styles.targetProgressBar}
+          />
+          <Text style={styles.chaptersRatioText}>
+            {examTarget.completedChapters} of {examTarget.totalChapters}{' '}
+            chapters completed
+          </Text>
+        </View>
+
+        {/* Study Advice */}
+        <View
+          style={[
+            styles.adviceBox,
+            {
+              backgroundColor: theme.dark
+                ? 'rgba(99, 102, 241, 0.12)'
+                : '#eef2ff',
+              borderColor: theme.dark ? '#4f46e5' : '#c7d2fe',
+            },
+          ]}>
+          <Icon name="robot" size={20} color="#6366f1" />
+          <View style={{flex: 1}}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: 'bold',
+                color: theme.dark ? '#818cf8' : '#4f46e5',
+              }}>
+              Study Advice
+            </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                color: theme.colors.onSurfaceVariant,
+                marginTop: 2,
+              }}>
+              {plannerAdvice} ({chaptersPerDay} chapters/day required)
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, {backgroundColor: theme.colors.background}]}>
@@ -309,27 +450,123 @@ const PersonalizedLearning = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Feature Cards Grid Row 2 (Notes Generator & Lecture Generator) */}
+        <View style={[styles.featuresRow, {marginTop: -8, marginBottom: 20}]}>
+          {/* Card 3: Notes Generator */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AiNotesGenerator')}
+            style={[
+              styles.featureCard1,
+              {
+                backgroundColor: '#f5f6ff',
+                borderColor: '#3f51b5',
+              },
+              theme.dark && {
+                backgroundColor: 'rgba(63, 81, 181, 0.15)',
+                borderColor: '#3f51b5',
+              },
+            ]}>
+            <View
+              style={[styles.featureIconCircle1, {backgroundColor: '#3f51b5'}]}>
+              <Icon name="book-open-page-variant" size={24} color="white" />
+            </View>
+            <Text
+              style={[
+                styles.featureCardTitle,
+                {color: theme.colors.onSurface},
+              ]}>
+              Notes Generator
+            </Text>
+            <Text
+              style={[
+                styles.featureCardDesc,
+                {color: theme.colors.onSurfaceVariant},
+              ]}>
+              Generate rich topic notes for CBSE & Boards, then test yourself.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Card 4: Lecture Generator */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AiLecturePlayer')}
+            style={[
+              styles.featureCard2,
+              {
+                backgroundColor: '#fdf4ff',
+                borderColor: '#d946ef',
+              },
+              theme.dark && {
+                backgroundColor: 'rgba(217, 70, 239, 0.15)',
+                borderColor: '#d946ef',
+              },
+            ]}>
+            <View
+              style={[styles.featureIconCircle2, {backgroundColor: '#d946ef'}]}>
+              <Icon name="play-circle-outline" size={26} color="white" />
+            </View>
+            <Text
+              style={[
+                styles.featureCardTitle,
+                {color: theme.colors.onSurface},
+              ]}>
+              Lecture Generator
+            </Text>
+            <Text
+              style={[
+                styles.featureCardDesc,
+                {color: theme.colors.onSurfaceVariant},
+              ]}>
+              Listen to interactive audio slide lectures on any topic, offline.
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Exam Target & AI Study Planner Card */}
         {isSettingTarget ? (
-          <View style={[styles.targetFormCard, {backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant}]}>
+          <View
+            style={[
+              styles.targetFormCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
+              },
+            ]}>
             <View style={styles.formHeader}>
               <Icon name="target" size={20} color={theme.colors.primary} />
-              <Text style={[styles.formTitle, {color: theme.colors.onSurface}]}>Set Exam Target</Text>
+              <Text style={[styles.formTitle, {color: theme.colors.onSurface}]}>
+                Set Exam Target
+              </Text>
             </View>
-            
+
             <Text style={styles.inputLabel}>Exam Name / Title</Text>
             <TextInput
               value={tempTitle}
               onChangeText={setTempTitle}
               placeholder="e.g. Class 10 Board Exam"
               placeholderTextColor={theme.colors.outline}
-              style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+              style={[
+                styles.formInput,
+                {
+                  color: theme.colors.onSurface,
+                  borderColor: theme.colors.outlineVariant,
+                },
+              ]}
             />
 
             <Text style={styles.inputLabel}>Exam Date</Text>
-            <TouchableOpacity onPress={showDatePicker} style={[styles.dateSelectorBtn, {borderColor: theme.colors.outlineVariant}]}>
+            <TouchableOpacity
+              onPress={showDatePicker}
+              style={[
+                styles.dateSelectorBtn,
+                {borderColor: theme.colors.outlineVariant},
+              ]}>
               <Icon name="calendar" size={18} color={theme.colors.primary} />
-              <Text style={{color: theme.colors.onSurface, marginLeft: 8, fontSize: 13}}>
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  marginLeft: 8,
+                  fontSize: 13,
+                }}>
                 {tempDate.toDateString()}
               </Text>
             </TouchableOpacity>
@@ -341,7 +578,13 @@ const PersonalizedLearning = () => {
                   value={tempTotalChapters}
                   onChangeText={setTempTotalChapters}
                   keyboardType="numeric"
-                  style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+                  style={[
+                    styles.formInput,
+                    {
+                      color: theme.colors.onSurface,
+                      borderColor: theme.colors.outlineVariant,
+                    },
+                  ]}
                 />
               </View>
               <View style={{width: 12}} />
@@ -351,82 +594,42 @@ const PersonalizedLearning = () => {
                   value={tempCompletedChapters}
                   onChangeText={setTempCompletedChapters}
                   keyboardType="numeric"
-                  style={[styles.formInput, {color: theme.colors.onSurface, borderColor: theme.colors.outlineVariant}]}
+                  style={[
+                    styles.formInput,
+                    {
+                      color: theme.colors.onSurface,
+                      borderColor: theme.colors.outlineVariant,
+                    },
+                  ]}
                 />
               </View>
             </View>
 
             <View style={styles.formActions}>
-              <TouchableOpacity onPress={() => setIsSettingTarget(false)} style={[styles.formBtn, {borderColor: theme.colors.outline}]}>
-                <Text style={{color: theme.colors.onSurfaceVariant, fontSize: 12}}>Cancel</Text>
+              <TouchableOpacity
+                onPress={() => setIsSettingTarget(false)}
+                style={[styles.formBtn, {borderColor: theme.colors.outline}]}>
+                <Text
+                  style={{color: theme.colors.onSurfaceVariant, fontSize: 12}}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveTarget} style={[styles.formBtn, styles.btnPrimary, {backgroundColor: theme.colors.primary}]}>
-                <Text style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>Save Target</Text>
+              <TouchableOpacity
+                onPress={handleSaveTarget}
+                style={[
+                  styles.formBtn,
+                  styles.btnPrimary,
+                  {backgroundColor: theme.colors.primary},
+                ]}>
+                <Text
+                  style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>
+                  Save Target
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : examTarget ? (
-          (() => {
-            const daysRemaining = Math.max(0, Math.ceil((new Date(examTarget.date) - new Date()) / (1000 * 60 * 60 * 24)));
-            const remainingChapters = Math.max(0, examTarget.totalChapters - examTarget.completedChapters);
-            const chaptersPerDay = daysRemaining > 0 ? (remainingChapters / daysRemaining).toFixed(2) : 0;
-            const completionPercent = Math.min(100, Math.round((examTarget.completedChapters / examTarget.totalChapters) * 100)) || 0;
-
-            let plannerAdvice = "On track! Spend 30 minutes revising daily.";
-            if (chaptersPerDay > 0.05 && chaptersPerDay <= 0.2) {
-              plannerAdvice = "Steady pace! Study 1.5 hours daily to finish in time.";
-            } else if (chaptersPerDay > 0.2) {
-              plannerAdvice = "Needs focus! Dedicate 3 hours daily to cover the syllabus.";
-            }
-
-            return (
-              <View style={[styles.targetCard, {backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant}]}>
-                <View style={styles.targetHeader}>
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
-                    <View style={styles.targetIconCircle}>
-                      <Icon name="bullseye-arrow" size={24} color="#ffffff" />
-                    </View>
-                    <View>
-                      <Text style={[styles.targetTitle, {color: theme.colors.onSurface}]}>{examTarget.title}</Text>
-                      <Text style={[styles.targetSubtitle, {color: theme.colors.outline}]}>
-                        {daysRemaining > 0 ? `${daysRemaining} days remaining` : 'Exam today / completed!'}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity onPress={handleDeleteTarget} style={styles.deleteTargetBtn}>
-                    <Icon name="trash-can-outline" size={20} color="#e53935" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Progress bar */}
-                <View style={styles.targetProgressSection}>
-                  <View style={styles.progressLabelRow}>
-                    <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface}}>Syllabus Coverage</Text>
-                    <Text style={{fontSize: 12, color: theme.colors.outline}}>{completionPercent}%</Text>
-                  </View>
-                  <ProgressBar
-                    progress={completionPercent / 100}
-                    color={theme.colors.primary}
-                    style={styles.targetProgressBar}
-                  />
-                  <Text style={styles.chaptersRatioText}>
-                    {examTarget.completedChapters} of {examTarget.totalChapters} chapters completed
-                  </Text>
-                </View>
-
-                {/* AI Advice */}
-                <View style={[styles.adviceBox, {backgroundColor: theme.dark ? 'rgba(99, 102, 241, 0.12)' : '#eef2ff', borderColor: theme.dark ? '#4f46e5' : '#c7d2fe'}]}>
-                  <Icon name="robot" size={20} color="#6366f1" />
-                  <View style={{flex: 1}}>
-                    <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.dark ? '#818cf8' : '#4f46e5'}}>AI Study Advice</Text>
-                    <Text style={{fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 2}}>
-                      {plannerAdvice} ({chaptersPerDay} chapters/day required)
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })()
+          renderExamTarget()
         ) : (
           <TouchableOpacity
             onPress={() => {
@@ -448,7 +651,11 @@ const PersonalizedLearning = () => {
               },
             ]}>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 14}}>
-              <View style={[styles.featureIconCircleFull, {backgroundColor: '#6366f1'}]}>
+              <View
+                style={[
+                  styles.featureIconCircleFull,
+                  {backgroundColor: '#6366f1'},
+                ]}>
                 <Icon name="bullseye-arrow" size={26} color="white" />
               </View>
               <View style={{flex: 1}}>
@@ -464,7 +671,8 @@ const PersonalizedLearning = () => {
                     styles.featureCardDesc,
                     {color: theme.colors.onSurfaceVariant},
                   ]}>
-                  Set your exam date to generate a customized countdown, coverage rate, and daily study targets!
+                  Set your exam date to generate a customized countdown,
+                  coverage rate, and daily study targets!
                 </Text>
               </View>
             </View>
@@ -498,7 +706,8 @@ const PersonalizedLearning = () => {
                   styles.featureCardDesc,
                   {color: theme.colors.onSurfaceVariant},
                 ]}>
-                Track your study streaks, task completion rates, and test scores over time.
+                Track your study streaks, task completion rates, and test scores
+                over time.
               </Text>
             </View>
           </View>
