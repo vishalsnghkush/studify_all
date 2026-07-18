@@ -22,6 +22,7 @@ import Activities from './Activities';
 import Counselling from './Counselling';
 import VoiceNotebook from './Notes/VoiceNotebook';
 import AiNotesGenerator from './Notes/AiNotesGenerator';
+import AiFlashcards from './Flashcards/AiFlashcards';
 import AiLecturePlayer from './Notes/AiLecturePlayer';
 import Analysis from './Analysis';
 import FocusSpace from './FocusSpace';
@@ -51,6 +52,7 @@ export {
   Counselling,
   VoiceNotebook,
   AiNotesGenerator,
+  AiFlashcards,
   AiLecturePlayer,
   Analysis,
   FocusSpace,

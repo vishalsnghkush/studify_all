@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const GlassButton = ({ label, icon, onPress, disabled, color }) => {
+const GlassButton = ({ label, icon, onPress, disabled, color, style }) => {
   const { colors, dark } = useTheme();
   
   // Use the exact dark teal color from the mockup if no color is provided
@@ -25,6 +25,7 @@ const GlassButton = ({ label, icon, onPress, disabled, color }) => {
           elevation: disabled ? 0 : 8,
           opacity: disabled ? 0.6 : 1,
         },
+        style,
       ]}>
       <View style={styles.contentRow}>
         <Text style={[styles.label, { color: disabled ? (dark ? '#546e7a' : '#90a4ae') : '#ffffff' }]}>

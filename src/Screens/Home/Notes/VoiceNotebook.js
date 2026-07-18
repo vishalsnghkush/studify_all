@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { requestMicrophonePermission, requestImagePermissions } from '../../../Utils/Permission';
-import { trackEngagement, setRecentNote } from '../../../Utils/EngagementTracker';
+import { trackEngagement, setRecentNote, logStudySession } from '../../../Utils/EngagementTracker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -78,6 +78,23 @@ export default function VoiceNotebook({ navigation }) {
   const [newPageTitle, setNewPageTitle] = useState('');
 
   const webViewRef = useRef(null);
+
+  useEffect(() => {
+    if (viewState === 'editor') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            'General',
+            currentPage?.title || 'Notebook Page',
+            'Voice Note',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [viewState, currentPage]);
 
   // Initialize and load saved notebooks
   useEffect(() => {
@@ -238,10 +255,7 @@ export default function VoiceNotebook({ navigation }) {
       notebookId: currentNotebook.id,
       title: newPageTitle,
       content: `
-        <div class="page-sheet" id="page-1" contenteditable="true" oninput="saveContent()">
-          <h3>Start writing here...</h3>
-          <p>Tap the microphone to start voice typing or use the keyboard.</p>
-        </div>
+        <div class="page-sheet" id="page-1" contenteditable="true" oninput="saveContent()" placeholder="Start writing here... Tap the microphone to start voice typing or use the keyboard."></div>
       `,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -368,9 +382,81 @@ export default function VoiceNotebook({ navigation }) {
         requestMicrophonePermission();
       } else if (data.type === 'SPEECH_ERROR') {
         Alert.alert('Speech Recognition Info', `The speech engine reported: "${data.error}". If speech typing is not writing anything on the emulator, you can use the keyboard spacebar's microphone icon, which works natively!`);
+      } else if (data.type === 'AI_SUMMARIZE') {
+        handleAISummarize(data.content);
       }
     } catch (e) {
       console.warn('WebView Message Error:', e);
+    }
+  };
+
+  const handleAISummarize = async (htmlContent) => {
+    const cleanText = (htmlContent || '').replace(/<[^>]+>/g, ' ').trim();
+    if (!cleanText || cleanText.length < 5) {
+      Alert.alert('Note Empty', 'Please write or record some notes first before summarizing!');
+      return;
+    }
+
+    try {
+      const prompt = `Summarize the following notes into a clean, concise summary with key takeaways and bullet points. Return only plain text:\n\n${cleanText}`;
+      
+      const models = [
+        'openrouter/free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+        'google/gemini-2.0-flash-lite-001',
+        'qwen/qwen-2.5-coder-32b-instruct:free',
+      ];
+
+      let response = null;
+      let data = null;
+
+      for (const modelName of models) {
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer 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',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: modelName,
+              messages: [{role: 'user', content: prompt}],
+            }),
+          });
+          if (res.ok) {
+            data = await res.json();
+            if (data?.choices?.[0]?.message?.content) {
+              response = data;
+              break;
+            }
+          }
+        } catch (err) {
+          console.log(`Failed with model ${modelName}, trying next...`, err);
+        }
+      }
+
+      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('All OpenRouter models failed to respond.');
+      }
+
+      let summary = data.choices[0].message.content.trim();
+      
+      // Inject it back into the WebView
+      const injectHtml = `<div style="background: rgba(156, 39, 176, 0.15); padding:15px; border-radius:8px; border-left: 4px solid #9C27B0; margin-top:20px;">
+        <h3 style="color:#9C27B0; margin-top:0;">✨ AI Summary</h3>
+        <p style="color: inherit; line-height: 1.5;">${summary.replace(/\n/g, '<br>')}</p>
+      </div><br>`;
+      
+      const script = `
+        const editor = document.getElementById('editor-container');
+        editor.innerHTML += \`${injectHtml}\`;
+        saveContent();
+      `;
+      webViewRef.current?.injectJavaScript(script);
+      Alert.alert('Success', 'AI Summary added to your notes!');
+    } catch (e) {
+      console.log('Error summarizing notes:', e);
+      Alert.alert('Error', 'Failed to summarize notes. Please check your internet connection and try again.');
     }
   };
 
@@ -714,6 +800,17 @@ export default function VoiceNotebook({ navigation }) {
             ` : ''}
           }
 
+          .page-sheet:empty:after {
+            content: attr(placeholder);
+            color: #888888;
+            opacity: 0.6;
+            font-size: 16px;
+            font-weight: normal;
+            line-height: 30px;
+            display: block;
+            pointer-events: none;
+          }
+
           /* Highlight selected image */
           img.selected-image {
             outline: 2px dashed #00B3B3;
@@ -906,6 +1003,7 @@ export default function VoiceNotebook({ navigation }) {
           <button class="tool-btn" onmousedown="event.preventDefault()" onclick="addNewPage()" style="background-color: #008080;">+ Page</button>
           
           <button id="mic-btn" class="tool-btn" onmousedown="event.preventDefault()" onclick="toggleSpeech()">🎙️ Start Voice</button>
+          <button class="tool-btn" onmousedown="event.preventDefault()" onclick="triggerAISummarize()" style="background-color: #9C27B0;">✨ AI Summarize</button>
         </div>
 
         <div id="editor-container">
@@ -1635,6 +1733,14 @@ export default function VoiceNotebook({ navigation }) {
             console.warn('Speech Recognition not supported', e);
           }
 
+          function triggerAISummarize() {
+            const content = document.getElementById('editor-container').innerHTML;
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'AI_SUMMARIZE',
+              content: content
+            }));
+          }
+
           function toggleSpeech() {
             try {
               if (!recognition) {
@@ -1669,6 +1775,19 @@ export default function VoiceNotebook({ navigation }) {
               alert('Speech Engine Activation Error: ' + err.message);
             }
           }
+
+          // Auto-cleanup legacy placeholder text on focus/typing
+          document.getElementById('pages-wrapper').addEventListener('focusin', function(e) {
+            const sheet = e.target.closest('.page-sheet');
+            if (sheet) {
+              const text = sheet.innerText.trim();
+              if (text.includes('Start writing here...') && text.includes('Tap the microphone')) {
+                sheet.innerHTML = '';
+                saveContent();
+              }
+            }
+          });
+
           // Make sure all loaded images are non-editable to support touch events
           document.querySelectorAll('img').forEach(img => {
             img.contentEditable = false;

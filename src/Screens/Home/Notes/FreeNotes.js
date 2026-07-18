@@ -337,14 +337,17 @@ const Notes = ({navigation, route}) => {
                                       name: item.name,
                                       subject: item.subject,
                                       type: 'note',
+                                      screen: 'Pdf',
                                       pdf_url: item.pdf_url,
                                       chapter_name: item.chapter_name,
-                                      chapter_no: item.chapter_no
+                                      chapter_no: item.chapter_no,
+                                      studentClass: form ? `Class ${form}` : undefined
                                     });
                                     navigation.navigate('Pdf', {
                                       url: item.pdf_url,
                                       title: item.name,
                                       subject: item.subject,
+                                      studentClass: form ? `Class ${form}` : undefined
                                     });
                                   }}
                                   style={{
@@ -386,6 +389,7 @@ const Notes = ({navigation, route}) => {
                           const topSub = topSubjects[0] || 'General';
                           navigation.navigate('TestGenerator', {
                             subject: topSub.charAt(0).toUpperCase() + topSub.slice(1),
+                            studentClass: form ? `Class ${form}` : undefined
                           });
                         }}
                         style={{
@@ -430,14 +434,17 @@ const Notes = ({navigation, route}) => {
                         name: item.name,
                         subject: item.subject,
                         type: 'note',
+                        screen: 'Pdf',
                         pdf_url: item.pdf_url,
                         chapter_name: item.chapter_name,
-                        chapter_no: item.chapter_no
+                        chapter_no: item.chapter_no,
+                        studentClass: form ? `Class ${form}` : undefined
                       });
                       navigation.navigate('Pdf', {
                         url: item.pdf_url,
                         title: item.name,
                         subject: item.subject,
+                        studentClass: form ? `Class ${form}` : undefined
                       });
                     }}
                     style={[

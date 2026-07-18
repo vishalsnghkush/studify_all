@@ -5,7 +5,7 @@ import useApi from '../../Components/Api/Api';
 import {View, ScrollView, Image, StyleSheet} from 'react-native';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Text} from '../../Components/Input';
-import {getTopEngagedSubjects, getRecentNote} from '../../Utils/EngagementTracker';
+import {getTopEngagedSubjects, getRecentNote, openRecentItem} from '../../Utils/EngagementTracker';
 
 
 const getSubjectInfo = (subject) => {
@@ -108,13 +108,7 @@ const Search = ({navigation}) => {
                     Recently Studied 🕒
                   </Text>
                   <TouchableRipple
-                    onPress={() => {
-                      if (recentNote.type === 'note') {
-                        navigation.navigate('Pdf', { url: recentNote.pdf_url });
-                      } else {
-                        navigation.navigate('AiLecturePlayer');
-                      }
-                    }}
+                    onPress={() => openRecentItem(navigation, recentNote)}
                     style={[
                       styles.noteCard,
                       {
@@ -198,7 +192,8 @@ const Search = ({navigation}) => {
                       navigation.navigate('Pdf', {
                         url: item.pdf_url,
                         title: item.title || 'Note',
-                        subject: item.subject || 'General'
+                        subject: item.subject || 'General',
+                        studentClass: item.class || item.studentClass || item.cls || item.form
                       });
                     }}
                     rippleColor="rgba(0,113,113,0.1)"

@@ -18,7 +18,7 @@ const CustomAppBar = ({navigation, route, options, back}) => {
           icon="chevron-left" 
           size={29} 
           iconColor={headerTextColor} 
-          onPress={navigation.goBack} 
+          onPress={() => navigation.canGoBack() && navigation.goBack()} 
         />
       ) : (
         <Appbar.Action 

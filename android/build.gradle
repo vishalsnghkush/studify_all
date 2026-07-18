@@ -28,6 +28,26 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Remove Sonatype snapshot repositories to avoid 504 Gateway Timeouts safely
+    if (state.executed) {
+        def toRemove = repositories.findAll { repo ->
+            repo instanceof MavenArtifactRepository && repo.url.toString().contains("sonatype")
+        }
+        toRemove.each { repo ->
+            println "Removing repository directly: ${repo.url}"
+            repositories.remove(repo)
+        }
+    } else {
+        afterEvaluate { prj ->
+            def toRemove = prj.repositories.findAll { repo ->
+                repo instanceof MavenArtifactRepository && repo.url.toString().contains("sonatype")
+            }
+            toRemove.each { repo ->
+                println "Removing repository afterEvaluate: ${repo.url}"
+                prj.repositories.remove(repo)
+            }
+        }
+    }
 }
 
 subprojects { prj ->

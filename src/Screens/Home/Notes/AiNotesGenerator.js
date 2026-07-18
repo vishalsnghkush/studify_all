@@ -14,6 +14,8 @@ import {useNavigation} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
 import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
+import {normalizeSubject, normalizeClass, normalizeStream} from '../../../Utils/CurriculumConfig';
+
 
 import { PremiumLoader } from '../../../Components/PremiumLoader';
 
@@ -70,7 +72,7 @@ export default function AiNotesGenerator({ route }) {
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
   const [subtopic, setSubtopic] = useState('');
-  const [notesLength, setNotesLength] = useState('Detailed');
+  const [notesLength, setNotesLength] = useState('Short');
 
   // Active notes content
   const [generatedNotes, setGeneratedNotes] = useState('');
@@ -80,6 +82,23 @@ export default function AiNotesGenerator({ route }) {
   // Library state
   const [savedNotes, setSavedNotes] = useState([]);
   const [topSubject, setTopSubject] = useState('');
+
+  useEffect(() => {
+    if (appState === 'viewing') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            subject || 'General',
+            topic || 'AI Study Guide',
+            'AI Notes',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [appState, subject, topic]);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -108,12 +127,51 @@ export default function AiNotesGenerator({ route }) {
 
   // Read navigation parameters (autofill)
   useEffect(() => {
-    if (route?.params?.subject) {
-      const formatted = route.params.subject.charAt(0).toUpperCase() + route.params.subject.slice(1);
-      setSubject(formatted);
+    let normSub = '';
+    let normClass = '';
+    if (route?.params?.subject || route?.params?.topic) {
+      normSub = normalizeSubject(route?.params?.subject, route?.params?.topic);
+      setSubject(normSub);
+    }
+    if (route?.params?.studentClass || route?.params?.class || route?.params?.topic) {
+      normClass = normalizeClass(route?.params?.studentClass || route?.params?.class, route?.params?.topic);
+      setStudentClass(normClass);
+    }
+    if (normSub && normClass) {
+      const normStream = normalizeStream(normSub, normClass);
+      setStream(normStream);
+    }
+    if (route?.params?.board) {
+      setBoard(route.params.board);
     }
     if (route?.params?.topic) {
       setTopic(route.params.topic);
+    }
+
+    // Auto-open saved note if matching topic exists in library
+    if (route?.params?.topic) {
+      const targetTopic = route.params.topic.toLowerCase();
+      AsyncStorage.getItem('@studify_saved_notes').then(stored => {
+        if (stored) {
+          try {
+            const list = JSON.parse(stored);
+            const match = list.find(
+              n => (n.topic && n.topic.toLowerCase() === targetTopic) ||
+                   (n.title && n.title.toLowerCase().includes(targetTopic))
+            );
+            if (match) {
+              setBoard(match.board || 'CBSE');
+              setStudentClass(match.studentClass || 'Class 10');
+              setSubject(match.subject || 'General');
+              setTopic(match.topic || route.params.topic);
+              setSubtopic(match.subtopic || '');
+              setGeneratedNotes(match.content);
+              setActiveNotesTitle(match.title);
+              setAppState('viewing');
+            }
+          } catch (_) {}
+        }
+      }).catch(() => {});
     }
   }, [route?.params]);
 
@@ -280,6 +338,7 @@ export default function AiNotesGenerator({ route }) {
       name: topic.trim(),
       subject: subject,
       type: 'note',
+      screen: 'AiNotesGenerator',
       board: board,
       class: studentClass,
       subtopic: subtopic.trim() || ''
@@ -291,10 +350,14 @@ export default function AiNotesGenerator({ route }) {
 
     try {
       // Step 1: Curriculum Planning (Subtopics Planner)
-      const plannerSystemPrompt =
-        'You are an expert academic curriculum planner.\n' +
-        'Given a study topic, break it down into a list of 4 to 6 logical, sequential subtopics (ordered from easiest to most advanced) suitable for a detailed textbook chapter.\n' +
-        'RESPONSE FORMAT: You MUST return ONLY a JSON array of strings containing the subtopic names. Do not wrap in markdown or code blocks. Nothing else.';
+      const isShort = notesLength === 'Short';
+      const plannerSystemPrompt = isShort
+        ? 'You are an expert academic curriculum planner.\n' +
+          'Given a study topic, break it down into a list of strictly 2 to 3 high-level summary subtopics (e.g. Core Principles & Key Definitions, Essential Formulae & Mechanisms, Crucial Examples) suitable for a short 2-3 page revision summary.\n' +
+          'RESPONSE FORMAT: You MUST return ONLY a JSON array of strings containing the subtopic names. Do not wrap in markdown or code blocks. Nothing else.'
+        : 'You are an expert academic curriculum planner.\n' +
+          'Given a study topic, break it down into a list of 4 to 6 logical, sequential subtopics (ordered from easiest to most advanced) suitable for a detailed textbook chapter.\n' +
+          'RESPONSE FORMAT: You MUST return ONLY a JSON array of strings containing the subtopic names. Do not wrap in markdown or code blocks. Nothing else.';
 
       const plannerUserPrompt =
         `Plan subtopics for:\n` +
@@ -336,12 +399,18 @@ export default function AiNotesGenerator({ route }) {
       let subtopics = JSON.parse(cleanJson);
 
       if (!Array.isArray(subtopics) || subtopics.length === 0) {
-        subtopics = [
-          'Introduction & Basic Concepts',
-          'Key Theories & Mechanisms',
-          'Physical & Chemical Properties',
-          'Advanced Applications & Exceptions',
-        ];
+        subtopics = isShort 
+          ? [
+              'Core Principles & Key Definitions',
+              'Essential Formulae & Mechanisms',
+              'Crucial Examples'
+            ]
+          : [
+              'Introduction & Basic Concepts',
+              'Key Theories & Mechanisms',
+              'Physical & Chemical Properties',
+              'Advanced Applications & Exceptions',
+            ];
       }
 
       let notesContent = '';
@@ -355,17 +424,14 @@ export default function AiNotesGenerator({ route }) {
           }:\n${subtopicTitle}...`,
         );
 
-        const isShort = notesLength === 'Short';
         const sectionSystemPrompt = isShort
-          ? 'You are a premier textbook writer. Write a concise summary and short notes for the given subtopic.\n\n' +
+          ? 'You are a premier textbook writer. Write a highly condensed, quick-revision section for the given subtopic.\n\n' +
             'CRITICAL QUALITY RULES:\n' +
-            '- Write a brief, easy-to-read summary. Keep explanations short and to the point.\n' +
+            '- Be EXTREMELY brief. The entire section must be less than 250 words total.\n' +
+            '- Write a bulleted summary of key facts and definitions. Avoid long introductory or transition paragraphs.\n' +
             '- Maximize formatting: Use Markdown headers (###), bold text, bullet points, and numbered lists.\n' +
-            '- Wrap Key Concepts, Important Notes, and Solved Examples in markdown blockquotes (lines starting with > ). For example:\n' +
-            '  > **Key Concept:** Define the core idea here...\n' +
-            '  > **Important Note:** Crucial formula or exam tip to remember...\n' +
-            '- Ensure definitions are accurate but concise.\n' +
-            '- DIAGRAMS / ILLUSTRATIONS: You can include a clean chalkboard-style vector illustration inside a markdown code block of type "svg" (e.g. ```svg \n <svg viewBox="0 0 300 150">...</svg> \n ```). Make sure the SVG tags are valid, use bright chalk colors ("white", "#a3e635", "#60a5fa", "#f472b6", "#f59e0b"), and set viewBox="0 0 300 150" with width="100%" and height="100%". Do not use black colors.\n' +
+            '- Wrap Key Concepts and Solved Examples in markdown blockquotes (lines starting with > ). Keep them very concise.\n' +
+            '- LIMIT DIAGRAMS: Do not include more than one tiny SVG diagram in total for the entire notes if visual.\n' +
             '- STRICT MATH RULE: NEVER use LaTeX notation (like \\( \\), \\[ \\], \\frac, \\mathbf, etc.) or backslashes. Write math equations in readable plain text.'
           : 'You are a premier textbook writer. Write a comprehensive, detailed textbook section for the given subtopic.\n\n' +
             'CRITICAL QUALITY RULES:\n' +
@@ -379,13 +445,13 @@ export default function AiNotesGenerator({ route }) {
             '- STRICT MATH RULE: NEVER use LaTeX notation (like \\( \\), \\[ \\], \\frac, \\mathbf, etc.) or backslashes. Write math equations in readable plain text.';
 
         const sectionUserPrompt = isShort
-          ? `Write a concise summary section for:\n` +
+          ? `Write a highly concise summary section (max 250 words) for:\n` +
             `- Main Chapter Topic: ${topic.trim()}\n` +
-            `- Current Section Subtopic: ${subtopicTitle}\n` +
+            `- Current Section: ${subtopicTitle}\n` +
             `- Board: ${board}\n` +
             `- Class Level: ${studentClass}\n` +
             `- Subject: ${subject}\n\n` +
-            `Provide brief theoretical summaries, key equations, a quick example, and a chalkboard SVG diagram in a \`\`\`svg code block if it is visual.`
+            `Provide a quick bulleted summary of definitions, key formulas, and one short solved example. Keep it under 250 words.`
           : `Write a highly detailed chapter section for:\n` +
             `- Main Chapter Topic: ${topic.trim()}\n` +
             `- Current Section Subtopic: ${subtopicTitle}\n` +
@@ -467,12 +533,17 @@ export default function AiNotesGenerator({ route }) {
   };
 
   const handleAttemptTest = () => {
-    setAppState('setup');
+    const safeSubStr = Array.isArray(subtopic)
+      ? subtopic.join(', ')
+      : (typeof subtopic === 'string' ? subtopic : '');
+
     navigation.navigate('TestGenerator', {
       board,
       subject,
       topic,
-      subtopic,
+      subtopic: safeSubStr,
+      studentClass,
+      stream,
       autoStart: true,
     });
   };
@@ -551,7 +622,16 @@ export default function AiNotesGenerator({ route }) {
     if (!rawText) {
       return [];
     }
-    const lines = rawText.split('\n');
+
+    // Extract all SVG strings and replace them with placeholders
+    const svgRegex = /<svg[\s\S]*?<\/svg>/gi;
+    const svgs = [];
+    const textWithPlaceholders = rawText.replace(svgRegex, (match) => {
+      svgs.push(match);
+      return `__STUDIFY_SVG_PLACEHOLDER_${svgs.length - 1}__`;
+    });
+
+    const lines = textWithPlaceholders.split('\n');
     const blocks = [];
     let currentTable = null;
     let inCodeBlock = false;
@@ -564,10 +644,11 @@ export default function AiNotesGenerator({ route }) {
       // Handle Code Blocks
       if (trimmed.startsWith('```')) {
         if (inCodeBlock) {
-          if (inCodeBlock === 'svg' || inCodeBlock === 'xml') {
-            blocks.push({type: 'diagram', text: codeContent.join('\n')});
+          const codeText = codeContent.join('\n');
+          if (inCodeBlock === 'svg' || inCodeBlock === 'xml' || codeText.includes('__STUDIFY_SVG_PLACEHOLDER_')) {
+            blocks.push({type: 'diagram', text: codeText});
           } else {
-            blocks.push({type: 'code', text: codeContent.join('\n')});
+            blocks.push({type: 'code', text: codeText});
           }
           inCodeBlock = false;
           codeContent = [];
@@ -650,7 +731,41 @@ export default function AiNotesGenerator({ route }) {
       blocks.push({type: 'table', rows: currentTable});
     }
 
-    return blocks;
+    // Map blocks back to inject extracted SVGs
+    const processedBlocks = blocks.map(block => {
+      // Check if this block contains a placeholder
+      const placeholderRegex = /__STUDIFY_SVG_PLACEHOLDER_(\d+)__/g;
+      
+      if (block.type === 'diagram' || block.type === 'code' || block.type === 'paragraph' || block.type === 'blockquote' || block.type === 'bullet' || block.type === 'numbered') {
+        const match = placeholderRegex.exec(block.text || '');
+        if (match) {
+          const index = parseInt(match[1], 10);
+          return {
+            type: 'diagram',
+            text: svgs[index]
+          };
+        }
+      }
+      
+      // Also handle table cells containing SVGs
+      if (block.type === 'table') {
+        const newRows = block.rows.map(row => {
+          return row.map(cell => {
+            const match = placeholderRegex.exec(cell);
+            if (match) {
+              const index = parseInt(match[1], 10);
+              return svgs[index];
+            }
+            return cell;
+          });
+        });
+        return { ...block, rows: newRows };
+      }
+      
+      return block;
+    });
+
+    return processedBlocks;
   };
 
   // Render a parsed table block as a structured React Native Card
@@ -746,11 +861,15 @@ export default function AiNotesGenerator({ route }) {
               .replace(/fill\s*=\s*["']#333["']/gi, 'fill="none"')
               .replace(/stroke\s*=\s*["']#333["']/gi, 'stroke="#60a5fa"');
             
-            // Auto-fix LLM SVG syntax errors
-            cleanSvg = cleanSvg.replace(/viewBox=["'][^"']*["']/gi, 'viewBox="0 0 300 150"');
+            // Auto-fix LLM SVG syntax errors without overriding valid viewBoxes
+            cleanSvg = cleanSvg.replace(/viewBox\s*=\s*["']\s*0\s*=\s*(\d+)\s*(\d+)\s*["']/gi, 'viewBox="0 0 $1 $2"');
+            if (!/viewBox\s*=/i.test(cleanSvg)) {
+              cleanSvg = cleanSvg.replace(/<svg/i, '<svg viewBox="0 0 300 150"');
+            }
+            
             cleanSvg = cleanSvg.replace(/<rect[^>]*width=["']300["'][^>]*fill=["']#(1a1a1a|000000|222222|333333)["'][^>]*\/?>/gi, '');
 
-          const notesBoardBg = theme.dark ? '#1e293b' : '#f1f5f9';
+          const notesBoardBg = '#0f172a'; // Deep slate chalkboard background for perfect visibility in both light and dark themes
 
           return (
             <View
@@ -758,14 +877,14 @@ export default function AiNotesGenerator({ route }) {
               style={{
                 backgroundColor: notesBoardBg,
                 borderRadius: 12,
-                padding: 8,
+                padding: 12,
                 marginVertical: 12,
                 borderWidth: 1,
-                borderColor: theme.dark ? '#334155' : '#e2e8f0',
+                borderColor: '#334155',
                 alignSelf: 'stretch',
                 alignItems: 'center',
                 justifyContent: 'center',
-                height: 180,
+                height: 220,
               }}>
               <SvgXml 
                 xml={cleanSvg} 
@@ -774,8 +893,8 @@ export default function AiNotesGenerator({ route }) {
                 onError={(e) => console.log('SVG Parse Error:', e)}
                 fallback={
                   <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-                    <Icon name="image-broken-variant" size={40} color={theme.dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"} />
-                    <Text style={{color: theme.dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', fontSize: 12, marginTop: 8}}>
+                    <Icon name="image-broken-variant" size={40} color="rgba(255,255,255,0.2)" />
+                    <Text style={{color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 8}}>
                       Diagram generation failed
                     </Text>
                   </View>
@@ -1132,7 +1251,7 @@ export default function AiNotesGenerator({ route }) {
                 value={notesLength}
                 options={[
                   { label: 'Detailed Notes (Complete coverage)', value: 'Detailed' },
-                  { label: 'Short Notes (3-4 pages summary)', value: 'Short' }
+                  { label: 'Short Notes (2-3 pages summary)', value: 'Short' }
                 ]}
                 onSelect={setNotesLength}
                 icon="text-box-outline"

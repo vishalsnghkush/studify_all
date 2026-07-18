@@ -17,9 +17,13 @@ import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 import {
   getAllSubjectStats,
   getTopEngagedSubjects,
-  getPinnedSubject,
-  setPinnedSubject
+  getAIFocusSubject
 } from '../../Utils/EngagementTracker';
+
+const formatSubjectName = (name) => {
+  if (!name) return 'General';
+  return name.trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
 
 
 const PersonalizedLearning = () => {
@@ -42,16 +46,24 @@ const PersonalizedLearning = () => {
 
   // Personalization local states
   const [subjectStats, setSubjectStats] = useState({});
-  const [pinnedSub, setPinnedSub] = useState(null);
+  const [aiFocusSub, setAiFocusSub] = useState(null);
   const [repetitionNudge, setRepetitionNudge] = useState(null);
+  const [failedTopicNudge, setFailedTopicNudge] = useState(null);
 
   const loadPersonalizationData = useCallback(async () => {
     try {
       const stats = await getAllSubjectStats();
       setSubjectStats(stats);
 
-      const pinned = await getPinnedSubject();
-      setPinnedSub(pinned);
+      const focus = await getAIFocusSubject();
+      setAiFocusSub(focus);
+
+      const failedTop = await AsyncStorage.getItem('@studify_last_failed_topic');
+      if (failedTop) {
+        setFailedTopicNudge(JSON.parse(failedTop));
+      } else {
+        setFailedTopicNudge(null);
+      }
 
       const top = await getTopEngagedSubjects(1);
       if (top && top.length > 0) {
@@ -439,81 +451,68 @@ const PersonalizedLearning = () => {
         {(repetitionNudge || Object.keys(subjectStats).length > 0) && (
           <View style={{ marginBottom: 20 }}>
 
-            {/* 2. Spaced Repetition Nudge (if active) */}
-            {repetitionNudge && (
-              <Card style={[styles.nudgeCard, { backgroundColor: theme.dark ? '#3a1f1f' : '#fdf2f2', borderColor: '#f8b4b4', borderWidth: 1 }]}>
-                <Card.Content style={styles.nudgeContent}>
-                  <Icon name="alarm" size={24} color="#f87171" style={{ marginRight: 10 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: 'bold', color: '#f87171', fontSize: 13 }}>Spaced Repetition Alert</Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.onSurface, marginTop: 2 }}>
-                      You studied <Text style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{repetitionNudge.subject}</Text> {repetitionNudge.days} days ago. A quick 5-minute recap helps retain 90% of memory!
-                    </Text>
-                  </View>
-                </Card.Content>
-              </Card>
+            {aiFocusSub && (
+              <View
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#007171',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}>
+                <Icon name="rocket-launch" size={20} color="#007171" style={{marginRight: 10}} />
+                <Text style={{fontSize: 12, color: theme.colors.onSurface, flex: 1, lineHeight: 16}}>
+                  ✨ <Text style={{fontWeight: 'bold'}}>AI Focus of the Day:</Text> Boost your learning in <Text style={{ fontWeight: 'bold' }}>{formatSubjectName(aiFocusSub)}</Text> based on your spaced repetition & weakness score!
+                </Text>
+              </View>
             )}
 
-            {/* 3. Learning Diet (Balance Meter) */}
-            <Card style={[styles.dietCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-              <Card.Content>
-                <View style={styles.dietHeader}>
-                  <Icon name="scale-balance" size={20} color={theme.colors.primary} />
-                  <Text style={[styles.dietTitle, { color: theme.colors.onSurface }]}>Your Subject Learning Diet</Text>
-                </View>
-                <Text style={{ fontSize: 11, color: theme.colors.outline, marginBottom: 12 }}>
-                  Tracks which subjects you focus on. Pin a subject to prioritize recommendations!
+            {/* 2. Spaced Repetition Nudge (if active) */}
+            {repetitionNudge && (
+              <View
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(76, 175, 80, 0.15)' : '#e8f5e9',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#4caf50',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}>
+                <Icon name="brain" size={20} color="#4caf50" style={{marginRight: 10}} />
+                <Text style={{fontSize: 12, color: theme.colors.onSurface, flex: 1, lineHeight: 16}}>
+                  You studied <Text style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{repetitionNudge.subject}</Text> {repetitionNudge.days} days ago. A quick 5-minute recap helps retain 90% of memory!
                 </Text>
+              </View>
+            )}
 
-                {Object.keys(subjectStats).length === 0 ? (
-                  <View style={styles.emptyDiet}>
-                    <Icon name="book-open-outline" size={32} color="#aaa" />
-                    <Text style={{ fontSize: 12, color: theme.colors.outline, marginTop: 6, textAlign: 'center' }}>
-                      No study sessions tracked. Open notes or create quizzes to see your distribution!
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={{ gap: 10 }}>
-                    {Object.entries(subjectStats).map(([subj, data]) => {
-                      const totalClicks = Object.values(subjectStats).reduce((sum, d) => sum + d.count, 0) || 1;
-                      const percentage = Math.round((data.count / totalClicks) * 100);
-                      const isPinned = pinnedSub?.toLowerCase() === subj.toLowerCase();
+            {failedTopicNudge && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AiNotesGenerator', { subject: failedTopicNudge.subject, topic: failedTopicNudge.topic })}
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(233, 30, 99, 0.15)' : '#fce4ec',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#e91e63',
+                  padding: 14,
+                  borderRadius: 12,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                }}>
+                <Icon name="robot-outline" size={26} color="#e91e63" style={{marginTop: 2, marginRight: 12}} />
+                <View style={{flex: 1}}>
+                  <Text style={{fontWeight: 'bold', fontSize: 14, color: '#e91e63', marginBottom: 4}}>Context-Aware AI Tutor</Text>
+                  <Text style={{fontSize: 12, color: theme.colors.onSurface, lineHeight: 18}}>
+                    I noticed you struggled with <Text style={{fontWeight: 'bold'}}>{failedTopicNudge.topic}</Text> in your last quiz. Want me to generate a custom study guide for you?
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
-                      return (
-                        <View key={subj} style={styles.dietRow}>
-                          <View style={{ flex: 1 }}>
-                            <View style={styles.dietLabelRow}>
-                              <Text style={[styles.dietSubjectName, { color: theme.colors.onSurface }]}>{subj}</Text>
-                              <Text style={{ fontSize: 11, color: theme.colors.outline }}>{percentage}% ({data.count} clicks)</Text>
-                            </View>
-                            <ProgressBar
-                              progress={data.count / totalClicks}
-                              color={isPinned ? '#ef4444' : theme.colors.primary}
-                              style={styles.dietBar}
-                            />
-                          </View>
-                          <TouchableOpacity
-                            onPress={async () => {
-                              const nextPin = isPinned ? null : subj;
-                              await setPinnedSubject(nextPin);
-                              setPinnedSub(nextPin);
-                              await loadPersonalizationData();
-                            }}
-                            style={{ padding: 6, marginLeft: 8 }}
-                          >
-                            <Icon
-                              name={isPinned ? 'pin' : 'pin-outline'}
-                              size={18}
-                              color={isPinned ? '#ef4444' : theme.colors.outline}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </Card.Content>
-            </Card>
           </View>
         )}
 
@@ -947,7 +946,7 @@ const PersonalizedLearning = () => {
                               {color: theme.colors.onSurface},
                               isCompleted && styles.completedTaskText,
                             ]}>
-                            {item.description}
+                            {item.topic || item.description || 'Specific study topic'}
                           </Text>
                           <View style={styles.taskMetaRow}>
                             <View
@@ -986,6 +985,114 @@ const PersonalizedLearning = () => {
             </View>
           )}
         </View>
+
+        {/* Learning Diet (Balance Meter) - Moved to bottom */}
+        <Card style={[styles.dietCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, marginTop: 20 }]}>
+          <Card.Content>
+            <View style={styles.dietHeader}>
+              <Icon name="scale-balance" size={20} color={theme.colors.primary} />
+              <Text style={[styles.dietTitle, { color: theme.colors.onSurface }]}>Your Subject Learning Diet</Text>
+            </View>
+            <Text style={{ fontSize: 11, color: theme.colors.outline, marginBottom: 12 }}>
+              Tracks which subjects you focus on. Powered by AI priority recommendation engine!
+            </Text>
+
+            {Object.keys(subjectStats).length === 0 ? (
+              <View style={styles.emptyDiet}>
+                <Icon name="book-open-outline" size={32} color="#aaa" />
+                <Text style={{ fontSize: 12, color: theme.colors.outline, marginTop: 6, textAlign: 'center' }}>
+                  No study sessions tracked. Open notes or create quizzes to see your distribution!
+                </Text>
+              </View>
+            ) : (() => {
+              const totalClicks = Object.values(subjectStats).reduce((sum, d) => sum + d.count, 0) || 1;
+
+              // Normalize and group duplicates
+              const normalizedStats = {};
+              Object.entries(subjectStats).forEach(([subj, data]) => {
+                const normName = formatSubjectName(subj);
+                if (!normalizedStats[normName]) {
+                  normalizedStats[normName] = { count: 0, lastOpenedTime: data.lastOpenedTime };
+                }
+                normalizedStats[normName].count += data.count;
+                if (data.lastOpenedTime > normalizedStats[normName].lastOpenedTime) {
+                  normalizedStats[normName].lastOpenedTime = data.lastOpenedTime;
+                }
+              });
+
+              // Sort normalized subjects descending by count
+              const sortedEntries = Object.entries(normalizedStats).sort((a, b) => b[1].count - a[1].count);
+
+              // Separate main vs others (less than 5% clicks)
+              const mainEntries = [];
+              let othersCount = 0;
+              const othersList = [];
+
+              sortedEntries.forEach(([subj, data]) => {
+                const percentage = (data.count / totalClicks) * 100;
+                if (percentage >= 5) {
+                  mainEntries.push({ name: subj, count: data.count, percent: Math.round(percentage) });
+                } else {
+                  othersCount += data.count;
+                  othersList.push({ name: subj, count: data.count, percent: Math.round(percentage) });
+                }
+              });
+
+              if (othersCount > 0) {
+                mainEntries.push({ name: 'Others', count: othersCount, percent: Math.round((othersCount / totalClicks) * 100), isOthers: true });
+              }
+
+              const colorsList = ['#007171', '#673ab7', '#ff9800', '#2196f3', '#4caf50', '#e91e63', '#9c27b0', '#795548', '#3f51b5'];
+
+              return (
+                <View>
+                  {/* Stacked diet progress bar */}
+                  <View style={{ flexDirection: 'row', height: 16, borderRadius: 8, overflow: 'hidden', marginVertical: 12, backgroundColor: theme.dark ? '#334155' : '#f1f5f9' }}>
+                    {mainEntries.map((item, idx) => {
+                      const color = item.isOthers ? '#94a3b8' : colorsList[idx % colorsList.length];
+                      return (
+                        <View
+                          key={item.name}
+                          style={{
+                            flex: item.count,
+                            backgroundColor: color,
+                            height: '100%',
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  {/* Legend breakdown list */}
+                  <View style={{ gap: 10, marginTop: 10 }}>
+                    {sortedEntries.map(([subj, data], idx) => {
+                      const percentage = Math.round((data.count / totalClicks) * 100);
+                      const isOthers = percentage < 5;
+                      const mainIdx = mainEntries.findIndex(m => m.name === subj);
+                      const color = isOthers ? '#94a3b8' : colorsList[mainIdx !== -1 ? mainIdx : idx % colorsList.length];
+                      const isAiFocus = aiFocusSub?.toLowerCase() === subj.toLowerCase();
+
+                      return (
+                        <View key={subj} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginRight: 8 }} />
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.onSurface }}>{subj}</Text>
+                            {isAiFocus && (
+                              <View style={{ backgroundColor: '#007171', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#ffffff' }}>✨ AI Focus</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={{ fontSize: 12, color: theme.colors.outline }}>{percentage}% ({data.count} clicks)</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
+          </Card.Content>
+        </Card>
       </ScrollView>
       <Confetti
         active={showGrandConfetti}

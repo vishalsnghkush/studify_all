@@ -25,6 +25,7 @@ import {
   Counselling,
   VoiceNotebook,
   AiNotesGenerator,
+  AiFlashcards,
   AiLecturePlayer,
 } from '../Screens/Home';
 import FocusSpace from '../Screens/Home/FocusSpace';
@@ -182,6 +183,12 @@ const AppNavigation = () => {
         name="StudyPlanner"
         component={StudyPlanner}
         options={{title: 'Study Planner & Tasks'}}
+      />
+
+      <Stack.Screen
+        name="AiFlashcards"
+        component={AiFlashcards}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="ClassNotesSelector"

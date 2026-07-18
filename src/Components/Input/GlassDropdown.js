@@ -57,12 +57,14 @@ const GlassDropdown = ({ label, value, options, onSelect, icon, disabled, placeh
                keyExtractor={(item) => item.value}
                renderItem={({ item }) => (
                  <TouchableOpacity
-                   style={[styles.optionItem, item.value === value && { backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
-                   onPress={() => handleSelect(item.value)}>
-                   <Text style={[styles.optionText, { color: item.value === value ? colors.primary : (dark ? '#eceff1' : '#263238') }]}>
+                   style={[styles.optionItem, item.value === value && { backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, item.disabled && { opacity: 0.45 }]}
+                   onPress={() => !item.disabled && handleSelect(item.value)}
+                   activeOpacity={item.disabled ? 1 : 0.7}>
+                   <Text style={[styles.optionText, { color: item.disabled ? (dark ? '#78909c' : '#90a4ae') : (item.value === value ? colors.primary : (dark ? '#eceff1' : '#263238')) }]}>
                      {item.label}
                    </Text>
-                   {item.value === value && <Icon name="check" size={20} color={colors.primary} />}
+                   {item.disabled && <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', marginLeft: 6 }}>🔒</Text>}
+                   {!item.disabled && item.value === value && <Icon name="check" size={20} color={colors.primary} />}
                  </TouchableOpacity>
                )}
              />

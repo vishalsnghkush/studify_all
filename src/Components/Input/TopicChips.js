@@ -3,6 +3,7 @@ import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-nati
 import { useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { getTopEngagedSubjects } from '../../Utils/EngagementTracker';
+import { getSyllabusData } from '../../Utils/CurriculumConfig';
 
 export const TopicChips = ({ subject, studentClass, onSelectTopic }) => {
   const { colors, dark } = useTheme();
@@ -13,45 +14,42 @@ export const TopicChips = ({ subject, studentClass, onSelectTopic }) => {
   }, [subject, studentClass]);
 
   const loadChips = async () => {
-    // 1. Get user's weak/strong subjects from EngagementTracker to personalize.
     const topEngaged = await getTopEngagedSubjects();
     const weakSubject = topEngaged.length > 0 ? topEngaged[topEngaged.length - 1] : null;
 
-    let defaultChips = [];
-    
-    // Fake dynamic popular topics based on subject (in a real app, fetch from server)
-    if (subject === 'Physics') {
-      defaultChips = [
-        { label: 'Laws of Motion', icon: 'axis-arrow', recommended: false },
-        { label: 'Thermodynamics', icon: 'fire', recommended: false },
-      ];
-    } else if (subject === 'Biology') {
-      defaultChips = [
-        { label: 'Photosynthesis', icon: 'leaf', recommended: false },
-        { label: 'Cell Structure', icon: 'bacteria', recommended: false },
-      ];
-    } else if (subject === 'Mathematics') {
-      defaultChips = [
-        { label: 'Quadratic Equations', icon: 'function-variant', recommended: false },
-        { label: 'Trigonometry', icon: 'triangle-outline', recommended: false },
-      ];
-    } else {
-      defaultChips = [
-        { label: 'Important Formulas', icon: 'text-box-search-outline', recommended: false },
-        { label: 'Previous Year Questions', icon: 'history', recommended: false },
-      ];
-    }
+    // Fetch dynamic NCERT syllabus & subject-aware quick chips
+    const { actionChips, topicChips } = getSyllabusData(studentClass, subject);
 
-    // If the currently selected subject is their weak subject, add a specific "Recommended" chip
+    let combinedChips = [];
+
+    // 1. Weak subject recommendation chip
     if (weakSubject && subject && weakSubject.toLowerCase() === subject.toLowerCase()) {
-      defaultChips.unshift({
+      combinedChips.push({
         label: 'Revise Weak Areas',
         icon: 'brain',
         recommended: true,
       });
     }
 
-    setChips(defaultChips);
+    // 2. Add subject-specific action chips (Key Dates for History, Grammar for English, Formulas for Math, etc.)
+    (actionChips || []).forEach(chip => {
+      combinedChips.push({
+        label: chip.label,
+        icon: chip.icon || 'text-box-search-outline',
+        recommended: false,
+      });
+    });
+
+    // 3. Add real NCERT chapter topic chips
+    (topicChips || []).forEach(top => {
+      combinedChips.push({
+        label: top,
+        icon: 'book-open-outline',
+        recommended: false,
+      });
+    });
+
+    setChips(combinedChips);
   };
 
   if (!subject) return null;

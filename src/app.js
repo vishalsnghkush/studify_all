@@ -3,11 +3,11 @@ import {
   MD3LightTheme,
   Provider as PaperProvider,
 } from 'react-native-paper';
-import React, {useEffect} from 'react';
+import React, {useEffect, Component} from 'react';
 import {DarkTheme, LightTheme} from './Utils/Theme';
 import {NavigationContainer} from '@react-navigation/native';
 import {AuthNavigation, AppNavigation} from './Navigation';
-import {StatusBar} from 'react-native';
+import {StatusBar, StyleSheet} from 'react-native';
 import {useSelector, shallowEqual, useDispatch} from 'react-redux';
 import { verificationToken } from './Components/Navigation/Drawer';
 import {BottomSheet} from './Components/Screen';
@@ -32,6 +32,51 @@ import {checkAndApplyDecay} from './Utils/EngagementTracker';
 
 
 const queryClient = new QueryClient();
+
+// ─── Global Error Boundary ────────────────────────────────────────────────
+// Catches any unhandled JS render error so the whole app never crashes
+class GlobalErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {hasError: false, error: null};
+  }
+  static getDerivedStateFromError(error) {
+    return {hasError: true, error};
+  }
+  componentDidCatch(error, info) {
+    console.error('GlobalErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      const {View, Text, TouchableOpacity, StyleSheet} = require('react-native');
+      return (
+        <View style={ebStyles.container}>
+          <Text style={ebStyles.emoji}>😕</Text>
+          <Text style={ebStyles.title}>Something went wrong</Text>
+          <Text style={ebStyles.body}>
+            The app hit an unexpected error. Tap below to reload.
+          </Text>
+          <TouchableOpacity
+            style={ebStyles.btn}
+            onPress={() => this.setState({hasError: false, error: null})}>
+            <Text style={ebStyles.btnText}>↺  Reload Screen</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+const ebStyles = StyleSheet.create({
+  container: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117', padding: 32},
+  emoji: {fontSize: 56, marginBottom: 16},
+  title: {fontSize: 22, fontWeight: '700', color: '#f0f6fc', marginBottom: 8},
+  body: {fontSize: 14, color: '#8b949e', textAlign: 'center', marginBottom: 32, lineHeight: 22},
+  btn: {backgroundColor: '#238636', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 10},
+  btnText: {color: '#ffffff', fontSize: 16, fontWeight: '600'},
+});
+// ─────────────────────────────────────────────────────────────────────────
+
 const LightMode = {
   ...MD3LightTheme,
   colors: LightTheme,
@@ -43,7 +88,6 @@ const DarkMode = {
 
 const App = () => {
   const dispatch = useDispatch();
-  console.log('main app render');
   const {user, isDark, isUserLoggedIn} = useSelector(
     state => ({
       isDark: state.initial.isDark,
@@ -68,14 +112,9 @@ const App = () => {
 
   useEffect(() => {
     const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
-
     if (verificationToken !== _t) {
-      const crash = () => {
-        while (true) {
-          // Infinite loop to freeze the app if Drawer credits are modified
-        }
-      };
-      crash();
+      // Integrity check failed — stop execution safely without freezing JS thread
+      throw new Error('App integrity check failed. Please reinstall the app.');
     }
   }, []);
 
@@ -242,4 +281,11 @@ const App = () => {
   );
 };
 
-export default App;
+// Wrap with GlobalErrorBoundary so no crash can take down the whole app
+const AppWithBoundary = () => (
+  <GlobalErrorBoundary>
+    <App />
+  </GlobalErrorBoundary>
+);
+
+export default AppWithBoundary;

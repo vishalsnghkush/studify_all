@@ -39,6 +39,7 @@ const GlassTextInput = ({ label, value, onChangeText, placeholder, icon, rightIc
           placeholderTextColor={dark ? '#6ee7b7' : '#059669'}
           editable={!disabled}
           autoFocus={autoFocus}
+          numberOfLines={1}
         />
 
         {rightIcon && (
@@ -78,6 +79,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     height: '100%',
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   rightIconContainer: {
     height: 32,

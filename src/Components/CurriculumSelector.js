@@ -4,7 +4,7 @@ import { useTheme } from 'react-native-paper';
 import GlassDropdown from './Input/GlassDropdown';
 import GlassTextInput from './Input/GlassTextInput';
 import { TopicChips } from './Input/TopicChips';
-import { BOARDS, CLASSES, STREAMS, getSubjectsForClass } from '../Utils/CurriculumConfig';
+import { BOARDS, CLASSES, STREAMS, getSubjectsForClass, getSyllabusData } from '../Utils/CurriculumConfig';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -72,6 +72,9 @@ export const CurriculumSelector = ({
   const showStream = ['Class 11', 'Class 12'].includes(studentClass);
   const streamSelectedIfRequired = showStream ? !!stream : true;
 
+  // Dynamically compute syllabus placeholders for topic and subtopic
+  const syllabusInfo = getSyllabusData(studentClass, subject);
+
   return (
     <View style={styles.container}>
       
@@ -117,7 +120,7 @@ export const CurriculumSelector = ({
           value={subject}
           options={subjectOptions}
           onSelect={handleSubjectChange}
-          placeholder={streamSelectedIfRequired ? "Physics" : "Pick Stream First"}
+          placeholder={streamSelectedIfRequired ? "Select Subject" : "Pick Stream First"}
           disabled={!studentClass || !streamSelectedIfRequired || subjectOptions.length === 0}
         />
       </View>
@@ -130,7 +133,7 @@ export const CurriculumSelector = ({
           label="Topic Name"
           value={topic}
           onChangeText={setTopic}
-          placeholder="e.g. Quadratic Equations, Photosynthesis"
+          placeholder={subject ? syllabusInfo.topicPlaceholder : "Select Class & Subject first"}
           disabled={!subject}
         />
         
@@ -146,7 +149,7 @@ export const CurriculumSelector = ({
           label="Subtopic (optional)"
           value={subtopic}
           onChangeText={setSubtopic}
-          placeholder="e.g. Nature of Roots, Light Reaction"
+          placeholder={subject ? syllabusInfo.subtopicPlaceholder : "Select Topic first"}
           disabled={!topic}
         />
       </View>

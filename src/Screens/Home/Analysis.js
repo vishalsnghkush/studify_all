@@ -19,6 +19,15 @@ const EXAMS_CLASSES_LIST = [
   'JEE', 'NEET', 'GATE', 'CUET'
 ];
 
+const formatSubjectName = (name) => {
+  if (!name) return 'General';
+  let clean = name.trim().toLowerCase();
+  if (clean === 'maths' || clean === 'math') return 'Mathematics';
+  if (clean === 'business') return 'Business Studies';
+  if (clean === 'science') return 'Science';
+  return clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 export default function Analysis({navigation}) {
   const theme = useTheme();
   const {user} = useSelector(state => state.initial);
@@ -32,7 +41,7 @@ export default function Analysis({navigation}) {
   // States for real data
   const [realHistory, setRealHistory] = useState([]);
   const [plannerSlots, setPlannerSlots] = useState([]);
-  const [pdfReads, setPdfReads] = useState([]);
+  const [studySessions, setStudySessions] = useState([]);
   const [notebookCount, setNotebookCount] = useState(0);
   const [totalNotesPages, setTotalNotesPages] = useState(0);
   const [examTarget, setExamTarget] = useState(null);
@@ -49,9 +58,33 @@ export default function Analysis({navigation}) {
       const slotsData = await AsyncStorage.getItem('studify_slots');
       if (slotsData) setPlannerSlots(JSON.parse(slotsData));
 
-      // 3. Load PDF notes reading log
+      // 3. Load PDF notes reading log & universal study sessions
       const pdfData = await AsyncStorage.getItem('@studify_notes_read_history');
-      if (pdfData) setPdfReads(JSON.parse(pdfData));
+      const sessionsData = await AsyncStorage.getItem('@studify_study_sessions_history');
+      
+      let merged = [];
+      if (pdfData) {
+        try {
+          const pdfReadsParsed = JSON.parse(pdfData);
+          pdfReadsParsed.forEach(item => {
+            merged.push({
+              subject: item.subject || 'General',
+              title: item.title || 'Study Note',
+              activityType: 'PDF Note',
+              duration: item.duration || 0,
+              timestamp: item.timestamp || Date.now()
+            });
+          });
+        } catch (_) {}
+      }
+
+      if (sessionsData) {
+        try {
+          const sessionsParsed = JSON.parse(sessionsData);
+          merged = [...merged, ...sessionsParsed];
+        } catch (_) {}
+      }
+      setStudySessions(merged);
 
       // 4. Load notebooks
       const notebooksData = await AsyncStorage.getItem('@voice_notebooks');
@@ -201,16 +234,23 @@ export default function Analysis({navigation}) {
     return { total, completed, rate };
   }, [plannerSlots]);
 
-  // Compute PDF Notes Focus Analytics (Idea 2)
+  // Compute Study Focus Analytics
   const notesAnalytics = useMemo(() => {
-    const totalReads = pdfReads.length;
+    const totalReads = studySessions.length;
     const subMap = {};
     const timeMap = {};
+    const activitiesMap = {};
 
-    pdfReads.forEach(item => {
-      const sub = item.subject || 'General';
+    studySessions.forEach(item => {
+      const sub = formatSubjectName(item.subject || 'General');
       subMap[sub] = (subMap[sub] || 0) + 1;
       timeMap[sub] = (timeMap[sub] || 0) + (item.duration || 0);
+
+      if (!activitiesMap[sub]) {
+        activitiesMap[sub] = {};
+      }
+      const type = item.activityType || 'PDF Note';
+      activitiesMap[sub][type] = (activitiesMap[sub][type] || 0) + (item.duration || 0);
     });
 
     const distribution = Object.keys(subMap).map((sub, idx) => {
@@ -219,23 +259,59 @@ export default function Analysis({navigation}) {
       
       let durationStr = '0s';
       if (totalSecs > 0) {
-        const m = Math.floor(totalSecs / 60);
+        const h = Math.floor(totalSecs / 3600);
+        const m = Math.floor((totalSecs % 3600) / 60);
         const s = totalSecs % 60;
-        durationStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+        if (h > 0) {
+          durationStr = `${h}h ${m}m`;
+        } else {
+          durationStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+        }
       }
 
-      const colorsList = ['#007171', '#ff9800', '#4caf50', '#2196f3'];
+      // Generate activity breakdowns string, e.g. "📖 PDF Note (60%) • 🧠 Mock Test (40%)"
+      const breakDownArr = [];
+      const subActivities = activitiesMap[sub] || {};
+      const subTotalTime = Object.values(subActivities).reduce((sum, t) => sum + t, 0) || 1;
+      
+      Object.entries(subActivities).forEach(([type, time]) => {
+        const pct = Math.round((time / subTotalTime) * 100);
+        if (pct > 0) {
+          let icon = '📖';
+          let displayType = type;
+          if (type === 'PDF Note') {
+            displayType = 'Notes';
+          } else if (type === 'Mock Test' || type === 'Quiz & Test') {
+            icon = '🧠';
+            displayType = 'Quiz & Test';
+          } else if (type === 'AI Notes') {
+            icon = '📝';
+          } else if (type === 'AI Lecture') {
+            icon = '🎧';
+          } else if (type === 'Focus Timer') {
+            icon = '🕰️';
+            displayType = 'Focus Session';
+          } else if (type === 'Voice Note') {
+            icon = '✍️';
+          }
+          breakDownArr.push(`${icon} ${displayType} (${pct}%)`);
+        }
+      });
+      const breakdownStr = breakDownArr.join(' • ');
+
+      const colorsList = ['#007171', '#ff9800', '#4caf50', '#2196f3', '#673ab7', '#e91e63'];
       return {
         subject: sub,
         count,
         durationStr,
+        breakdownStr,
         percent: totalReads > 0 ? Math.round((count / totalReads) * 100) : 0,
         color: colorsList[idx % colorsList.length]
       };
     });
 
     return { totalReads, distribution };
-  }, [pdfReads]);
+  }, [studySessions]);
 
   // Compute Streak contribution days for consistency grid (Idea 4)
   const lastFortnightDays = useMemo(() => {
@@ -260,8 +336,9 @@ export default function Analysis({navigation}) {
     try {
       await AsyncStorage.removeItem('@studify_test_history');
       await AsyncStorage.removeItem('@studify_notes_read_history');
+      await AsyncStorage.removeItem('@studify_study_sessions_history');
       setRealHistory([]);
-      setPdfReads([]);
+      setStudySessions([]);
     } catch (_) {}
   };
 
@@ -277,7 +354,7 @@ export default function Analysis({navigation}) {
   const hasGlobalData =
     realHistory.length > 0 ||
     plannerSlots.length > 0 ||
-    pdfReads.length > 0 ||
+    studySessions.length > 0 ||
     notebookCount > 0;
 
   return (
@@ -433,7 +510,7 @@ export default function Analysis({navigation}) {
                   <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
                     <Icon name="chart-donut" size={20} color="#673ab7" />
                     <Text style={{fontWeight: 'bold', fontSize: 14, marginLeft: 8}}>
-                      Note Study Focus & Reading Durations
+                      Study Focus & Learning Durations
                     </Text>
                   </View>
                   {notesAnalytics.distribution.map((dist, idx) => (
@@ -442,12 +519,17 @@ export default function Analysis({navigation}) {
                         <View style={{flex: 1}}>
                           <Text style={{fontSize: 12, fontWeight: 'bold'}}>{dist.subject}</Text>
                           <Text style={{fontSize: 10, color: '#888', marginTop: 2}}>
-                            Opened {dist.count} times • Duration: {dist.durationStr}
+                            Study Sessions: {dist.count} • Total Duration: {dist.durationStr}
                           </Text>
+                          {dist.breakdownStr ? (
+                            <Text style={{fontSize: 9, color: theme.colors.outline, marginTop: 3}}>
+                              {dist.breakdownStr}
+                            </Text>
+                          ) : null}
                         </View>
                         <Text style={{fontSize: 12, color: dist.color, fontWeight: 'bold'}}>{dist.percent}%</Text>
                       </View>
-                      <ProgressBar progress={dist.percent / 100} color={dist.color} style={{height: 6, borderRadius: 3}} />
+                      <ProgressBar progress={dist.percent / 100} color={dist.color} style={{height: 6, borderRadius: 3, marginTop: 4}} />
                     </View>
                   ))}
                 </Card.Content>

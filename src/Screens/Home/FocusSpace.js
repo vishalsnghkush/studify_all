@@ -5,6 +5,8 @@ import {useSelector} from 'react-redux';
 import {useTheme} from 'react-native-paper';
 import WebView from 'react-native-webview';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {trackEngagement, getTopEngagedSubjects, logStudySession} from '../../Utils/EngagementTracker';
+import {ToastAndroid} from 'react-native';
 
 export default function FocusSpace({navigation}) {
   const {colors, dark} = useTheme();
@@ -474,6 +476,10 @@ function startTimer() {
       clearInterval(timerId);
       if (mode === 'custom') { sessions = Math.min(sessions + 1, 4); updateDots(); }
       resetTimer();
+      // Notify React Native that a session was completed
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'TIMER_END', mode: mode, duration: duration }));
+      }
     }
   }, 1000);
 }
@@ -530,6 +536,23 @@ updateDisplay();
 </body>
 </html>`;
 
+  const handleMessage = async (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'TIMER_END') {
+        const topSubjects = await getTopEngagedSubjects(1);
+        if (topSubjects && topSubjects.length > 0) {
+          const subject = topSubjects[0];
+          // Log a Pomodoro focus session = 1500 seconds (25 mins)
+          await logStudySession(subject, 'Focus Timer Session', 'Focus Timer', 1500);
+          ToastAndroid.show(`Awesome! You just earned +25 focus points in ${subject}! 🔥`, ToastAndroid.LONG);
+        }
+      }
+    } catch (e) {
+      console.log('Error handling WebView message:', e);
+    }
+  };
+
   return (
     <SafeAreaView style={{flex: 1, backgroundColor: bgColor}}>
       <View style={{
@@ -552,6 +575,7 @@ updateDisplay();
         startInLoadingState={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
+        onMessage={handleMessage}
         style={{flex: 1, backgroundColor: bgColor}}
         renderLoading={() => (
           <View style={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: bgColor}}>

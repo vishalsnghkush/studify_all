@@ -8,36 +8,14 @@ const INCOGNITO_KEY = '@studify_incognito_mode';
 const LAST_DECAY_KEY = '@studify_last_decay_date';
 const RECENT_NOTE_KEY = '@studify_recent_note';
 
-/**
- * Checks if tracking is paused (Incognito Mode)
- */
-export const isIncognito = async () => {
-  try {
-    const value = await AsyncStorage.getItem(INCOGNITO_KEY);
-    return value === 'true';
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Sets Incognito Mode toggle
- */
-export const setIncognito = async (value) => {
-  try {
-    await AsyncStorage.setItem(INCOGNITO_KEY, value ? 'true' : 'false');
-  } catch (error) {
-    console.error('Error setting incognito:', error);
-  }
-};
+export const isIncognito = async () => false;
+export const setIncognito = async () => {};
 
 /**
  * Track user interaction with a subject and feature type
  */
 export const trackEngagement = async (subjectName, featureType) => {
   try {
-    const incognito = await isIncognito();
-    if (incognito) return; // Skip tracking in incognito mode
 
     if (!subjectName || !featureType) return;
     const formattedSubject = subjectName.trim().toLowerCase();
@@ -61,8 +39,13 @@ export const trackEngagement = async (subjectName, featureType) => {
     featureData[featureType] = (featureData[featureType] || 0) + 1;
     await AsyncStorage.setItem(FEATURE_USAGE_KEY, JSON.stringify(featureData));
 
-    // 3. Auto-schedule a local smart notification suggestion
-    await schedulePersonalizedReminder();
+    // 3. Auto-schedule a local smart notification — at most ONCE per day, not on every tap
+    const today = new Date().toISOString().split('T')[0];
+    const lastNotifDate = await AsyncStorage.getItem('@studify_last_notif_date');
+    if (lastNotifDate !== today) {
+      await schedulePersonalizedReminder();
+      await AsyncStorage.setItem('@studify_last_notif_date', today);
+    }
   } catch (error) {
     console.error('Error tracking engagement:', error);
   }
@@ -147,6 +130,82 @@ export const setRecentNote = async (noteObj) => {
     }));
   } catch (error) {
     console.error('Error setting recent note:', error);
+  }
+};
+
+/**
+ * Open recent note item based on type and screen parameters
+ */
+export const openRecentItem = (navigation, recentNote) => {
+  if (!recentNote || !navigation) return;
+
+  // 1. Explicit Screen Routing
+  if (recentNote.screen) {
+    if (recentNote.screen === 'Pdf') {
+      if (recentNote.pdf_url) {
+        navigation.navigate('Pdf', {
+          url: recentNote.pdf_url,
+          title: recentNote.name,
+          subject: recentNote.subject,
+          studentClass: recentNote.studentClass,
+        });
+        return;
+      }
+    } else if (recentNote.screen === 'AiNotesGenerator') {
+      navigation.navigate('AiNotesGenerator', {
+        board: recentNote.board || 'CBSE',
+        subject: recentNote.subject || 'General',
+        topic: recentNote.targetTopic || recentNote.name,
+        subtopic: recentNote.subtopic || '',
+        studentClass: recentNote.class || recentNote.studentClass || 'Class 10',
+      });
+      return;
+    } else if (recentNote.screen === 'AiLecturePlayer') {
+      navigation.navigate('AiLecturePlayer', {
+        board: recentNote.board || 'CBSE',
+        subject: recentNote.subject || 'General',
+        topic: recentNote.topic || recentNote.name,
+        subtopic: recentNote.subtopic || '',
+        studentClass: recentNote.class || recentNote.studentClass || 'Class 10',
+      });
+      return;
+    } else if (recentNote.screen === 'VoiceNotebook') {
+      navigation.navigate('VoiceNotebook');
+      return;
+    } else if (recentNote.screen === 'WebView') {
+      if (recentNote.url) {
+        navigation.navigate('WebView', { url: recentNote.url });
+        return;
+      }
+    }
+  }
+
+  // 2. Fallbacks based on properties
+  if (recentNote.pdf_url) {
+    navigation.navigate('Pdf', {
+      url: recentNote.pdf_url,
+      title: recentNote.name,
+      subject: recentNote.subject,
+      studentClass: recentNote.studentClass,
+    });
+  } else if (recentNote.url) {
+    navigation.navigate('WebView', { url: recentNote.url });
+  } else if (recentNote.type === 'lecture') {
+    navigation.navigate('AiLecturePlayer', {
+      board: recentNote.board || 'CBSE',
+      subject: recentNote.subject || 'General',
+      topic: recentNote.name,
+      studentClass: recentNote.class || 'Class 10',
+    });
+  } else {
+    // Default fallback for notes without PDF URL (AI Notes / Generated Notes)
+    navigation.navigate('AiNotesGenerator', {
+      board: recentNote.board || 'CBSE',
+      subject: recentNote.subject || 'General',
+      topic: recentNote.name,
+      subtopic: recentNote.subtopic || '',
+      studentClass: recentNote.class || 'Class 10',
+    });
   }
 };
 
@@ -279,6 +338,9 @@ export const schedulePersonalizedReminder = async () => {
     if (topSubjects.length === 0) return;
 
     const rawSubject = topSubjects[0];
+    // Skip if top subject is empty or 'general'
+    if (!rawSubject || rawSubject.toLowerCase() === 'general') return;
+
     const subjectName = rawSubject.charAt(0).toUpperCase() + rawSubject.slice(1);
 
     const channelId = await notifee.createChannel({
@@ -288,11 +350,11 @@ export const schedulePersonalizedReminder = async () => {
     });
 
     await notifee.displayNotification({
+      id: 'personalized_reminder', // Fixed ID ensures only 1 notification replaces itself
       title: `Ready for some ${subjectName} revision? 🧠`,
       body: `Jump back into your personalized study path for ${subjectName} on Studify.`,
       android: {
         channelId,
-        largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
         pressAction: {
           id: 'default',
         },
@@ -303,3 +365,162 @@ export const schedulePersonalizedReminder = async () => {
     console.error('Error displaying local notification:', error);
   }
 };
+
+/**
+ * Retrieve average test accuracy from test history
+ */
+export const getAverageTestAccuracy = async () => {
+  try {
+    const rawHistory = await AsyncStorage.getItem('@studify_test_history');
+    if (!rawHistory) return null;
+    const history = JSON.parse(rawHistory);
+    if (!Array.isArray(history) || history.length === 0) return null;
+    const totalAccuracy = history.reduce((sum, item) => sum + (item.accuracy || 0), 0);
+    return Math.round(totalAccuracy / history.length);
+  } catch (error) {
+    console.error('Error getting average test accuracy:', error);
+    return null;
+  }
+};
+
+/**
+ * Retrieve the last failed topic
+ */
+export const getLastFailedTopic = async () => {
+  try {
+    const rawFailed = await AsyncStorage.getItem('@studify_last_failed_topic');
+    if (!rawFailed) return null;
+    return JSON.parse(rawFailed);
+  } catch (error) {
+    console.error('Error getting last failed topic:', error);
+    return null;
+  }
+};
+
+/**
+ * Retrieve feature usage counts
+ */
+export const getFeatureUsageStats = async () => {
+  try {
+    const rawFeature = await AsyncStorage.getItem(FEATURE_USAGE_KEY);
+    return rawFeature ? JSON.parse(rawFeature) : { note: 0, quiz: 0, lecture: 0 };
+  } catch (error) {
+    console.error('Error getting feature usage stats:', error);
+    return { note: 0, quiz: 0, lecture: 0 };
+  }
+};
+
+/**
+ * Log a learning study session universally
+ */
+export const logStudySession = async (subjectName, title, activityType, durationSeconds) => {
+  try {
+    const incognito = await isIncognito();
+    if (incognito) return; // Skip if in incognito mode
+    if (!subjectName || durationSeconds < 2) return;
+
+    const sessionRecord = {
+      subject: subjectName.trim(),
+      title: title || 'Study Session',
+      activityType: activityType, // "AI Notes" | "PDF Note" | "AI Lecture" | "Mock Test" | "Focus Timer" | "Voice Note"
+      duration: durationSeconds,
+      timestamp: Date.now(),
+    };
+
+    const existing = await AsyncStorage.getItem('@studify_study_sessions_history');
+    const sessions = existing ? JSON.parse(existing) : [];
+    sessions.push(sessionRecord);
+    await AsyncStorage.setItem('@studify_study_sessions_history', JSON.stringify(sessions));
+
+    // Also track standard engagement to update counts (so Learning Diet stays updated!)
+    await trackEngagement(subjectName, activityType.toLowerCase());
+  } catch (error) {
+    console.error('Error logging study session:', error);
+  }
+};
+
+/**
+ * Retrieve the AI Focus Subject of the Day dynamically based on:
+ * - Time Since Last Study (Forgetting Curve)
+ * - Academic Weakness (Scores & Last Failed Quiz Topic)
+ * - Exam Urgency (Countdown to Target Exam)
+ */
+export const getAIFocusSubject = async () => {
+  try {
+    const rawEngagement = await AsyncStorage.getItem(ENGAGEMENT_KEY);
+    const engagementData = rawEngagement ? JSON.parse(rawEngagement) : {};
+    
+    const rawFailed = await AsyncStorage.getItem('@studify_last_failed_topic');
+    const failedTopic = rawFailed ? JSON.parse(rawFailed) : null;
+
+    const rawHistory = await AsyncStorage.getItem('@studify_test_history');
+    const testHistory = rawHistory ? JSON.parse(rawHistory) : [];
+
+    const rawTarget = await AsyncStorage.getItem('@studify_exam_target');
+    const examTarget = rawTarget ? JSON.parse(rawTarget) : null;
+
+    const subjectScores = {};
+
+    // 1. Initialize tracked subjects
+    Object.keys(engagementData).forEach(subj => {
+      const formatted = subj.trim().toLowerCase();
+      subjectScores[formatted] = { name: subj, score: 0, timeWeight: 0, weaknessWeight: 0, urgencyWeight: 0 };
+    });
+
+    // If failed topic has a subject not in tracked list, add it
+    if (failedTopic && failedTopic.subject) {
+      const formatted = failedTopic.subject.trim().toLowerCase();
+      if (!subjectScores[formatted]) {
+        subjectScores[formatted] = { name: failedTopic.subject, score: 0, timeWeight: 0, weaknessWeight: 0, urgencyWeight: 0 };
+      }
+    }
+
+    const now = Date.now();
+
+    // 2. Calculate Weights
+    Object.keys(subjectScores).forEach(subjKey => {
+      const data = engagementData[subjKey] || { lastOpenedTime: now };
+      
+      // A. Forgetting Curve (Time elapsed)
+      const diffMs = now - (data.lastOpenedTime || now);
+      const daysElapsed = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const timeWeight = Math.min(10, daysElapsed) * 1.5; 
+      subjectScores[subjKey].timeWeight = timeWeight;
+
+      // B. Academic Weakness
+      let weaknessWeight = 0;
+      if (failedTopic && failedTopic.subject.trim().toLowerCase() === subjKey) {
+        weaknessWeight += 15;
+      }
+      const subjTests = testHistory.filter(t => (t.subject || '').trim().toLowerCase() === subjKey);
+      if (subjTests.length > 0) {
+        const avgAcc = subjTests.reduce((sum, t) => sum + (t.accuracy || 0), 0) / subjTests.length;
+        weaknessWeight += (100 - avgAcc) * 0.15;
+      }
+      subjectScores[subjKey].weaknessWeight = weaknessWeight;
+
+      // C. Exam Urgency
+      let urgencyWeight = 0;
+      if (examTarget && examTarget.date) {
+        const examDate = new Date(examTarget.date).getTime();
+        const diffTime = examDate - now;
+        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (daysLeft > 0) {
+          urgencyWeight += Math.min(20, Math.max(1, 100 / daysLeft));
+        }
+      }
+      subjectScores[subjKey].urgencyWeight = urgencyWeight;
+
+      // E. Combined Smart Score
+      subjectScores[subjKey].score = timeWeight + weaknessWeight + urgencyWeight;
+    });
+
+    const sorted = Object.values(subjectScores).sort((a, b) => b.score - a.score);
+    return sorted.length > 0 ? sorted[0].name : null;
+  } catch (error) {
+    console.error('Error calculating AI Focus Subject:', error);
+    return null;
+  }
+};
+
+

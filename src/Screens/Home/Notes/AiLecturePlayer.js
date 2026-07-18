@@ -16,6 +16,7 @@ import {useNavigation} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
 import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
+import {normalizeSubject, normalizeClass, normalizeStream} from '../../../Utils/CurriculumConfig';
 
 import { PremiumLoader } from '../../../Components/PremiumLoader';
 
@@ -242,6 +243,23 @@ export default function AiLecturePlayer({ route }) {
   const [topSubject, setTopSubject] = useState('');
 
   useEffect(() => {
+    if (appState === 'playing') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            subject || 'General',
+            topic || 'AI Lecture',
+            'AI Lecture',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [appState, subject, topic]);
+
+  useEffect(() => {
     const fetchRecommendation = async () => {
       try {
         const top = await getTopEngagedSubjects(1);
@@ -270,9 +288,19 @@ export default function AiLecturePlayer({ route }) {
 
   // Read navigation parameters (autofill)
   useEffect(() => {
-    if (route?.params?.subject) {
-      const formatted = route.params.subject.charAt(0).toUpperCase() + route.params.subject.slice(1);
-      setSubject(formatted);
+    let normSub = '';
+    let normClass = '';
+    if (route?.params?.subject || route?.params?.topic) {
+      normSub = normalizeSubject(route?.params?.subject, route?.params?.topic);
+      setSubject(normSub);
+    }
+    if (route?.params?.studentClass || route?.params?.class || route?.params?.topic) {
+      normClass = normalizeClass(route?.params?.studentClass || route?.params?.class, route?.params?.topic);
+      setStudentClass(normClass);
+    }
+    if (normSub && normClass) {
+      const normStream = normalizeStream(normSub, normClass);
+      setStream(normStream);
     }
     if (route?.params?.topic) {
       setTopic(route.params.topic);
@@ -522,6 +550,7 @@ export default function AiLecturePlayer({ route }) {
       name: topic.trim(),
       subject: subject,
       type: 'lecture',
+      screen: 'AiLecturePlayer',
       board: board,
       class: studentClass,
       subtopic: subtopic.trim() || ''
@@ -693,6 +722,12 @@ export default function AiLecturePlayer({ route }) {
 
       {appState === 'setup' && (
         <View style={{flex: 1}}>
+          {/* Back button for setup state — header is hidden so this is the only way back */}
+          <TouchableOpacity
+            onPress={() => navigation.canGoBack() && navigation.goBack()}
+            style={{padding: 12, flexDirection: 'row', alignItems: 'center', gap: 6}}>
+            <Icon name="arrow-left" size={22} color={theme.colors.onBackground} />
+          </TouchableOpacity>
           {/* Tab Selection */}
           <View style={styles.tabContainer}>
             <TouchableOpacity
@@ -991,8 +1026,12 @@ export default function AiLecturePlayer({ route }) {
                     .replace(/fill\s*=\s*["']#333["']/gi, 'fill="none"')
                     .replace(/stroke\s*=\s*["']#333["']/gi, 'stroke="#60a5fa"');
                     
-                  // Auto-fix LLM SVG syntax errors (e.g., viewBox="0=" 300 150")
-                  cleanSvg = cleanSvg.replace(/viewBox=["'][^"']*["']/gi, 'viewBox="0 0 300 150"');
+                  // Auto-fix LLM SVG syntax errors without overriding valid viewBoxes
+                  cleanSvg = cleanSvg.replace(/viewBox\s*=\s*["']\s*0\s*=\s*(\d+)\s*(\d+)\s*["']/gi, 'viewBox="0 0 $1 $2"');
+                  if (!/viewBox\s*=/i.test(cleanSvg)) {
+                    cleanSvg = cleanSvg.replace(/<svg/i, '<svg viewBox="0 0 300 300"');
+                  }
+                  
                   // Strip out any background rectangles the AI might have drawn
                   cleanSvg = cleanSvg.replace(/<rect[^>]*width=["']300["'][^>]*fill=["']#(1a1a1a|000000|222222|333333)["'][^>]*\/?>/gi, '');
 
@@ -1001,11 +1040,11 @@ export default function AiLecturePlayer({ route }) {
                       style={[
                         styles.diagramContainer,
                         {
-                          height: 170,
-                          backgroundColor: theme.dark ? '#0c1410' : '#1e3328',
+                          height: Math.round(require('react-native').Dimensions.get('window').width * 0.65),
+                          backgroundColor: '#0f172a',
                           justifyContent: 'center',
                           alignItems: 'center',
-                          padding: 8,
+                          padding: 6,
                         },
                       ]}>
                       <SvgXml 
@@ -1200,6 +1239,34 @@ export default function AiLecturePlayer({ route }) {
                 {Math.round(((currentSlideIndex + 1) / slides.length) * 100)}%
               </Text>
             </View>
+            
+            {/* Automated "Infinite Loop" CTA (Phase 1) */}
+            {currentSlideIndex === slides.length - 1 && (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('TestGenerator', { 
+                    subject: subject || 'General', 
+                    topic: topic || 'Review',
+                    studentClass: studentClass,
+                    board: board,
+                    stream: stream,
+                  });
+                }}
+                style={{
+                  backgroundColor: '#673ab7',
+                  marginHorizontal: 10,
+                  marginTop: 16,
+                  padding: 12,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  elevation: 2,
+                }}>
+                <Icon name="brain" size={20} color="white" />
+                <Text style={{color: 'white', fontWeight: 'bold', marginLeft: 8}}>Test your Knowledge (AI Quiz)</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}

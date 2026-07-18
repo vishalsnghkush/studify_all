@@ -23,7 +23,7 @@ const WebviewScreen = ({route}) => {
       // Hide website navigation headers, bars, social links, and footers immediately
       if (${isStudifySite}) {
         css += ' \\
-          .top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe { \\
+          .top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"] { \\
             display: none !important; \\
             visibility: hidden !important; \\
             height: 0 !important; \\
@@ -118,7 +118,7 @@ const WebviewScreen = ({route}) => {
   const postLoadScript = `
     (function() {
       function hideHeaderFooter() {
-        var selectors = '.top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], iframe, .tawk-min-container, .tawk-button, [class*="chat"], [class*="widget"]';
+        var selectors = '.top-bar, .header, header, nav, .navbar, .h_logox, footer, [class*="footer"], #preloader, .preloader, .loader, #loader, [id*="tawk"], .tawk-min-container, .tawk-button, [class*="chat"], [class*="widget"]';
         var elements = document.querySelectorAll(selectors);
         for (var i = 0; i < elements.length; i++) {
           elements[i].style.setProperty('display', 'none', 'important');

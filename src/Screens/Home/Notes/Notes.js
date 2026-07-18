@@ -90,6 +90,21 @@ const Notes = ({navigation}) => {
       actionText: 'Start Quiz',
     },
     {
+      title: 'Download Notes',
+      descWords: [
+        {text: 'Free ', highlight: true},
+        {text: 'study materials!', highlight: false},
+      ],
+      url: 'ClassNotesSelector',
+      isStack: true,
+      color: dark ? 'rgba(0, 150, 136, 0.12)' : '#e0f2f1',
+      borderColor: '#009688',
+      icon: 'download',
+      badge: 'NOTES',
+      category: 'free',
+      actionText: 'Select Class',
+    },
+    {
       title: 'Science Keywords',
       descWords: [
         {text: 'Key ', highlight: false},

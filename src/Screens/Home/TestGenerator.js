@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   ScrollView,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // App Custom Components
 import { PremiumLoader } from '../../Components/PremiumLoader';
@@ -19,13 +20,15 @@ import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 import {Text, TextInput, Button} from '../../Components/Input';
 import {CurriculumSelector} from '../../Components/CurriculumSelector';
+import {normalizeSubject, normalizeClass, normalizeStream} from '../../Utils/CurriculumConfig';
 import GlassButton from '../../Components/Input/GlassButton';
+import GlassDropdown from '../../Components/Input/GlassDropdown';
+import GlassTextInput from '../../Components/Input/GlassTextInput';
 import {useNavigation} from '@react-navigation/native';
 import Dropdown from '../../Components/Input/Dropdown';
 import {Confetti} from '../../Components/Screen/Confetti';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-import {trackEngagement, getTopEngagedSubjects} from '../../Utils/EngagementTracker';
-
+import {trackEngagement, getTopEngagedSubjects, logStudySession} from '../../Utils/EngagementTracker';
 
 // Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
 // Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
@@ -286,11 +289,8 @@ export default function TestGenerator({ route }) {
   const [flaggedQuestions, setFlaggedQuestions] = useState({});
   const [questionTimes, setQuestionTimes] = useState({});
   const [lastActiveIdx, setLastActiveIdx] = useState(0);
-  const [blueprintList, setBlueprintList] = useState([]);
-  const [blueprintChapter, setBlueprintChapter] = useState('');
   const [weakestSubject, setWeakestSubject] = useState('');
   const [weakestTopic, setWeakestTopic] = useState('');
-  const [blueprintCount, setBlueprintCount] = useState('');
 
   // Subjective / Written Evaluator States
   const [testFormat, setTestFormat] = useState('Objective'); // 'Objective' | 'Subjective'
@@ -300,30 +300,43 @@ export default function TestGenerator({ route }) {
   const [isGrading, setIsGrading] = useState(false);
 
   useEffect(() => {
+    if (appState === 'testing') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            subject || 'General',
+            topic || 'AI Test',
+            'Mock Test',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [appState, subject, topic]);
+
+  useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
     if (appState === 'results') {
       setDisplayedScore(0);
-      const start = 0;
       const end = Number(scoreData.marks) || 0;
       const maxMarks = Number(scoreData.maxMarks) || 0;
-
-      const duration = 1200; // 1.2 seconds
+      const duration = 1200;
       const startTime = Date.now();
-
+      let cancelled = false; // ← prevents setState after reset
       let animationId;
+
       const animate = () => {
+        if (cancelled) return; // ← stop immediately on reset
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-
-        // Easing: easeOutQuad
         const easeProgress = progress * (2 - progress);
-        let currentScore = start + (end - start) * easeProgress;
-        if (isNaN(currentScore)) {
-          currentScore = 0;
-        }
+        let currentScore = (end) * easeProgress;
+        if (isNaN(currentScore)) currentScore = 0;
 
         if (examName === 'GATE') {
           setDisplayedScore(parseFloat(currentScore.toFixed(2)));
@@ -335,7 +348,6 @@ export default function TestGenerator({ route }) {
           animationId = requestAnimationFrame(animate);
         } else {
           setDisplayedScore(end);
-          // Trigger confetti burst if user scored >= 80%
           if (end >= maxMarks * 0.8) {
             setShowConfetti(true);
           }
@@ -343,7 +355,10 @@ export default function TestGenerator({ route }) {
       };
 
       animationId = requestAnimationFrame(animate);
-      return () => cancelAnimationFrame(animationId);
+      return () => {
+        cancelled = true; // ← cancel animation on cleanup
+        cancelAnimationFrame(animationId);
+      };
     }
   }, [appState, scoreData.marks, scoreData.maxMarks, examName]);
 
@@ -368,9 +383,29 @@ export default function TestGenerator({ route }) {
   }, [appState]);
 
   useEffect(() => {
+    let normSub = '';
+    let normClass = '';
     if (route?.params?.subject) {
-      setSubject(route.params.subject);
+      normSub = normalizeSubject(route.params.subject);
+      setSubject(normSub);
       setGenerationType('Subject Wise');
+    }
+    if (route?.params?.studentClass || route?.params?.class) {
+      normClass = normalizeClass(route?.params?.studentClass || route?.params?.class);
+      setStudentClass(normClass);
+    }
+    if (normSub && normClass) {
+      const normStream = normalizeStream(normSub, normClass);
+      setStream(normStream);
+    }
+    if (route?.params?.board) {
+      setBoard(route.params.board);
+    }
+    if (route?.params?.topic) {
+      setTopic(route.params.topic);
+    }
+    if (route?.params?.subtopic) {
+      setSubtopic(route.params.subtopic);
     }
   }, [route?.params]);
 
@@ -489,14 +524,29 @@ export default function TestGenerator({ route }) {
         const m = item ? parseFloat(item.marksAwarded) : 0;
         return (isNaN(m) ? 0 : m) < (questions[item.idx]?.maxMarks || 10) * 0.75;
       });
-      const weakSub = wrongSubjectiveList.length > 0 ? (questions[wrongSubjectiveList[0].idx]?.subject || subject) : subject;
-      const weakTop = wrongSubjectiveList.length > 0 ? (questions[wrongSubjectiveList[0].idx]?.topic || questions[0]?.topic || topic || '') : (topic || '');
-      setWeakestSubject(weakSub);
-      setWeakestTopic(weakTop);
+      if (calculatedScoreData.incorrect > 0 && wrongSubjectiveList.length > 0) {
+        const weakSub = questions[wrongSubjectiveList[0].idx]?.subject || subject;
+        const weakTop = questions[wrongSubjectiveList[0].idx]?.topic || questions[0]?.topic || topic || '';
+        setWeakestSubject(weakSub);
+        setWeakestTopic(weakTop);
+        
+        // Save failed topic for Context-Aware AI Tutor
+        if (weakTop) {
+          AsyncStorage.setItem('@studify_last_failed_topic', JSON.stringify({ 
+            subject: weakSub, 
+            topic: weakTop,
+            studentClass: studentClass,
+            board: board,
+            stream: stream
+          }));
+        }
+      } else {
+        setWeakestSubject('');
+        setWeakestTopic('');
+      }
 
       // Save to local test history
       try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         const existing = await AsyncStorage.getItem('@studify_test_history');
         let history = existing ? JSON.parse(existing) : [];
         const newRecord = {
@@ -587,7 +637,6 @@ export default function TestGenerator({ route }) {
 
     // Save test result to AsyncStorage for real-time Analysis tracking
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       AsyncStorage.getItem('@studify_test_history').then(existingHistory => {
         let history = [];
         if (existingHistory) {
@@ -624,12 +673,29 @@ export default function TestGenerator({ route }) {
     // Find weak objective topics
     const wrongObjectiveList = questions.map((q, idx) => ({ q, idx })).filter(item => {
       const uA = userAnswers[item.idx];
-      return !isAnswerCorrect(item.q, uA);
+      return uA !== undefined && uA !== null && uA !== '' && !isAnswerCorrect(item.q, uA);
     });
-    const weakSub = wrongObjectiveList.length > 0 ? (wrongObjectiveList[0].q.subject || subject) : subject;
-    const weakTop = wrongObjectiveList.length > 0 ? (wrongObjectiveList[0].q.topic || questions[0]?.topic || topic || '') : (topic || '');
-    setWeakestSubject(weakSub);
-    setWeakestTopic(weakTop);
+
+    if (calculatedScoreData.incorrect > 0 && wrongObjectiveList.length > 0) {
+      const weakSub = wrongObjectiveList[0].q.subject || subject;
+      const weakTop = wrongObjectiveList[0].q.topic || topic || '';
+      setWeakestSubject(weakSub);
+      setWeakestTopic(weakTop);
+      
+      // Save failed topic for Context-Aware AI Tutor
+      if (weakTop) {
+        AsyncStorage.setItem('@studify_last_failed_topic', JSON.stringify({ 
+          subject: weakSub, 
+          topic: weakTop,
+          studentClass: studentClass,
+          board: board,
+          stream: stream
+        }));
+      }
+    } else {
+      setWeakestSubject('');
+      setWeakestTopic('');
+    }
 
     setScoreData(calculatedScoreData);
     setAppState('results');
@@ -679,7 +745,6 @@ export default function TestGenerator({ route }) {
     let activeSubject = overrideParams ? overrideParams.subject : subject;
     trackEngagement(activeSubject || 'General', 'quiz');
 
-    let activeBlueprintList = overrideParams ? overrideParams.blueprintList : blueprintList;
     let activeGenerationType = overrideParams ? overrideParams.generationType : generationType;
     let activeExamName = overrideParams ? overrideParams.examName : (board === 'Competitive' ? 'JEE/NEET' : `${board} ${studentClass}`);
     let activeTestFormat = overrideParams ? overrideParams.testFormat : testFormat;
@@ -687,10 +752,10 @@ export default function TestGenerator({ route }) {
     let finalNumQuestions = activeNumQuestions;
     let blueprintInstruction = '';
 
-    if (activeBlueprintList && activeBlueprintList.length > 0 && activeGenerationType !== 'Complete Paper') {
-      finalNumQuestions = activeBlueprintList.reduce((acc, bp) => acc + bp.count, 0);
+    if (overrideParams && overrideParams.blueprintList && overrideParams.blueprintList.length > 0 && activeGenerationType !== 'Complete Paper') {
+      finalNumQuestions = overrideParams.blueprintList.reduce((acc, bp) => acc + bp.count, 0);
       blueprintInstruction = '\n- Custom Topic Blueprint Weightage: ' + 
-        activeBlueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
+        overrideParams.blueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
     }
 
     if (finalNumQuestions > 50) {
@@ -710,33 +775,47 @@ export default function TestGenerator({ route }) {
     const systemPrompt = activeTestFormat === 'Subjective'
       ? 'You are an expert academic test creator. Create high-quality Subjective (Written/Derivation/Diagram) questions.\n\n' +
         'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no code fences.\n\n' +
-        'Each element must be: {"question": "string", "idealAnswer": "string", "maxMarks": number, "rubric": "string"}\n\n' +
+        'Each element must be: {"question": "string", "idealAnswer": "string", "maxMarks": number, "rubric": "string", "topic": "string"}\n\n' +
         'CRITICAL RULES:\n' +
         '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
         '- maxMarks should be a reasonable integer (e.g. 5 or 10) depending on complexity.\n' +
         '- idealAnswer must provide a detailed step-by-step textbook standard correct derivation, numerical steps, or diagram description.\n' +
         '- rubric must detail exactly how to award marks (e.g. "3 marks for thylakoid diagram, 2 marks for labels").\n' +
+        '- topic must specify the clean chapter or sub-topic name (e.g., "Cell Membrane", "Quadratic Equations").\n' +
         '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
         '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
         '- Output ONLY the raw JSON array starting with [ and ending with ].'
       : 'You are an expert academic test creator. Create high-quality MCQ questions.\n\n' +
         'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
-        'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string", "explanation": "string"}\n\n' +
+        'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string", "explanation": "string", "topic": "string"}\n\n' +
         'CRITICAL RULES:\n' +
         '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
         '- Exactly 4 options per question. Never 3, never 5.\n' +
         '- correctAnswer must exactly match one of the 4 options.\n' +
         '- explanation must provide a detailed step-by-step reasoning explaining why the correctAnswer is correct and how to solve it.\n' +
+        '- topic must specify the clean chapter or sub-topic name (e.g., "Cell Membrane", "Quadratic Equations").\n' +
         '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
         '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
         '- DO NOT wrap the response in code fences or markdown.\n' +
         '- Output ONLY the raw JSON array starting with [ and ending with ].';
+
+    let topicInstruction = '';
+    if (topic && typeof topic === 'string' && topic.trim()) {
+      const safeSubtopic = Array.isArray(subtopic)
+        ? subtopic.join(', ')
+        : (typeof subtopic === 'string' ? subtopic.trim() : '');
+
+      topicInstruction = '\n- Specific Topic/Chapter: "' + topic.trim() + '"' + 
+        (safeSubtopic ? ' (Subtopic: "' + safeSubtopic + '")' : '') + 
+        '. Ensure all questions are strictly focused on this topic.';
+    }
 
     const userPrompt = activeTestFormat === 'Subjective'
       ? 'Create EXACTLY ' + finalNumQuestions + ' Subjective written/derivation/diagram questions:\n' +
         '- Exam: ' + activeExamName + '\n' +
         '- Type: ' + activeGenerationType + '\n' +
         '- Subject: ' + (finalSubject || 'General') + '\n' +
+        topicInstruction + '\n' +
         '- Difficulty: ' + difficulty + '\n' +
         blueprintInstruction + '\n\n' +
         'Remember: Include complex subjective problems, derivations, drawing/sketching requests, or paragraph analyses matching the exam syllabus. Output raw JSON array only.'
@@ -744,35 +823,56 @@ export default function TestGenerator({ route }) {
         '- Exam: ' + activeExamName + '\n' +
         '- Type: ' + activeGenerationType + '\n' +
         '- Subject: ' + (finalSubject || 'General') + '\n' +
+        topicInstruction + '\n' +
         '- Difficulty: ' + difficulty + '\n' +
         blueprintInstruction + '\n\n' +
         'Remember: Make the questions highly academic, rigorous, and matching next-level expectations for prestigious exams like JEE Advanced, NEET, GATE, and CUET. Plain text only, no LaTeX. Output raw JSON array only.';
 
     try {
-      const response = await fetch(
-        'https://openrouter.ai/api/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + OPENROUTER_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openrouter/free',
-            messages: [
-              {role: 'system', content: systemPrompt},
-              {role: 'user', content: userPrompt},
-            ],
-          }),
-        },
-      );
+      const models = [
+        'openrouter/free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+        'google/gemini-2.0-flash-lite-001',
+        'qwen/qwen-2.5-coder-32b-instruct:free',
+      ];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error('OpenRouter API error: ' + errorText);
+      let data = null;
+      for (const modelName of models) {
+        try {
+          const response = await fetch(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + OPENROUTER_API_KEY,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: modelName,
+                messages: [
+                  {role: 'system', content: systemPrompt},
+                  {role: 'user', content: userPrompt},
+                ],
+              }),
+            },
+          );
+
+          if (response.ok) {
+            const json = await response.json();
+            if (json?.choices?.[0]?.message?.content) {
+              data = json;
+              break;
+            }
+          }
+        } catch (err) {
+          console.log(`Model ${modelName} failed in TestGenerator, trying next...`, err);
+        }
       }
 
-      const data = await response.json();
+      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('All AI test generation models were unable to respond. Please try again.');
+      }
+
       let content =
         (data.choices &&
           data.choices[0] &&
@@ -916,14 +1016,17 @@ export default function TestGenerator({ route }) {
     }
   };
 
+  const hasAutoStartedRef = useRef(false);
+
   // Handle autoStart parameters passed from AI Study Notes Generator
   useEffect(() => {
-    if (route?.params?.autoStart) {
+    if (route?.params?.autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
       const { board, subject: paramSub, topic, subtopic } = route.params;
       
       let matchedExamName = 'NCERT Class 12';
       if (board) {
-        const boardLower = board.toLowerCase();
+        const boardLower = String(board).toLowerCase();
         if (boardLower.includes('jee')) matchedExamName = 'JEE';
         else if (boardLower.includes('neet')) matchedExamName = 'NEET';
         else if (boardLower.includes('cuet')) matchedExamName = 'CUET';
@@ -938,18 +1041,14 @@ export default function TestGenerator({ route }) {
 
       setGenerationType('Topic Wise');
 
-      let finalSub = 'General';
-      if (paramSub) {
-        const capSub = paramSub.charAt(0).toUpperCase() + paramSub.slice(1).toLowerCase();
-        setSubject(capSub);
-        finalSub = capSub;
-      }
+      let finalSub = normalizeSubject(paramSub, topic);
+      setSubject(finalSub);
 
-      const chapterName = subtopic ? `${topic} - ${subtopic}` : topic || 'General';
+      const subStr = Array.isArray(subtopic) ? subtopic.join(', ') : (typeof subtopic === 'string' ? subtopic : '');
+      const chapterName = subStr ? `${topic || ''} - ${subStr}` : (topic || 'General');
       const countVal = 5;
       const bpList = [{ chapter: chapterName, count: countVal }];
 
-      setBlueprintList(bpList);
       setNumQuestions('5');
       setTestFormat('Objective'); // Notes quick quiz is MCQ by default
 
@@ -992,26 +1091,6 @@ export default function TestGenerator({ route }) {
   const handleSelectOption = (qIndex, optionValue) => {
     setUserAnswers(prev => ({...prev, [qIndex]: optionValue}));
     setLastActiveIdx(qIndex);
-  };
-
-  const handleAddBlueprint = () => {
-    if (!blueprintChapter.trim() || !blueprintCount.trim()) {
-      Alert.alert('Error', 'Please enter a chapter name and question count.');
-      return;
-    }
-    const count = parseInt(blueprintCount, 10);
-    if (isNaN(count) || count <= 0) {
-      Alert.alert('Error', 'Question count must be a positive number.');
-      return;
-    }
-    // Prevent exceeding total questions if they build custom blueprint
-    setBlueprintList(prev => [...prev, { chapter: blueprintChapter.trim(), count }]);
-    setBlueprintChapter('');
-    setBlueprintCount('');
-  };
-
-  const handleRemoveBlueprint = index => {
-    setBlueprintList(prev => prev.filter((_, idx) => idx !== index));
   };
 
   const toggleFlag = idx => {
@@ -1080,7 +1159,7 @@ export default function TestGenerator({ route }) {
   };
 
   const resetGenerator = () => {
-    setAppState('setup');
+    // Reset appState LAST so render switches only after all state is clean
     setQuestions([]);
     setUserAnswers({});
     setTimeLeft(null);
@@ -1094,6 +1173,14 @@ export default function TestGenerator({ route }) {
     setUserSubjectiveImages({});
     setGradedAnswers({});
     setIsGrading(false);
+    setScoreData({marks: 0, correct: 0, incorrect: 0, unattempted: 0, maxMarks: 0});
+    setDisplayedScore(0);
+    setShowConfetti(false);
+    setWeakestSubject('');
+    setWeakestTopic('');
+    setError('');
+    // Switch state last — ensures all data is clean before setup screen renders
+    setAppState('setup');
   };
 
   // State setup render
@@ -1109,211 +1196,140 @@ export default function TestGenerator({ route }) {
           </Text>
         </View>
 
-        {topSubject ? (
-          <View style={{gap: 12, marginBottom: 16}}>
-            <Card
-              onPress={() => {
-                const formatted = topSubject.charAt(0).toUpperCase() + topSubject.slice(1);
-                setSubject(formatted);
-                setGenerationType('Subject Wise');
-              }}
-              style={{
-                marginHorizontal: 16,
-                backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
-                borderWidth: 1.5,
-                borderColor: theme.dark ? '#007171' : '#007171',
-                borderRadius: 12,
-                elevation: 1,
-              }}>
-              <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
-                <Icon name="brain" size={26} color={theme.dark ? '#a3e635' : '#007171'} style={{marginRight: 12}} />
-                <View style={{flex: 1}}>
-                  <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#004d40'}}>
-                    💡 Suggested Quiz: {topSubject.charAt(0).toUpperCase() + topSubject.slice(1)}
-                  </Text>
-                  <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#007171', marginTop: 2}}>
-                    You study {topSubject} often. Tap to configure a quick quiz on it!
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#004d40'} />
-              </Card.Content>
-            </Card>
+        {(() => {
+          const displaySub = subject || (topSubject && topSubject.toLowerCase() !== 'general' ? topSubject : '');
+          const formattedSub = displaySub ? (displaySub.charAt(0).toUpperCase() + displaySub.slice(1)) : '';
+          const classInfo = studentClass ? ` (${studentClass})` : '';
 
-            <Card
-              onPress={() => {
-                navigation.navigate('Notes');
-              }}
-              style={{
-                marginHorizontal: 16,
-                backgroundColor: theme.dark ? 'rgba(103, 58, 183, 0.15)' : '#f3e5f5',
-                borderWidth: 1.2,
-                borderColor: theme.dark ? '#673ab7' : '#d1c4e9',
-                borderRadius: 12,
-                elevation: 1,
-              }}>
-              <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
-                <Icon name="book-open-page-variant" size={24} color={theme.dark ? '#d946ef' : '#673ab7'} style={{marginRight: 12}} />
-                <View style={{flex: 1}}>
-                  <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#4a148c'}}>
-                    📚 Review notes before the test!
-                  </Text>
-                  <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#7b1fa2', marginTop: 2}}>
-                    Read handwritten summary PDFs and NCERT Solutions for {topSubject} first.
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#673ab7'} />
-              </Card.Content>
-            </Card>
-          </View>
-        ) : null}
-
-        <Card
-          style={[
-            styles.formCard,
-            theme.dark ? {
-              backgroundColor: theme.colors.elevation.level1,
-              borderColor: theme.colors.outlineVariant,
-              borderWidth: 1,
-            } : {
-              backgroundColor: '#ffffff',
-              elevation: 2,
-              shadowColor: '#000',
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              shadowOffset: {width: 0, height: 1},
-            },
-          ]}>
-          <Card.Content style={{paddingVertical: 10}}>
-            <CurriculumSelector
-              board={board} setBoard={setBoard}
-              studentClass={studentClass} setStudentClass={setStudentClass}
-              stream={stream} setStream={setStream}
-              subject={subject} setSubject={setSubject}
-              topic={topic} setTopic={setTopic}
-              subtopic={subtopic} setSubtopic={setSubtopic}
-            />
-
-            <View style={{marginTop: 5}}>
-              <Dropdown
-                label="Test Format"
-                name="testFormat"
-                value={testFormat}
-                updateFormValue={({value}) => setTestFormat(value)}
-                list={[
-                  {label: 'Objective (MCQs)', value: 'Objective'},
-                  {label: 'Subjective (Written / Diagrams)', value: 'Subjective'}
-                ]}
-              />
-            </View>
-
-            <View style={{marginTop: 15}}>
-              <Dropdown
-                label="Generation Type"
-                name="generationType"
-                value={generationType}
-                updateFormValue={handleFormChange}
-                list={generationTypeList}
-              />
-            </View>
-
-            <View style={{marginTop: 15}}>
-              <Dropdown
-                label="Difficulty Level"
-                name="difficulty"
-                value={difficulty}
-                updateFormValue={handleFormChange}
-                list={difficultyList}
-              />
-            </View>
-
-            {generationType !== 'Complete Paper' && (
-              <View style={{marginTop: 15}}>
-                {blueprintList.length === 0 ? (
-                  <TextInput
-                    label="Number of Questions"
-                    name="numQuestions"
-                    defaultValue={numQuestions}
-                    updateFormValue={handleFormChange}
-                    keyboard="numeric"
-                    placeholder="5"
-                  />
-                ) : (
-                  <View style={{backgroundColor: '#e8f5e9', padding: 10, borderRadius: 8, borderColor: '#4caf50', borderWidth: 1}}>
-                    <Text style={{color: '#2e7d32', fontWeight: 'bold', fontSize: 12}}>
-                      Total Blueprint Questions: {blueprintList.reduce((acc, bp) => acc + bp.count, 0)}
+          return (
+            <View style={{gap: 12, marginBottom: 16}}>
+              <Card
+                onPress={() => {
+                  if (formattedSub) {
+                    setSubject(formattedSub);
+                    setGenerationType('Subject Wise');
+                  }
+                }}
+                style={{
+                  marginHorizontal: 16,
+                  backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                  borderWidth: 1.5,
+                  borderColor: theme.dark ? '#007171' : '#007171',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                  <Icon name="brain" size={26} color={theme.dark ? '#a3e635' : '#007171'} style={{marginRight: 12}} />
+                  <View style={{flex: 1}}>
+                    <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#004d40'}}>
+                      💡 Suggested Quiz: {formattedSub ? `${formattedSub}${classInfo}` : 'NCERT Syllabus Test'}
+                    </Text>
+                    <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#007171', marginTop: 2}}>
+                      {formattedSub 
+                        ? `Practice custom AI test questions tailored for ${formattedSub}${classInfo}!`
+                        : 'Select your class and subject below to generate a tailored NCERT test!'}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+                  <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#004d40'} />
+                </Card.Content>
+              </Card>
+
+              <Card
+                onPress={() => {
+                  navigation.navigate('Notes');
+                }}
+                style={{
+                  marginHorizontal: 16,
+                  backgroundColor: theme.dark ? 'rgba(103, 58, 183, 0.15)' : '#f3e5f5',
+                  borderWidth: 1.2,
+                  borderColor: theme.dark ? '#673ab7' : '#d1c4e9',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                  <Icon name="book-open-page-variant" size={24} color={theme.dark ? '#d946ef' : '#673ab7'} style={{marginRight: 12}} />
+                  <View style={{flex: 1}}>
+                    <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#4a148c'}}>
+                      📚 Review notes before the test!
+                    </Text>
+                    <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#7b1fa2', marginTop: 2}}>
+                      {formattedSub 
+                        ? `Read handwritten summary PDFs and NCERT Solutions for ${formattedSub} first.`
+                        : 'Read handwritten summary PDFs and NCERT Solutions for your syllabus first.'}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#673ab7'} />
+                </Card.Content>
+              </Card>
+            </View>
+          );
+        })()}
+        <View style={styles.formContainer}>
+          <CurriculumSelector
+            board={board} setBoard={setBoard}
+            studentClass={studentClass} setStudentClass={setStudentClass}
+            stream={stream} setStream={setStream}
+            subject={subject} setSubject={setSubject}
+            topic={topic} setTopic={setTopic}
+            subtopic={subtopic} setSubtopic={setSubtopic}
+          />
+
+          <View style={{
+            backgroundColor: theme.dark ? '#064e3b' : '#eefbf6',
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOpacity: 0.05,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+          }}>
+            <RNText style={{
+              fontSize: 18,
+              fontWeight: '700',
+              marginBottom: 16,
+              color: theme.dark ? '#ecfdf5' : '#064e3b'
+            }}>Test Configuration</RNText>
+
+            <GlassDropdown
+              label="Test Format"
+              value={testFormat}
+              options={[
+                {label: 'Objective (MCQs)', value: 'Objective'},
+                {label: 'Subjective (Written / Diagrams) — Paid', value: 'Subjective', disabled: true}
+              ]}
+              onSelect={setTestFormat}
+            />
+
+            <View style={{marginTop: 5}} />
+            <GlassDropdown
+              label="Generation Type"
+              value={generationType}
+              options={generationTypeList}
+              onSelect={(val) => handleFormChange({name: 'generationType', value: val})}
+            />
+
+            <View style={{marginTop: 5}} />
+            <GlassDropdown
+              label="Difficulty Level"
+              value={difficulty}
+              options={difficultyList}
+              onSelect={(val) => handleFormChange({name: 'difficulty', value: val})}
+            />
 
             {generationType !== 'Complete Paper' && (
-              <View style={{marginTop: 15, borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingTop: 15}}>
-                <Text style={{fontWeight: 'bold', fontSize: 13, marginBottom: 8, color: theme.colors.onSurface}}>
-                  Custom Topic Blueprint (Optional)
-                </Text>
-
-                <View style={{flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 10}}>
-                  <View style={{flex: 2}}>
-                    <RNTextInput
-                      placeholder="Chapter/Topic name"
-                      value={blueprintChapter}
-                      onChangeText={setBlueprintChapter}
-                      placeholderTextColor="#999"
-                      style={{
-                        height: 48,
-                        borderColor: '#ccc',
-                        borderWidth: 1,
-                        borderRadius: 10,
-                        paddingHorizontal: 12,
-                        color: theme.colors.onSurface
-                      }}
-                    />
-                  </View>
-                  <View style={{flex: 1}}>
-                    <RNTextInput
-                      placeholder="Qs"
-                      value={blueprintCount}
-                      onChangeText={setBlueprintCount}
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                      style={{
-                        height: 48,
-                        borderColor: '#ccc',
-                        borderWidth: 1,
-                        borderRadius: 10,
-                        paddingHorizontal: 12,
-                        color: theme.colors.onSurface,
-                        textAlign: 'center'
-                      }}
-                    />
-                  </View>
-                  <TouchableOpacity 
-                    onPress={handleAddBlueprint}
-                    style={{
-                      backgroundColor: theme.colors.primary,
-                      height: 48,
-                      width: 48,
-                      borderRadius: 10,
-                      justifyContent: 'center',
-                      alignItems: 'center'
-                    }}>
-                    <Icon name="plus" size={24} color="white" />
-                  </TouchableOpacity>
-                </View>
-
-                {blueprintList.map((bp, bpIdx) => (
-                  <View key={bpIdx} style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eef6f5', padding: 10, borderRadius: 8, marginBottom: 6}}>
-                    <Text style={{fontSize: 12, fontWeight: 'bold', color: '#007171'}}>{bp.chapter} ({bp.count} Qs)</Text>
-                    <TouchableOpacity onPress={() => handleRemoveBlueprint(bpIdx)}>
-                      <Icon name="close" size={18} color="#c62828" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+              <View style={{marginTop: 5}}>
+                <GlassTextInput
+                  label="Number of Questions"
+                  value={numQuestions}
+                  onChangeText={(val) => handleFormChange({name: 'numQuestions', value: val})}
+                  keyboardType="numeric"
+                  placeholder="5"
+                />
               </View>
             )}
-          </Card.Content>
-        </Card>
+          </View>
 
         {error ? (
           <View style={styles.errorContainer}>
@@ -1329,6 +1345,7 @@ export default function TestGenerator({ route }) {
           onPress={() => handleGenerate()}
           disabled={!board || !studentClass}
         />
+        </View>
       </Screen>
     );
   }
@@ -1388,7 +1405,7 @@ export default function TestGenerator({ route }) {
   // Testing State
   if (appState === 'testing') {
     return (
-      <Screen list style={{flex: 1, paddingBottom: 40}}>
+      <Screen list NoHeader style={{flex: 1, paddingBottom: 40}}>
         {/* Sticky Timer Header */}
         <View
           style={[
@@ -1639,7 +1656,7 @@ export default function TestGenerator({ route }) {
         showConfetti,
       );
       return (
-        <Screen list style={{flex: 1, paddingBottom: 40}}>
+        <Screen list NoHeader style={{flex: 1, paddingBottom: 40}}>
           <ScrollView
             style={{flex: 1}}
             contentContainerStyle={{paddingBottom: 40}}
@@ -1808,6 +1825,9 @@ export default function TestGenerator({ route }) {
                         navigation.navigate('AiNotesGenerator', {
                           subject: weakestSubject,
                           topic: weakestTopic,
+                          studentClass: studentClass,
+                          board: board,
+                          stream: stream,
                         });
                       }}
                       style={{
@@ -1822,7 +1842,7 @@ export default function TestGenerator({ route }) {
                       }}>
                       <Icon name="book-open-page-variant" size={14} color="white" />
                       <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
-                        Generate AI Notes (Auto-filled)
+                        Generate AI Notes
                       </Text>
                     </TouchableOpacity>
 
@@ -1831,6 +1851,9 @@ export default function TestGenerator({ route }) {
                         navigation.navigate('AiLecturePlayer', {
                           subject: weakestSubject,
                           topic: weakestTopic,
+                          studentClass: studentClass,
+                          board: board,
+                          stream: stream,
                         });
                       }}
                       style={{
@@ -1845,7 +1868,7 @@ export default function TestGenerator({ route }) {
                       }}>
                       <Icon name="play-circle-outline" size={14} color="white" />
                       <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
-                        Listen to AI Lecture (Auto-filled)
+                        Listen to AI Lecture
                       </Text>
                     </TouchableOpacity>
 
