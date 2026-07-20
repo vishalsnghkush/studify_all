@@ -91,7 +91,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         resConfigs "en", "US"
-        versionCode 10  //increse it for new release
+        versionCode 11  //increse it for new release
         versionName "1.8"  //app version
         externalNativeBuild {
             cmake {
