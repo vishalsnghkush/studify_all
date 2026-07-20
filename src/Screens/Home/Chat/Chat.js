@@ -54,7 +54,13 @@ const Chat = ({route}) => {
       fetchChats();
       newTopic = `chat/${[currentUserId, data.receiver_id].sort().join('-')}`;
     }
-    client.subscribe(newTopic);
+    try {
+      if (client && client.isConnected()) {
+        client.subscribe(newTopic);
+      }
+    } catch (e) {
+      console.log('MQTT subscribe error:', e);
+    }
     if (unreadRef.current > 0) {
       setTimeout(() => {
         try {
@@ -63,7 +69,13 @@ const Chat = ({route}) => {
       }, 1000);
     }
     return () => {
-      client.unsubscribe(newTopic);
+      try {
+        if (client && client.isConnected()) {
+          client.unsubscribe(newTopic);
+        }
+      } catch (e) {
+        console.log('MQTT unsubscribe error:', e);
+      }
     };
   }, []);
 
@@ -211,10 +223,12 @@ const Chat = ({route}) => {
         };
         dispatch(addMessage(optimistic));
         messageIdsRef.current.add(tempId);
+
         if (client?.isConnected()) {
           const payload = JSON.stringify({
             chat_group_id: data?.chat_group_id,
             sender_id: currentUserId,
+            sender_name: user?.fname || user?.email || 'Intern',
             receiver_id: data?.receiver_id,
             message: text ? trimmed : ' ',
             message_type: type,

@@ -3,50 +3,94 @@ import messaging from '@react-native-firebase/messaging';
 import {getApp} from '@react-native-firebase/app';
 import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
 import {Store} from './Store';
+import {addNotification} from './NotificationStorage';
 
 const app = getApp();
 
 export const onMessageReceived = async message => {
   // console.log('from onMessageReceived', message);
-  if (!message.data.title) {
+  const title = message.notification?.title || message.data?.title;
+  const body = message.notification?.body || message.data?.body;
+
+  if (!title) {
     return;
   }
+
   try {
-    const state = Store?.getState?.();
-    const chat = state?.chat?.groups?.find(
-      c => c.chat_group_id === message?.data?.chat_group_id,
-    );
-    const unreadCount = chat ? chat.unread_count : 0;
+    const isChat = !!message?.data?.chat_group_id;
+    let channelId;
 
-    const channelId = await notifee.createChannel({
-      id: 'chat',
-      name: 'Default Channel',
-      importance: AndroidImportance.HIGH,
-      sound: 'default',
-    });
+    if (isChat) {
+      const state = Store?.getState?.();
+      const chat = state?.chat?.groups?.find(
+        c => c.chat_group_id === message?.data?.chat_group_id,
+      );
+      const unreadCount = chat ? chat.unread_count : 0;
 
-    await notifee.displayNotification({
-      id: message?.data?.chat_group_id?.toString(),
-      title: message?.data?.title || 'Notification',
-      body: message?.data?.body || 'You have a new message.',
-      data: {
-        ...message?.data?.data,
-        unread_count: unreadCount.toString(),
-      },
-      android: {
-        channelId,
-        largeIcon:
-          'https://www.studifysuccess.com/images/apple-touch-icon.webp',
-        timestamp: Date.now(),
-        showTimestamp: true,
-        groupId: message?.data?.chat_group_id?.toString(),
-        // groupSummary: true,
-        style: {
-          type: AndroidStyle.BIGTEXT,
-          text: message?.data?.body || 'You have a new message.',
+      channelId = await notifee.createChannel({
+        id: 'chat',
+        name: 'Chat Channel',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+      });
+
+      await notifee.displayNotification({
+        id: message?.data?.chat_group_id?.toString(),
+        title: title,
+        body: body || 'You have a new message.',
+        data: {
+          ...message?.data,
+          unread_count: unreadCount.toString(),
         },
-        color: 'teal',
-      },
+        android: {
+          channelId,
+          largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
+          timestamp: Date.now(),
+          showTimestamp: true,
+          groupId: message?.data?.chat_group_id?.toString(),
+          style: {
+            type: AndroidStyle.BIGTEXT,
+            text: body || 'You have a new message.',
+          },
+          color: 'teal',
+        },
+      });
+    } else {
+      channelId = await notifee.createChannel({
+        id: 'general',
+        name: 'General Channel',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+      });
+
+      const notifId = Date.now().toString();
+      await notifee.displayNotification({
+        id: notifId,
+        title: title,
+        body: body || 'New update available.',
+        data: message?.data || {},
+        android: {
+          channelId,
+          largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
+          timestamp: Date.now(),
+          showTimestamp: true,
+          style: {
+            type: AndroidStyle.BIGTEXT,
+            text: body || 'New update available.',
+          },
+          color: 'teal',
+        },
+      });
+    }
+
+    // Save notification to local storage
+    await addNotification({
+      id: message.messageId || Date.now().toString(),
+      title,
+      body: body || '',
+      timestamp: Date.now(),
+      screen: message.data?.screen || '',
+      url: message.data?.url || '',
     });
   } catch (error) {
     console.log('Notification Error:', error);

@@ -9,8 +9,9 @@ import {requestNotificationPermission} from '../../Utils/Notification';
 import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
+// const BASE_URL = 'https://studifysuccess-chat-room.loca.lt/api/';
+// const BASE_URL = 'http://10.0.2.2:3000/api/';
 const BASE_URL = 'https://www.api.studifysuccess.com/api/';
-// const BASE_URL = 'http://192.168.1.3:3000/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
 
@@ -31,17 +32,24 @@ export default function CheckAuth() {
   axios.defaults.headers.common['Content-Type'] = 'application/json';
   axios.defaults.baseURL = BASE_URL;
   console.log('auth rerender token', axios.defaults.baseURL);
-  axios.interceptors.response.use(
-    res => res,
-    err => {
-      if (err.response.status === 401) {
-        dispatch(setUserLogout());
-        removeFcmToken();
-        console.log('invalid token');
-      }
-      return Promise.reject(err);
-    },
-  );
+  
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      res => res,
+      err => {
+        if (err.response?.status === 401) {
+          dispatch(setUserLogout());
+          removeFcmToken();
+          console.log('invalid token');
+        }
+        return Promise.reject(err);
+      },
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [dispatch]);
 
   const onContinue = async () => {
     if (!contactPermission) {
@@ -136,4 +144,6 @@ export default function CheckAuth() {
       console.log('err', err);
     }
   };
+
+  return null;
 }

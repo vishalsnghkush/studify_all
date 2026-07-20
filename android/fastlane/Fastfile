@@ -1,0 +1,120 @@
+default_platform(:android)
+
+BUILD_GRADLE = File.expand_path("../app/build.gradle", __dir__)
+
+def read_build_gradle_field(field)
+  content = File.read(BUILD_GRADLE)
+  case field
+  when :version_code
+    m = content.match(/versionCode\s+(\d+)/)
+    m ? m[1].to_i : nil
+  when :version_name
+    m = content.match(/versionName\s+"([^"]+)"/)
+    m ? m[1] : nil
+  end
+end
+
+def write_build_gradle(version_code: nil, version_name: nil)
+  content = File.read(BUILD_GRADLE)
+  content = content.sub(/versionCode\s+\d+/, "versionCode #{version_code}") if version_code
+  content = content.sub(/versionName\s+"[^"]+"/, "versionName \"#{version_name}\"") if version_name
+  File.write(BUILD_GRADLE, content)
+end
+
+def bump_version_name_last_segment(current)
+  parts = current.split(".")
+  parts[-1] = (parts[-1].to_i + 1).to_s
+  parts.join(".")
+end
+
+platform :android do
+  desc "Run unit tests"
+  lane :test do
+    gradle(task: "test", project_dir: "./")
+  end
+
+  desc "Compute the next versionCode: max across Play Store tracks + 1. Falls back to build.gradle + 1 if lookup fails."
+  private_lane :next_version_code do
+    codes = []
+    ["internal", "alpha", "beta", "production"].each do |track|
+      begin
+        codes.concat(google_play_track_version_codes(track: track) || [])
+      rescue => e
+        UI.message("Skipping track '#{track}': #{e.message}")
+      end
+    end
+    codes.compact!
+    if codes.empty?
+      fallback = (read_build_gradle_field(:version_code) || 0) + 1
+      UI.important("No existing Play Store version codes found — falling back to build.gradle + 1 (#{fallback}).")
+      fallback
+    else
+      next_code = codes.max + 1
+      UI.success("Next versionCode: #{next_code} (highest existing on Play Store: #{codes.max})")
+      next_code
+    end
+  end
+
+  desc "Assemble a release APK"
+  lane :build_apk do
+    gradle(task: "assemble", build_type: "Release", project_dir: "./")
+  end
+
+  desc "Bundle a release AAB"
+  lane :build_aab do
+    gradle(task: "bundle", build_type: "Release", project_dir: "./")
+  end
+
+  desc "Deploy an AAB to the Google Play internal testing track"
+  lane :internal do
+    write_build_gradle(version_code: next_version_code)
+    build_aab
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      release_status: "draft",
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy an AAB to the Google Play beta track"
+  lane :beta do
+    write_build_gradle(version_code: next_version_code)
+    build_aab
+    upload_to_play_store(
+      track: "beta",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy a new version to the Google Play Store production track (bumps both versionCode and versionName)"
+  lane :production do
+    current_name = read_build_gradle_field(:version_name)
+    new_name = bump_version_name_last_segment(current_name)
+    UI.success("Bumping versionName #{current_name} → #{new_name}")
+    write_build_gradle(
+      version_code: next_version_code,
+      version_name: new_name
+    )
+    build_aab
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      release_status: "completed",
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

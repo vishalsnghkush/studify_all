@@ -129,12 +129,13 @@ const App = () => {
       if (topic !== `notification/${user?.user_id}`) {
         dispatch(
           addMessage({
-            id: Date.now(),
-            created_at: new Date().toISOString(),
-            message_type: data?.message_type,
-            message: data?.message,
-            media_url: data?.media_url,
-            sender_id: data?.sender_id,
+            id: data.id || Date.now(),
+            created_at: data.created_at || new Date().toISOString(),
+            message_type: data.message_type || 'text',
+            message: data.message,
+            media_url: data.media_url,
+            sender_id: data.sender_id,
+            sender_name: data.sender_name,
           }),
         );
       } else {
@@ -160,7 +161,11 @@ const App = () => {
     client.connect({
       onSuccess: () => {
         console.log('Connected to MQTT');
-        client.subscribe(`notification/${user?.user_id}`);
+        try {
+          client.subscribe(`notification/${user?.user_id}`);
+        } catch (e) {
+          console.log('MQTT notification subscribe error:', e);
+        }
       },
       useSSL: true, // false for localHost
       onFailure: onFailure,
@@ -171,7 +176,7 @@ const App = () => {
 
     return () => {
       try {
-        mqttClient?.disconnect();
+        client.disconnect();
       } catch (e) {
         console.log('MQTT disconnect error:', e);
       }
@@ -182,7 +187,7 @@ const App = () => {
         unsubscribeFore?.();
       } catch (e) {}
     };
-  }, [isUserLoggedIn]);
+  }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
     if (data?.screen === 'Chat') {

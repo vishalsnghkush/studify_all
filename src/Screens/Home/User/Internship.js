@@ -8,15 +8,16 @@ import {useMutation} from '@tanstack/react-query';
 import DropDown from 'react-native-paper-dropdown';
 import FlashMessage from '../../../Components/Screen/FlashMessage';
 import {useSelector} from 'react-redux';
-const Internship = ({navigation}) => {
+const Internship = ({navigation, route}) => {
+  const {get, post} = useApi();
   const {colors} = useTheme();
   const {user} = useSelector(state => state.initial);
   const [List, setList] = useState();
   const [form, setForm] = useState({
-    name: user?.fname + ' ' + user?.lname || '',
+    name: user ? [user.fname, user.lname].filter(Boolean).join(' ') : '',
     email: user?.email || '',
     phone: '',
-    department: '',
+    department: route?.params?.category || '',
     duration: '',
   });
   const [dropdown, setDropdown] = useState(false);
@@ -36,7 +37,7 @@ const Internship = ({navigation}) => {
   ];
   useEffect(() => {
     const getUser = async () => {
-      const res = await useApi().get('/notes/internship?q=1');
+      const res = await get('/notes/internship?q=1');
       setList(res.data);
     };
     getUser();
@@ -47,7 +48,7 @@ const Internship = ({navigation}) => {
   };
 
   const {mutate, isPending} = useMutation({
-    mutationFn: data => useApi().post('/notes/internship', (data = form)),
+    mutationFn: data => post('/notes/internship', data),
     onSuccess: res => {
       // console.log('response', res);
       navigation.goBack();
@@ -64,10 +65,10 @@ const Internship = ({navigation}) => {
       }
     });
 
-    newErrors.name = form.name.length < 3;
-    newErrors.phone = form.phone.length <= 9;
+    newErrors.name = (form.name || '').length < 3;
+    newErrors.phone = (form.phone || '').length <= 9;
     newErrors.email = !/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(
-      form.email.trim(),
+      (form.email || '').trim(),
     );
     newErrors.duration = false;
     newErrors.department = false;
@@ -87,7 +88,7 @@ const Internship = ({navigation}) => {
             type: 'danger',
           });
         }
-        mutate();
+        mutate(form);
       } catch (error) {
         console.log(error);
       }

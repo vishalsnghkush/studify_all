@@ -1,5 +1,6 @@
-import {Linking, View} from 'react-native';
-import {Drawer, Avatar, TouchableRipple} from 'react-native-paper';
+import React, {useState, useRef, useEffect} from 'react';
+import {Linking, View, Image, Animated, StyleSheet} from 'react-native';
+import {Drawer, Avatar, TouchableRipple, useTheme} from 'react-native-paper';
 import {DrawerContentScrollView} from '@react-navigation/drawer';
 import {Text} from '../Input';
 import {useSelector} from 'react-redux';
@@ -11,8 +12,14 @@ const DrawerComponent = props => {
     props.navigation.navigate(nav);
     props.navigation.closeDrawer();
   };
+  const navigateWithParams = (nav, params) => {
+    props.navigation.navigate(nav, params);
+    props.navigation.closeDrawer();
+  };
+
   const {user} = useSelector(state => state.initial);
   const {bottom} = useSafeAreaInsets();
+  const {colors} = useTheme();
 
   return (
     <View style={{flex: 1}}>
@@ -27,23 +34,93 @@ const DrawerComponent = props => {
           <TouchableRipple onPress={() => navigate('Profile')}>
             <View
               style={{
+                backgroundColor: colors.primary,
+                padding: 20,
+                paddingTop: 24,
+                paddingBottom: 24,
+                borderBottomLeftRadius: 20,
+                borderBottomRightRadius: 20,
                 flexDirection: 'row',
-                padding: 15,
                 alignItems: 'center',
-                gap: 10,
+                gap: 12,
+                elevation: 4,
+                shadowColor: '#000',
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                shadowOffset: {width: 0, height: 2},
+                marginBottom: 10,
               }}>
-              <Avatar.Text size={60} label={user.fname[0] + user.lname[0]} />
-              <View>
-                <Text size="medium">{user.fname}</Text>
-                <Text size="small">{user.lname}</Text>
+              {user?.avatar ? (
+                <Image
+                  source={{uri: user.avatar}}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                  }}
+                />
+              ) : (
+                <Avatar.Text
+                  size={60}
+                  label={(user.fname?.[0] || 'U') + (user.lname?.[0] || '')}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                  }}
+                  color="#fff"
+                />
+              )}
+              <View style={{flex: 1}}>
+                <Text size="medium" style={{color: '#fff', fontWeight: 'bold'}}>
+                  {user.fname} {user.lname}
+                </Text>
+                {user?.class && !user?.is_intern && (
+                  <Text
+                    size="small"
+                    style={{
+                      color: 'rgba(255, 255, 255, 0.85)',
+                      fontWeight: 'bold',
+                      marginTop: 2,
+                    }}>
+                    Class: {user.class}
+                  </Text>
+                )}
               </View>
             </View>
           </TouchableRipple>
-          {/* <Drawer.Item
-            label="Notes"
-            icon="file-document"
-            onPress={() => navigate('Notes')}
-          /> */}
+          <Drawer.Item
+            label="AI Test Generator"
+            icon="brain"
+            onPress={() => navigate('TestGenerator')}
+          />
+          <Drawer.Item
+            label="Online Quiz"
+            icon="chat-question"
+            onPress={() => navigate('OnlineQuiz')}
+          />
+          <Drawer.Item
+            label="Activities"
+            icon="layers"
+            onPress={() => navigate('Activities')}
+          />
+          <Drawer.Item
+            label="Counseling System"
+            icon="account-group"
+            onPress={() => navigate('Counselling')}
+          />
+          <Drawer.Item
+            label="Support Portal"
+            icon="help-circle"
+            onPress={() =>
+              navigateWithParams('WebView', {
+                url: 'https://support.studifysuccess.com/',
+                title: 'Support Portal',
+              })
+            }
+          />
           <Drawer.Item
             label="Report Issue or Bug"
             icon="bug"

@@ -1,6 +1,6 @@
 import {CardStyleInterpolators} from '@react-navigation/stack';
 import DrawerNavigation from './DrawerNavigation';
-import {lazy} from 'react';
+import React, {lazy} from 'react';
 import {
   Profile,
   EditProfile,
@@ -13,21 +13,36 @@ import {
   Update,
   TransactionDetails,
   Search,
+  TestGenerator,
+  StudyPlanner,
+  OnlineTuitions,
+  OfflineTuitions,
+  ClassNotesSelector,
+  PersonalizedLearning,
+  GamificationDashboard,
+  Careers,
+  Activities,
+  Counselling,
 } from '../Screens/Home';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
-import {CustomerService} from '../Screens/Home/HelpCenter';
+
 import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
+import NcertSolutions from '../Screens/Home/Notes/NcertSolutions';
+import ImportantQuestions from '../Screens/Home/Notes/ImportantQuestions';
+import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
+import Keywords from '../Screens/Home/Notes/Keywords';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
 const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
 const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
 
+const Stack = createStackNavigator();
+
 const AppNavigation = () => {
-  const Stack = createStackNavigator();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -55,14 +70,7 @@ const AppNavigation = () => {
           title: 'Help Center',
         }}
       />
-      <Stack.Screen
-        name="CustomerService"
-        component={CustomerService}
-        options={{
-          title: 'Customer Service',
-          showPhoneIcon: true,
-        }}
-      />
+
       <Stack.Screen name="Transaction" component={Transaction} />
       <Stack.Screen
         name="TransactionDetails"
@@ -74,9 +82,14 @@ const AppNavigation = () => {
       <Stack.Screen
         name="WebView"
         component={WebView}
-        options={{
-          headerShown: false,
-        }}
+        options={({route}) => ({
+          title: route?.params?.title || '',
+          headerShown: route?.params?.title ? true : false,
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
+        })}
       />
       <Stack.Screen
         name="ChangePassword"
@@ -117,6 +130,26 @@ const AppNavigation = () => {
         component={FreeNotes}
         options={{title: 'YouTube Notes'}}
       />
+      <Stack.Screen
+        name="NcertSolutions"
+        component={NcertSolutions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ImportantQuestions"
+        component={ImportantQuestions}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="OnlineQuiz"
+        component={OnlineQuiz}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Keywords"
+        component={Keywords}
+        options={{headerShown: false}}
+      />
       <Stack.Screen name="Pdf" component={Pdf} options={{headerShown: false}} />
       <Stack.Screen
         name="Appreport"
@@ -124,9 +157,62 @@ const AppNavigation = () => {
         options={{title: 'Report issue or bug'}}
       />
       <Stack.Screen
+        name="TestGenerator"
+        component={TestGenerator}
+        options={{title: 'AI Test Generator'}}
+      />
+      <Stack.Screen
+        name="StudyPlanner"
+        component={StudyPlanner}
+        options={{title: 'Study Planner & Tasks'}}
+      />
+      <Stack.Screen
+        name="ClassNotesSelector"
+        component={ClassNotesSelector}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="PersonalizedLearning"
+        component={PersonalizedLearning}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
         name="Groups"
         component={Groups}
         options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="GamificationDashboard"
+        component={GamificationDashboard}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="OfflineTuitions"
+        component={OfflineTuitions}
+        options={{
+          title: 'Offline Tuitions',
+        }}
+      />
+      <Stack.Screen
+        name="Careers"
+        component={Careers}
+        options={{
+          title: 'Careers',
+        }}
+      />
+      <Stack.Screen
+        name="Activities"
+        component={Activities}
+        options={{
+          title: 'Activities',
+        }}
+      />
+      <Stack.Screen
+        name="Counselling"
+        component={Counselling}
+        options={{
+          title: 'Counselling System',
+        }}
       />
       <Stack.Screen
         name="Chat"

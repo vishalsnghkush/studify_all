@@ -8,6 +8,11 @@ apply plugin: 'com.google.gms.google-services'
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Adds every autolinked native module as an `implementation` project dependency
+    // by reading build/generated/autolinking/autolinking.json (produced by
+    // autolinkLibrariesFromCommand() in settings.gradle). Required since RN 0.75+.
+    autolinkLibrariesWithApp()
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
     // root = file("../")
@@ -76,13 +81,23 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.studifysuccess.courses"
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
     defaultConfig {
         applicationId "com.studifysuccess.courses"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         resConfigs "en", "US"
-        versionCode 8  //increse it for new release
-        versionName "1.7"  //app version
+        versionCode 11  //increse it for new release
+        versionName "1.8"  //app version
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
+            }
+        }
     }
     signingConfigs {
      release {
@@ -98,6 +113,13 @@ android {
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
+        }
+    }
+    // react-native-pdf pins io.legere:pdfiumandroid:1.0.24 (4KB page alignment),
+    // which fails the Google Play 16KB requirement. 1.0.35 ships 16KB-aligned .so files.
+    configurations.all {
+        resolutionStrategy {
+            force 'io.legere:pdfiumandroid:1.0.35'
         }
     }
     buildTypes {
@@ -117,10 +139,9 @@ android {
 }
 
 dependencies {
-     implementation project(':react-native-splash-screen')
+    implementation project(':react-native-splash-screen')
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:flipper-integration")
     implementation("androidx.activity:activity:1.9.+")
 
     if (hermesEnabled.toBoolean()) {
@@ -129,5 +150,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

@@ -1,7 +1,8 @@
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import {useTheme} from 'react-native-paper';
+const Tab = createMaterialTopTabNavigator();
+
 export default function TopNavigation({tabs}) {
-  const Tab = createMaterialTopTabNavigator();
   const {colors} = useTheme();
   return (
     <Tab.Navigator

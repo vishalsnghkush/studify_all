@@ -1,15 +1,44 @@
 import axios from 'axios';
 import FlashMessage from '../Screen/FlashMessage';
+import { Store } from '../../Utils/Store';
+
 const useApi = () => {
+
   const request = async (method, endpoint, data = {}, params = {}) => {
+    const skipErrorFlash = params?.skipErrorFlash;
+    const skipSuccessFlash = params?.skipSuccessFlash;
     try {
+      const state = Store.getState();
+      const token = state.initial?.token;
+      
+      let reqMethod = method;
+      let reqHeaders = {
+        'bypass-tunnel-reminder': 'true'
+      };
+      if (token) {
+        reqHeaders['x-auth-token'] = token;
+        reqHeaders['Authorization'] = `Bearer ${token}`;
+      }
+      let reqData = data;
+      
+      if (method === 'PUT' || method === 'DELETE') {
+        reqMethod = 'POST';
+        reqHeaders['X-HTTP-Method-Override'] = method;
+        if (reqData && typeof reqData === 'object' && !Array.isArray(reqData)) {
+          reqData = { ...reqData, _method: method };
+        }
+      }
+      
+      const { skipErrorFlash: _, skipSuccessFlash: __, ...axiosParams } = params;
+      
       const response = await axios({
-        method,
+        method: reqMethod,
         url: endpoint,
-        data,
-        params,
+        data: reqData,
+        params: axiosParams,
+        headers: reqHeaders,
       });
-      if (response.data.message) {
+      if (response.data.message && !skipSuccessFlash) {
         FlashMessage({
           message: response.data.message,
           type: 'success',
@@ -17,13 +46,28 @@ const useApi = () => {
       }
       return response.data;
     } catch (error) {
-      if (error.response.data.message) {
-        FlashMessage({
-          message: error.response.data.message,
-          type: 'danger',
-        });
+      if (!skipErrorFlash) {
+        if (error.response?.data?.message) {
+          FlashMessage({
+            message: error.response.data.message,
+            type: 'danger',
+          });
+        } else {
+          FlashMessage({
+            message: error.message || 'Something went wrong',
+            type: 'danger',
+          });
+        }
       }
-      console.log('useapi error', error.response.data);
+      console.log('useapi error', error.response?.data || error.message);
+      console.log('failed request config:', {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        data: error.config?.data,
+      });
+      throw error;
     }
   };
 

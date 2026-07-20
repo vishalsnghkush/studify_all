@@ -11,7 +11,7 @@ import useApi from '../../Components/Api/Api';
 import {setUserLogin} from '../../Redux/Slices/InitialSlice';
 import FlashMessage from '../../Components/Screen/FlashMessage';
 import DeviceInfo from 'react-native-device-info';
-const Google = () => {
+const Google = ({ selectedRole }) => {
   const [loading, setLoading] = useState(false);
   let brand = DeviceInfo.getBrand();
   let model = DeviceInfo.getModel();
@@ -29,7 +29,7 @@ const Google = () => {
     try {
       await GoogleSignin.signOut();
       await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn({prompt: 'select_account'});
+      const user = await GoogleSignin.signIn();
       // console.log('Google response', user);
       const res = await useApi().post('/auth/googleSignup', {
         email: user.data.user.email,
@@ -41,10 +41,14 @@ const Google = () => {
       });
       // console.log('profile updated', res);
       if (res.status == 200) {
+        const updatedUser = {
+          ...res.data.user,
+          is_intern: selectedRole === 'intern',
+        };
         dispatch(
           setUserLogin({
             token: res.data.token,
-            user: res.data.user,
+            user: updatedUser,
           }),
         );
       } else {
@@ -58,15 +62,24 @@ const Google = () => {
       );
       return auth(app).signInWithCredential(googleCredential);
     } catch (error) {
+      let errorMessage = 'Google Sign-In failed';
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        errorMessage = 'User cancelled the sign-in';
         console.log('User cancelled the sign-in');
       } else if (error.code === statusCodes.IN_PROGRESS) {
+        errorMessage = 'Sign-in in progress';
         console.log('Sign-in in progress');
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        errorMessage = 'Play services not available or outdated';
         console.log('Play services not available or outdated');
       } else {
+        errorMessage = error.message || 'An unexpected error occurred during Google Sign-in';
         console.error(error);
       }
+      FlashMessage({
+        message: errorMessage,
+        type: 'danger',
+      });
     }
     setLoading(false);
   };
