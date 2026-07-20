@@ -51,7 +51,7 @@ jobs:
             echo "ANDROID_KEYSTORE_BASE64 secret not set" >&2
             exit 1
           fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/my-upload-key.keystore
 
       - name: Write Play Store service-account JSON
         env:
@@ -63,10 +63,11 @@ jobs:
       - name: Run Fastlane
         working-directory: android
         env:
-          MYAPP_UPLOAD_STORE_FILE: release.keystore
-          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # ORG_GRADLE_PROJECT_* env vars are exposed to Gradle as project properties,
+          # which build.gradle reads via project.hasProperty('MYAPP_UPLOAD_STORE_FILE').
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GOOGLE_PLAY_JSON_KEY_FILE: fastlane/google-play-service-account.json
         run: bundle exec fastlane ${{ github.event.inputs.lane || 'internal' }}
 
