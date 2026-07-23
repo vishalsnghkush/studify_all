@@ -26,6 +26,7 @@ import AiFlashcards from './Flashcards/AiFlashcards';
 import AiLecturePlayer from './Notes/AiLecturePlayer';
 import Analysis from './Analysis';
 import FocusSpace from './FocusSpace';
+import BrainGym from './Games/BrainGym';
 
 export {
   Home,
@@ -56,4 +57,5 @@ export {
   AiLecturePlayer,
   Analysis,
   FocusSpace,
+  BrainGym,
 };

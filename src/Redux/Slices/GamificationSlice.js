@@ -33,6 +33,8 @@ const initialState = {
   streakHistory: [], // Holds last 14 days of active status
   badges: [], // IDs of earned badges
   rewardsClaimed: [], // IDs of claimed rewards
+  lastBrainGymDate: null,
+  lastBrainGymDates: {}, // Tracks daily dates per individual game: { [gameId]: 'YYYY-MM-DD' }
 };
 
 const gamificationSlice = createSlice({
@@ -183,6 +185,21 @@ const gamificationSlice = createSlice({
       }
     },
 
+    completeDailyGame(state, action) {
+      const gameId = action.payload || 'math_quest';
+      const today = getLocalDateString();
+      
+      // Update legacy field for compatibility
+      state.lastBrainGymDate = today;
+      
+      if (!state.lastBrainGymDates) {
+        state.lastBrainGymDates = {};
+      }
+      state.lastBrainGymDates[gameId] = today;
+      state.xp += 5;
+      state.level = Math.floor(state.xp / xpPerLevel) + 1;
+    },
+
     resetGamification(state) {
       return initialState;
     },
@@ -195,6 +212,7 @@ export const {
   triggerActivity,
   claimReward,
   resetGamification,
+  completeDailyGame,
 } = gamificationSlice.actions;
 
 export default gamificationSlice.reducer;

@@ -27,6 +27,7 @@ import {
   AiNotesGenerator,
   AiFlashcards,
   AiLecturePlayer,
+  BrainGym,
 } from '../Screens/Home';
 import FocusSpace from '../Screens/Home/FocusSpace';
 import Analysis from '../Screens/Home/Analysis';
@@ -278,6 +279,11 @@ const AppNavigation = () => {
         options={{
           title: 'Performance Analyzer',
         }}
+      />
+      <Stack.Screen
+        name="BrainGym"
+        component={BrainGym}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="Chat"

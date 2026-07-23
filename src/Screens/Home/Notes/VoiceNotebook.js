@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   StyleSheet,
@@ -24,42 +24,49 @@ import {
   RadioButton,
 } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WebView } from 'react-native-webview';
-import { launchImageLibrary } from 'react-native-image-picker';
-import { requestMicrophonePermission, requestImagePermissions } from '../../../Utils/Permission';
-import { trackEngagement, setRecentNote, logStudySession } from '../../../Utils/EngagementTracker';
+import {WebView} from 'react-native-webview';
+import {launchImageLibrary} from 'react-native-image-picker';
+import {
+  requestMicrophonePermission,
+  requestImagePermissions,
+} from '../../../Utils/Permission';
+import {
+  trackEngagement,
+  setRecentNote,
+  logStudySession,
+} from '../../../Utils/EngagementTracker';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
 // Available notebook cover colors (Premium leather/fabric colors)
 const COVER_COLORS = [
-  { name: 'Emerald', hex: '#0D5C3A' },
-  { name: 'Royal Blue', hex: '#1A365D' },
-  { name: 'Crimson', hex: '#7C1A22' },
-  { name: 'Teal', hex: '#005F5F' },
-  { name: 'Charcoal', hex: '#262626' },
-  { name: 'Amber Brown', hex: '#874C14' },
+  {name: 'Emerald', hex: '#0D5C3A'},
+  {name: 'Royal Blue', hex: '#1A365D'},
+  {name: 'Crimson', hex: '#7C1A22'},
+  {name: 'Teal', hex: '#005F5F'},
+  {name: 'Charcoal', hex: '#262626'},
+  {name: 'Amber Brown', hex: '#874C14'},
 ];
 
 // Page styles (ruled, grid, plain)
 const PAGE_STYLES = [
-  { label: 'Ruled Lines', value: 'ruled', icon: 'format-align-justify' },
-  { label: 'Grid Squares', value: 'grid', icon: 'grid' },
-  { label: 'Plain Canvas', value: 'plain', icon: 'square-outline' },
+  {label: 'Ruled Lines', value: 'ruled', icon: 'format-align-justify'},
+  {label: 'Grid Squares', value: 'grid', icon: 'grid'},
+  {label: 'Plain Canvas', value: 'plain', icon: 'square-outline'},
 ];
 
 // Page background colors
 const PAGE_COLORS = [
-  { name: 'Cream / Legal', hex: '#FDF5E6' },
-  { name: 'Soft Blue', hex: '#EBF5FB' },
-  { name: 'Soft Green', hex: '#E8F8F5' },
-  { name: 'Soft Pink', hex: '#FDEDEC' },
-  { name: 'Classic White', hex: '#FFFFFF' },
-  { name: 'Writer Dark', hex: '#1E1E1E' },
+  {name: 'Cream / Legal', hex: '#FDF5E6'},
+  {name: 'Soft Blue', hex: '#EBF5FB'},
+  {name: 'Soft Green', hex: '#E8F8F5'},
+  {name: 'Soft Pink', hex: '#FDEDEC'},
+  {name: 'Classic White', hex: '#FFFFFF'},
+  {name: 'Writer Dark', hex: '#1E1E1E'},
 ];
 
-export default function VoiceNotebook({ navigation }) {
-  const { colors } = useTheme();
+export default function VoiceNotebook({navigation}) {
+  const {colors} = useTheme();
 
   // State Management
   const [notebooks, setNotebooks] = useState([]);
@@ -67,13 +74,15 @@ export default function VoiceNotebook({ navigation }) {
   const [pages, setPages] = useState([]);
   const [currentPage, setCurrentPage] = useState(null);
   const [viewState, setViewState] = useState('notebooks'); // 'notebooks' | 'pages' | 'editor'
-  
+
   // Modals & Dialogs
   const [notebookDialogVisible, setNotebookDialogVisible] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newNotebookColor, setNewNotebookColor] = useState(COVER_COLORS[0]);
   const [newNotebookStyle, setNewNotebookStyle] = useState('ruled');
-  const [newNotebookPageColor, setNewNotebookPageColor] = useState(PAGE_COLORS[0]);
+  const [newNotebookPageColor, setNewNotebookPageColor] = useState(
+    PAGE_COLORS[0],
+  );
   const [pageDialogVisible, setPageDialogVisible] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
 
@@ -89,7 +98,7 @@ export default function VoiceNotebook({ navigation }) {
             'General',
             currentPage?.title || 'Notebook Page',
             'Voice Note',
-            durationSeconds
+            durationSeconds,
           );
         }
       };
@@ -99,6 +108,7 @@ export default function VoiceNotebook({ navigation }) {
   // Initialize and load saved notebooks
   useEffect(() => {
     loadNotebooks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadNotebooks = async () => {
@@ -167,17 +177,25 @@ export default function VoiceNotebook({ navigation }) {
     ];
 
     try {
-      await AsyncStorage.setItem('@voice_notebooks', JSON.stringify(defaultNotebooks));
-      await AsyncStorage.setItem('@voice_notebook_pages_manual_notebook', JSON.stringify(defaultPages));
+      await AsyncStorage.setItem(
+        '@voice_notebooks',
+        JSON.stringify(defaultNotebooks),
+      );
+      await AsyncStorage.setItem(
+        '@voice_notebook_pages_manual_notebook',
+        JSON.stringify(defaultPages),
+      );
       setNotebooks(defaultNotebooks);
     } catch (e) {
       console.error('Failed to create default user manual', e);
     }
   };
 
-  const loadPages = async (notebookId) => {
+  const loadPages = async notebookId => {
     try {
-      const savedPages = await AsyncStorage.getItem(`@voice_notebook_pages_${notebookId}`);
+      const savedPages = await AsyncStorage.getItem(
+        `@voice_notebook_pages_${notebookId}`,
+      );
       if (savedPages) {
         setPages(JSON.parse(savedPages));
       } else {
@@ -188,7 +206,7 @@ export default function VoiceNotebook({ navigation }) {
     }
   };
 
-  const handleSelectNotebook = (notebook) => {
+  const handleSelectNotebook = notebook => {
     setCurrentNotebook(notebook);
     loadPages(notebook.id);
     setViewState('pages');
@@ -199,11 +217,11 @@ export default function VoiceNotebook({ navigation }) {
       type: 'note',
       board: '',
       class: '',
-      subtopic: ''
+      subtopic: '',
     });
   };
 
-  const handleSelectPage = async (page) => {
+  const handleSelectPage = async page => {
     await requestMicrophonePermission();
     setCurrentPage(page);
     setViewState('editor');
@@ -214,7 +232,7 @@ export default function VoiceNotebook({ navigation }) {
       type: 'note',
       board: '',
       class: '',
-      subtopic: ''
+      subtopic: '',
     });
   };
 
@@ -235,7 +253,10 @@ export default function VoiceNotebook({ navigation }) {
 
     const updatedNotebooks = [...notebooks, newNotebook];
     try {
-      await AsyncStorage.setItem('@voice_notebooks', JSON.stringify(updatedNotebooks));
+      await AsyncStorage.setItem(
+        '@voice_notebooks',
+        JSON.stringify(updatedNotebooks),
+      );
       setNotebooks(updatedNotebooks);
       setNewNotebookTitle('');
       setNotebookDialogVisible(false);
@@ -265,7 +286,7 @@ export default function VoiceNotebook({ navigation }) {
     try {
       await AsyncStorage.setItem(
         `@voice_notebook_pages_${currentNotebook.id}`,
-        JSON.stringify(updatedPages)
+        JSON.stringify(updatedPages),
       );
       setPages(updatedPages);
       setCurrentPage(newPage);
@@ -277,10 +298,12 @@ export default function VoiceNotebook({ navigation }) {
     }
   };
 
-  const handleSavePage = async (htmlContent) => {
-    if (!currentPage || currentNotebook.id === 'manual_notebook') return;
+  const handleSavePage = async htmlContent => {
+    if (!currentPage || currentNotebook.id === 'manual_notebook') {
+      return;
+    }
 
-    const updatedPages = pages.map((p) => {
+    const updatedPages = pages.map(p => {
       if (p.id === currentPage.id) {
         return {
           ...p,
@@ -294,7 +317,7 @@ export default function VoiceNotebook({ navigation }) {
     try {
       await AsyncStorage.setItem(
         `@voice_notebook_pages_${currentNotebook.id}`,
-        JSON.stringify(updatedPages)
+        JSON.stringify(updatedPages),
       );
       setPages(updatedPages);
     } catch (e) {
@@ -302,60 +325,63 @@ export default function VoiceNotebook({ navigation }) {
     }
   };
 
-  const handleDeleteNotebook = (notebookId) => {
+  const handleDeleteNotebook = notebookId => {
     Alert.alert(
       'Delete Notebook',
       'Are you sure you want to delete this notebook and all its pages?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const updatedNotebooks = notebooks.filter((n) => n.id !== notebookId);
+            const updatedNotebooks = notebooks.filter(n => n.id !== notebookId);
             try {
-              await AsyncStorage.setItem('@voice_notebooks', JSON.stringify(updatedNotebooks));
-              await AsyncStorage.removeItem(`@voice_notebook_pages_${notebookId}`);
+              await AsyncStorage.setItem(
+                '@voice_notebooks',
+                JSON.stringify(updatedNotebooks),
+              );
+              await AsyncStorage.removeItem(
+                `@voice_notebook_pages_${notebookId}`,
+              );
               setNotebooks(updatedNotebooks);
             } catch (e) {
               Alert.alert('Error', 'Failed to delete notebook');
             }
           },
         },
-      ]
+      ],
     );
   };
 
-  const handleDeletePage = (pageId) => {
-    Alert.alert(
-      'Delete Page',
-      'Are you sure you want to delete this page?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedPages = pages.filter((p) => p.id !== pageId);
-            try {
-              await AsyncStorage.setItem(
-                `@voice_notebook_pages_${currentNotebook.id}`,
-                JSON.stringify(updatedPages)
-              );
-              setPages(updatedPages);
-            } catch (e) {
-              Alert.alert('Error', 'Failed to delete page');
-            }
-          },
+  const handleDeletePage = pageId => {
+    Alert.alert('Delete Page', 'Are you sure you want to delete this page?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const updatedPages = pages.filter(p => p.id !== pageId);
+          try {
+            await AsyncStorage.setItem(
+              `@voice_notebook_pages_${currentNotebook.id}`,
+              JSON.stringify(updatedPages),
+            );
+            setPages(updatedPages);
+          } catch (e) {
+            Alert.alert('Error', 'Failed to delete page');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // Image insertion bridge
   const handlePickImage = async () => {
     const hasPermission = await requestImagePermissions();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      return;
+    }
 
     const result = await launchImageLibrary({
       mediaType: 'photo',
@@ -371,7 +397,7 @@ export default function VoiceNotebook({ navigation }) {
     }
   };
 
-  const handleWebViewMessage = (event) => {
+  const handleWebViewMessage = event => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'SAVE') {
@@ -381,7 +407,10 @@ export default function VoiceNotebook({ navigation }) {
       } else if (data.type === 'REQUEST_MIC_PERMISSION') {
         requestMicrophonePermission();
       } else if (data.type === 'SPEECH_ERROR') {
-        Alert.alert('Speech Recognition Info', `The speech engine reported: "${data.error}". If speech typing is not writing anything on the emulator, you can use the keyboard spacebar's microphone icon, which works natively!`);
+        Alert.alert(
+          'Speech Recognition Info',
+          `The speech engine reported: "${data.error}". If speech typing is not writing anything on the emulator, you can use the keyboard spacebar's microphone icon, which works natively!`,
+        );
       } else if (data.type === 'AI_SUMMARIZE') {
         handleAISummarize(data.content);
       }
@@ -390,16 +419,19 @@ export default function VoiceNotebook({ navigation }) {
     }
   };
 
-  const handleAISummarize = async (htmlContent) => {
+  const handleAISummarize = async htmlContent => {
     const cleanText = (htmlContent || '').replace(/<[^>]+>/g, ' ').trim();
     if (!cleanText || cleanText.length < 5) {
-      Alert.alert('Note Empty', 'Please write or record some notes first before summarizing!');
+      Alert.alert(
+        'Note Empty',
+        'Please write or record some notes first before summarizing!',
+      );
       return;
     }
 
     try {
       const prompt = `Summarize the following notes into a clean, concise summary with key takeaways and bullet points. Return only plain text:\n\n${cleanText}`;
-      
+
       const models = [
         'openrouter/free',
         'meta-llama/llama-3.3-70b-instruct:free',
@@ -412,17 +444,21 @@ export default function VoiceNotebook({ navigation }) {
 
       for (const modelName of models) {
         try {
-          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer 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',
-              'Content-Type': 'application/json',
+          const res = await fetch(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: {
+                Authorization:
+                  'Bearer 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',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: modelName,
+                messages: [{role: 'user', content: prompt}],
+              }),
             },
-            body: JSON.stringify({
-              model: modelName,
-              messages: [{role: 'user', content: prompt}],
-            }),
-          });
+          );
           if (res.ok) {
             data = await res.json();
             if (data?.choices?.[0]?.message?.content) {
@@ -435,18 +471,26 @@ export default function VoiceNotebook({ navigation }) {
         }
       }
 
-      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      if (
+        !data ||
+        !data.choices ||
+        !data.choices[0] ||
+        !data.choices[0].message
+      ) {
         throw new Error('All OpenRouter models failed to respond.');
       }
 
       let summary = data.choices[0].message.content.trim();
-      
+
       // Inject it back into the WebView
       const injectHtml = `<div style="background: rgba(156, 39, 176, 0.15); padding:15px; border-radius:8px; border-left: 4px solid #9C27B0; margin-top:20px;">
         <h3 style="color:#9C27B0; margin-top:0;">✨ AI Summary</h3>
-        <p style="color: inherit; line-height: 1.5;">${summary.replace(/\n/g, '<br>')}</p>
+        <p style="color: inherit; line-height: 1.5;">${summary.replace(
+          /\n/g,
+          '<br>',
+        )}</p>
       </div><br>`;
-      
+
       const script = `
         const editor = document.getElementById('editor-container');
         editor.innerHTML += \`${injectHtml}\`;
@@ -456,40 +500,50 @@ export default function VoiceNotebook({ navigation }) {
       Alert.alert('Success', 'AI Summary added to your notes!');
     } catch (e) {
       console.log('Error summarizing notes:', e);
-      Alert.alert('Error', 'Failed to summarize notes. Please check your internet connection and try again.');
+      Alert.alert(
+        'Error',
+        'Failed to summarize notes. Please check your internet connection and try again.',
+      );
     }
   };
 
   // Render Notebooks List Screen
   const renderNotebooks = () => (
     <View style={styles.container}>
-      <Card style={[styles.headerCard, { backgroundColor: colors.primary }]}>
+      <Card style={[styles.headerCard, {backgroundColor: colors.primary}]}>
         <Card.Content style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>Voice Notebooks</Text>
-            <Text style={styles.headerSubtitle}>Speech-to-text notes and diaries</Text>
+            <Text style={styles.headerSubtitle}>
+              Speech-to-text notes and diaries
+            </Text>
           </View>
-          <IconButton icon="book-open-page-variant" iconColor="#fff" size={32} />
+          <IconButton
+            icon="book-open-page-variant"
+            iconColor="#fff"
+            size={32}
+          />
         </Card.Content>
       </Card>
 
       <FlatList
         data={notebooks}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         numColumns={2}
         contentContainerStyle={styles.listPadding}
-        renderItem={({ item }) => (
+        renderItem={({item}) => (
           <TouchableOpacity
             style={styles.notebookCardContainer}
             onPress={() => handleSelectNotebook(item)}
-            onLongPress={() => item.id !== 'manual_notebook' && handleDeleteNotebook(item.id)}
-          >
+            onLongPress={() =>
+              item.id !== 'manual_notebook' && handleDeleteNotebook(item.id)
+            }>
             {/* Custom Book Cover Style */}
-            <View style={[styles.bookCover, { backgroundColor: item.color }]}>
+            <View style={[styles.bookCover, {backgroundColor: item.color}]}>
               {/* Left spine/binding fold */}
               <View style={styles.bookSpine} />
               <View style={styles.bookSpineLine} />
-              
+
               {/* Golden Embossed Title Card */}
               <View style={styles.bookTitleCard}>
                 <Text style={styles.bookTitle} numberOfLines={2}>
@@ -510,14 +564,20 @@ export default function VoiceNotebook({ navigation }) {
 
       <FAB
         icon="folder-plus"
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[styles.fab, {backgroundColor: colors.primary}]}
         color="#fff"
         onPress={() => setNotebookDialogVisible(true)}
       />
 
       {/* Create Notebook Dialog */}
       <Portal>
-        <Dialog visible={notebookDialogVisible} onDismiss={() => setNotebookDialogVisible(false)} style={styles.customDialog}>
+        <Dialog
+          visible={notebookDialogVisible}
+          onDismiss={() => setNotebookDialogVisible(false)}
+          style={[
+            styles.customDialog,
+            {backgroundColor: colors.elevation.level3},
+          ]}>
           <Dialog.Title>Create New Notebook</Dialog.Title>
           <Dialog.Content>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -528,42 +588,64 @@ export default function VoiceNotebook({ navigation }) {
                 mode="outlined"
                 style={styles.dialogInput}
               />
-              
-              <Text style={styles.dialogSectionHeader}>Notebook Cover Color:</Text>
+
+              <Text
+                style={[styles.dialogSectionHeader, {color: colors.onSurface}]}>
+                Notebook Cover Color:
+              </Text>
               <View style={styles.colorPalette}>
-                {COVER_COLORS.map((c) => (
+                {COVER_COLORS.map(c => (
                   <TouchableOpacity
                     key={c.hex}
                     style={[
                       styles.colorOption,
-                      { backgroundColor: c.hex },
-                      newNotebookColor.hex === c.hex && styles.colorOptionSelected,
+                      {backgroundColor: c.hex},
+                      newNotebookColor.hex === c.hex &&
+                        styles.colorOptionSelected,
                     ]}
                     onPress={() => setNewNotebookColor(c)}
                   />
                 ))}
               </View>
 
-              <Text style={styles.dialogSectionHeader}>Page Style:</Text>
-              <RadioButton.Group onValueChange={value => setNewNotebookStyle(value)} value={newNotebookStyle}>
+              <Text
+                style={[styles.dialogSectionHeader, {color: colors.onSurface}]}>
+                Page Style:
+              </Text>
+              <RadioButton.Group
+                onValueChange={value => setNewNotebookStyle(value)}
+                value={newNotebookStyle}>
                 {PAGE_STYLES.map(style => (
                   <View key={style.value} style={styles.radioOption}>
-                    <RadioButton value={style.value} color={newNotebookColor.hex} />
-                    <IconButton icon={style.icon} size={20} style={{margin:0}} />
-                    <Text style={{color:'#FFF', marginLeft: 8}}>{style.label}</Text>
+                    <RadioButton
+                      value={style.value}
+                      color={newNotebookColor.hex}
+                    />
+                    <IconButton
+                      icon={style.icon}
+                      size={20}
+                      style={{margin: 0}}
+                    />
+                    <Text style={{color: colors.onSurface, marginLeft: 8}}>
+                      {style.label}
+                    </Text>
                   </View>
                 ))}
               </RadioButton.Group>
 
-              <Text style={styles.dialogSectionHeader}>Page Color:</Text>
+              <Text
+                style={[styles.dialogSectionHeader, {color: colors.onSurface}]}>
+                Page Color:
+              </Text>
               <View style={styles.colorPalette}>
-                {PAGE_COLORS.map((c) => (
+                {PAGE_COLORS.map(c => (
                   <TouchableOpacity
                     key={c.hex}
                     style={[
                       styles.pageColorOption,
-                      { backgroundColor: c.hex },
-                      newNotebookPageColor.hex === c.hex && styles.colorOptionSelected,
+                      {backgroundColor: c.hex},
+                      newNotebookPageColor.hex === c.hex &&
+                        styles.colorOptionSelected,
                     ]}
                     onPress={() => setNewNotebookPageColor(c)}
                   />
@@ -572,7 +654,9 @@ export default function VoiceNotebook({ navigation }) {
             </ScrollView>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setNotebookDialogVisible(false)}>Cancel</Button>
+            <Button onPress={() => setNotebookDialogVisible(false)}>
+              Cancel
+            </Button>
             <Button onPress={handleCreateNotebook}>Create Book</Button>
           </Dialog.Actions>
         </Dialog>
@@ -583,13 +667,20 @@ export default function VoiceNotebook({ navigation }) {
   // Render Pages List Screen
   const renderPages = () => (
     <View style={styles.container}>
-      <Card style={[styles.headerCard, { backgroundColor: currentNotebook.color }]}>
+      <Card
+        style={[styles.headerCard, {backgroundColor: currentNotebook.color}]}>
         <Card.Content style={styles.headerContent}>
-          <IconButton icon="keyboard-backspace" iconColor="#fff" size={28} onPress={() => setViewState('notebooks')} />
-          <View style={{ flex: 1 }}>
+          <IconButton
+            icon="keyboard-backspace"
+            iconColor="#fff"
+            size={28}
+            onPress={() => setViewState('notebooks')}
+          />
+          <View style={{flex: 1}}>
             <Text style={styles.headerTitle}>{currentNotebook.title}</Text>
             <Text style={styles.headerSubtitle}>
-              Pages • Style: {(currentNotebook.pageStyle || 'ruled').toUpperCase()}
+              Pages • Style:{' '}
+              {(currentNotebook.pageStyle || 'ruled').toUpperCase()}
             </Text>
           </View>
         </Card.Content>
@@ -597,26 +688,48 @@ export default function VoiceNotebook({ navigation }) {
 
       {pages.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <IconButton icon="book-open-outline" size={64} iconColor="#aaa" />
-          <Text style={styles.emptyText}>This notebook has no pages yet.</Text>
-          <Button mode="contained" style={{ marginTop: 12, backgroundColor: currentNotebook.color }} onPress={() => setPageDialogVisible(true)}>
+          <IconButton
+            icon="book-open-outline"
+            size={64}
+            iconColor={colors.onSurfaceVariant}
+          />
+          <Text style={[styles.emptyText, {color: colors.onSurfaceVariant}]}>
+            This notebook has no pages yet.
+          </Text>
+          <Button
+            mode="contained"
+            style={{marginTop: 12, backgroundColor: currentNotebook.color}}
+            onPress={() => setPageDialogVisible(true)}>
             Add Page
           </Button>
         </View>
       ) : (
         <FlatList
           data={pages}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.listPadding}
-          renderItem={({ item }) => (
-            <Card style={styles.pageCard} onPress={() => handleSelectPage(item)} onLongPress={() => item.id.indexOf('manual_page') === -1 && handleDeletePage(item.id)}>
+          renderItem={({item}) => (
+            <Card
+              style={[
+                styles.pageCard,
+                {backgroundColor: colors.elevation.level2},
+              ]}
+              onPress={() => handleSelectPage(item)}
+              onLongPress={() =>
+                item.id.indexOf('manual_page') === -1 &&
+                handleDeletePage(item.id)
+              }>
               <Card.Content style={styles.pageCardContent}>
                 {/* Visual miniature representation of the notebook style on list card */}
-                <View style={[styles.pageIndicator, {
-                  backgroundColor: currentNotebook.pageColor,
-                  borderLeftWidth: 4,
-                  borderLeftColor: currentNotebook.color,
-                }]}>
+                <View
+                  style={[
+                    styles.pageIndicator,
+                    {
+                      backgroundColor: currentNotebook.pageColor,
+                      borderLeftWidth: 4,
+                      borderLeftColor: currentNotebook.color,
+                    },
+                  ]}>
                   {currentNotebook.pageStyle === 'ruled' && (
                     <View style={styles.miniRuledLines} />
                   )}
@@ -624,13 +737,24 @@ export default function VoiceNotebook({ navigation }) {
                     <View style={styles.miniGridLines} />
                   )}
                 </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.pageTitle}>{item.title}</Text>
-                  <Text style={styles.pageDate}>
+                <View style={{flex: 1, marginLeft: 12}}>
+                  <Text style={[styles.pageTitle, {color: colors.onSurface}]}>
+                    {item.title}
+                  </Text>
+                  <Text
+                    style={[styles.pageDate, {color: colors.onSurfaceVariant}]}>
                     Last Edited: {new Date(item.updatedAt).toLocaleDateString()}
                   </Text>
                 </View>
-                <IconButton icon={currentNotebook.id === 'manual_notebook' ? "eye" : "pencil-outline"} iconColor={currentNotebook.color} size={22} />
+                <IconButton
+                  icon={
+                    currentNotebook.id === 'manual_notebook'
+                      ? 'eye'
+                      : 'pencil-outline'
+                  }
+                  iconColor={currentNotebook.color}
+                  size={22}
+                />
               </Card.Content>
             </Card>
           )}
@@ -640,7 +764,7 @@ export default function VoiceNotebook({ navigation }) {
       {currentNotebook.id !== 'manual_notebook' && (
         <FAB
           icon="note-plus"
-          style={[styles.fab, { backgroundColor: currentNotebook.color }]}
+          style={[styles.fab, {backgroundColor: currentNotebook.color}]}
           color="#fff"
           onPress={() => setPageDialogVisible(true)}
         />
@@ -648,7 +772,9 @@ export default function VoiceNotebook({ navigation }) {
 
       {/* Create Page Dialog */}
       <Portal>
-        <Dialog visible={pageDialogVisible} onDismiss={() => setPageDialogVisible(false)}>
+        <Dialog
+          visible={pageDialogVisible}
+          onDismiss={() => setPageDialogVisible(false)}>
           <Dialog.Title>Add Page to Notebook</Dialog.Title>
           <Dialog.Content>
             <TextInput
@@ -673,9 +799,13 @@ export default function VoiceNotebook({ navigation }) {
     const pageStyle = currentNotebook.pageStyle || 'plain';
     const isReadOnly = currentNotebook.id === 'manual_notebook';
     const isDarkPage = pageColor === '#1E1E1E';
-    
-    const lineColor = isDarkPage ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)';
-    const marginColor = isDarkPage ? 'rgba(255, 100, 100, 0.3)' : 'rgba(255, 100, 100, 0.4)';
+
+    const lineColor = isDarkPage
+      ? 'rgba(255, 255, 255, 0.08)'
+      : 'rgba(0, 0, 0, 0.07)';
+    const marginColor = isDarkPage
+      ? 'rgba(255, 100, 100, 0.3)'
+      : 'rgba(255, 100, 100, 0.4)';
     const textColor = isDarkPage ? '#E0E0E0' : '#1C1C1C';
     const headingColor = isDarkPage ? '#FFF' : '#000';
 
@@ -783,21 +913,29 @@ export default function VoiceNotebook({ navigation }) {
             position: relative;
 
             /* Ruled Paper Style background */
-            ${pageStyle === 'ruled' ? `
+            ${
+              pageStyle === 'ruled'
+                ? `
               background-image: linear-gradient(${lineColor} 1px, transparent 1px);
               background-size: 100% 30px;
               background-position: 0 7px;
               background-attachment: local;
-            ` : ''}
+            `
+                : ''
+            }
 
             /* Grid Paper Style background */
-            ${pageStyle === 'grid' ? `
+            ${
+              pageStyle === 'grid'
+                ? `
               background-image: linear-gradient(${lineColor} 1px, transparent 1px),
                                 linear-gradient(90deg, ${lineColor} 1px, transparent 1px);
               background-size: 30px 30px;
               background-position: 0 7px;
               background-attachment: local;
-            ` : ''}
+            `
+                : ''
+            }
           }
 
           .page-sheet:empty:after {
@@ -818,7 +956,9 @@ export default function VoiceNotebook({ navigation }) {
           }
 
           /* Left margin line for ruled paper */
-          ${pageStyle === 'ruled' ? `
+          ${
+            pageStyle === 'ruled'
+              ? `
             .page-sheet {
               padding-left: 65px !important;
             }
@@ -831,7 +971,9 @@ export default function VoiceNotebook({ navigation }) {
               width: 1.5px;
               background-color: ${marginColor};
             }
-          ` : ''}
+          `
+              : ''
+          }
 
           /* Aligns text directly to next line (No double-line margin!) */
           .page-sheet p, .page-sheet div, .page-sheet span {
@@ -891,19 +1033,27 @@ export default function VoiceNotebook({ navigation }) {
             display: flex;
 
             /* Ruled Paper Style background */
-            ${pageStyle === 'ruled' ? `
+            ${
+              pageStyle === 'ruled'
+                ? `
               background-image: linear-gradient(${lineColor} 1px, transparent 1px);
               background-size: 100% 30px;
               background-position: 0 35px;
-            ` : ''}
+            `
+                : ''
+            }
 
             /* Grid Paper Style background */
-            ${pageStyle === 'grid' ? `
+            ${
+              pageStyle === 'grid'
+                ? `
               background-image: linear-gradient(${lineColor} 1px, transparent 1px),
                                 linear-gradient(90deg, ${lineColor} 1px, transparent 1px);
               background-size: 30px 30px;
               background-position: 0 35px;
-            ` : ''}
+            `
+                : ''
+            }
           }
           #sketchpad {
             flex: 1;
@@ -912,7 +1062,9 @@ export default function VoiceNotebook({ navigation }) {
             z-index: 2;
           }
           /* Left margin line for ruled drawing pad */
-          ${pageStyle === 'ruled' ? `
+          ${
+            pageStyle === 'ruled'
+              ? `
             #sketchpad-container::before {
               content: '';
               position: absolute;
@@ -924,7 +1076,9 @@ export default function VoiceNotebook({ navigation }) {
               z-index: 1;
               pointer-events: none;
             }
-          ` : ''}
+          `
+              : ''
+          }
           .palette {
             display: flex;
             gap: 6px;
@@ -1020,11 +1174,15 @@ export default function VoiceNotebook({ navigation }) {
           </div>
 
           <div id="pages-wrapper">
-            ${currentPage.content.indexOf('page-sheet') !== -1 ? currentPage.content : `
+            ${
+              currentPage.content.indexOf('page-sheet') !== -1
+                ? currentPage.content
+                : `
               <div class="page-sheet" contenteditable="${!isReadOnly}" id="page-1" oninput="saveContent()" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off">
                 ${currentPage.content}
               </div>
-            `}
+            `
+            }
           </div>
         </div>
 
@@ -1799,27 +1957,40 @@ export default function VoiceNotebook({ navigation }) {
 
     return (
       <View style={styles.container}>
-        <Card style={[styles.headerCard, { backgroundColor: currentNotebook.color }]}>
+        <Card
+          style={[styles.headerCard, {backgroundColor: currentNotebook.color}]}>
           <Card.Content style={styles.headerContent}>
-            <IconButton icon="arrow-left" iconColor="#fff" size={28} onPress={() => setViewState('pages')} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle} numberOfLines={1}>{currentPage.title}</Text>
+            <IconButton
+              icon="arrow-left"
+              iconColor="#fff"
+              size={28}
+              onPress={() => setViewState('pages')}
+            />
+            <View style={{flex: 1}}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {currentPage.title}
+              </Text>
               <Text style={styles.headerSubtitle}>
                 {isReadOnly ? 'Read Only Guide' : 'Editing Notebook'}
               </Text>
             </View>
             {!isReadOnly && (
-              <IconButton icon="content-save" iconColor="#fff" size={24} onPress={() => {
-                webViewRef.current?.injectJavaScript('saveContent();');
-                Alert.alert('Saved', 'Notebook pages saved successfully.');
-              }} />
+              <IconButton
+                icon="content-save"
+                iconColor="#fff"
+                size={24}
+                onPress={() => {
+                  webViewRef.current?.injectJavaScript('saveContent();');
+                  Alert.alert('Saved', 'Notebook pages saved successfully.');
+                }}
+              />
             )}
           </Card.Content>
         </Card>
 
         <WebView
           ref={webViewRef}
-          source={{ html: htmlTemplate }}
+          source={{html: htmlTemplate}}
           originWhitelist={['*']}
           style={styles.webView}
           onMessage={handleWebViewMessage}
@@ -1828,7 +1999,7 @@ export default function VoiceNotebook({ navigation }) {
           permissionGrantPromptBehavior="grant"
           mixedContentMode="always"
           scalesPageToFit={true}
-          onPermissionRequest={(request) => {
+          onPermissionRequest={request => {
             request.grant(request.resources);
           }}
         />
@@ -1837,7 +2008,7 @@ export default function VoiceNotebook({ navigation }) {
   };
 
   return (
-    <View style={styles.rootContainer}>
+    <View style={[styles.rootContainer, {backgroundColor: colors.background}]}>
       {viewState === 'notebooks' && renderNotebooks()}
       {viewState === 'pages' && renderPages()}
       {viewState === 'editor' && renderEditor()}
@@ -1848,7 +2019,6 @@ export default function VoiceNotebook({ navigation }) {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#161616',
   },
   container: {
     flex: 1,
@@ -1883,7 +2053,7 @@ const styles = StyleSheet.create({
     width: '50%',
     padding: 8,
   },
-  
+
   // Custom Physical Book Cover Styles
   bookCover: {
     height: 180,
@@ -1892,7 +2062,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.35,
     shadowRadius: 5,
-    shadowOffset: { width: 3, height: 4 },
+    shadowOffset: {width: 3, height: 4},
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1955,9 +2125,7 @@ const styles = StyleSheet.create({
   },
 
   // List Views & Dialog Options
-  customDialog: {
-    backgroundColor: '#222222',
-  },
+  customDialog: {},
   dialogInput: {
     marginBottom: 12,
   },
@@ -1990,7 +2158,7 @@ const styles = StyleSheet.create({
   },
   colorOptionSelected: {
     borderColor: '#D4AF37',
-    transform: [{ scale: 1.15 }],
+    transform: [{scale: 1.15}],
   },
   radioOption: {
     flexDirection: 'row',
@@ -2017,7 +2185,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pageCard: {
-    backgroundColor: '#262626',
     borderRadius: 12,
     marginBottom: 10,
     elevation: 2,
@@ -2030,7 +2197,6 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFF',
   },
   pageDate: {
     fontSize: 11,

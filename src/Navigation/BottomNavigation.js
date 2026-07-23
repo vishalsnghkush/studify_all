@@ -19,14 +19,21 @@ export default function BottomNavigation() {
   const {bottom} = useSafeAreaInsets();
   const dispatch = useDispatch();
   const {get} = useApi();
-  const {user, hasUnreadDiscussion, lastSeenMsgId} = useSelector(state => state.initial);
+  const {user, hasUnreadDiscussion, lastSeenMsgId} = useSelector(
+    state => state.initial,
+  );
 
   useEffect(() => {
-    if (user?.is_intern || !user?.class) return;
+    if (user?.is_intern || !user?.class) {
+      return;
+    }
 
     const checkNewMessages = async () => {
       try {
-        const res = await get(`/user/discussion/messages?class=${user.class}&subject=General`, { skipSuccessFlash: true, skipErrorFlash: true });
+        const res = await get(
+          `/user/discussion/messages?class=${user.class}&subject=General`,
+          {skipSuccessFlash: true, skipErrorFlash: true},
+        );
         if (res && Array.isArray(res.data) && res.data.length > 0) {
           const latestId = res.data[res.data.length - 1].id;
           if (latestId > lastSeenMsgId) {
@@ -76,7 +83,7 @@ export default function BottomNavigation() {
           name="Notes"
           component={Notes}
           options={{
-            title: 'Study Material',
+            title: 'Study',
             tabBarIcon: ({focused}) => (
               <Micon
                 name={focused ? 'book-open-variant' : 'book-open-blank-variant'}
@@ -93,13 +100,17 @@ export default function BottomNavigation() {
           component={user?.is_intern ? Groups : DiscussionForum}
           options={{
             title: user?.is_intern ? 'Chat' : 'Discussion',
-            tabBarBadge: (!user?.is_intern && hasUnreadDiscussion) ? '•' : null,
+            tabBarBadge: !user?.is_intern && hasUnreadDiscussion ? '•' : null,
             tabBarIcon: ({focused}) => (
               <Micon
                 name={
                   user?.is_intern
-                    ? (focused ? 'chat' : 'chat-outline')
-                    : (focused ? 'forum' : 'forum-outline')
+                    ? focused
+                      ? 'chat'
+                      : 'chat-outline'
+                    : focused
+                    ? 'forum'
+                    : 'forum-outline'
                 }
                 size={23}
                 color={
@@ -113,7 +124,7 @@ export default function BottomNavigation() {
           name="OnlineTuitions"
           component={OnlineTuitions}
           options={{
-            title: 'Online Tutions',
+            title: 'Tutions',
             tabBarIcon: ({focused}) => (
               <Micon
                 name={focused ? 'school' : 'school-outline'}
