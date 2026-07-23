@@ -390,6 +390,8 @@ export default function TestGenerator({ route }) {
   useEffect(() => {
     let normSub = '';
     let normClass = '';
+    const normBoard = route?.params?.board || 'CBSE';
+    setBoard(normBoard);
     if (route?.params?.subject) {
       normSub = normalizeSubject(route.params.subject);
       setSubject(normSub);
@@ -400,11 +402,8 @@ export default function TestGenerator({ route }) {
       setStudentClass(normClass);
     }
     if (normSub && normClass) {
-      const normStream = normalizeStream(normSub, normClass);
+      const normStream = normalizeStream(normSub, normClass, normBoard);
       setStream(normStream);
-    }
-    if (route?.params?.board) {
-      setBoard(route.params.board);
     }
     if (route?.params?.topic) {
       setTopic(route.params.topic);

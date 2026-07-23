@@ -27,9 +27,123 @@ export const STREAMS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Subject lists per class (CBSE-aligned)
+// Board-specific class lists
+// ICSE = Class 9-10, ISC = Class 11-12, CBSE/State = Class 6-12
 // ─────────────────────────────────────────────────────────────────────────────
-export const getSubjectsForClass = (studentClass, stream) => {
+export const getClassesForBoard = (board) => {
+  if (board === 'ICSE') {
+    return [
+      { label: 'Class 6', value: 'Class 6' },
+      { label: 'Class 7', value: 'Class 7' },
+      { label: 'Class 8', value: 'Class 8' },
+      { label: 'Class 9 (ICSE)', value: 'Class 9' },
+      { label: 'Class 10 (ICSE)', value: 'Class 10' },
+      { label: 'Class 11 (ISC)', value: 'Class 11' },
+      { label: 'Class 12 (ISC)', value: 'Class 12' },
+    ];
+  }
+  if (board === 'Competitive') {
+    return [
+      { label: 'Class 11', value: 'Class 11' },
+      { label: 'Class 12', value: 'Class 12' },
+    ];
+  }
+  // CBSE, State Board — all classes
+  return CLASSES;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subject lists per class — Board-aware (CBSE / ICSE-ISC / State)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getSubjectsForClass = (studentClass, stream, board = 'CBSE') => {
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ICSE / ISC Board (Classes 6-12)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (board === 'ICSE') {
+    // Class 6, 7 & 8 (Middle school — same foundation subjects as CBSE)
+    if (['Class 6', 'Class 7', 'Class 8'].includes(studentClass)) {
+      return [
+        { label: 'Mathematics', value: 'Mathematics' },
+        { label: 'Science', value: 'Science' },
+        { label: 'History / Social Studies', value: 'History' },
+        { label: 'Civics', value: 'Civics' },
+        { label: 'Geography', value: 'Geography' },
+        { label: 'English', value: 'English' },
+        { label: 'Hindi', value: 'Hindi' },
+        { label: 'Sanskrit', value: 'Sanskrit' },
+        { label: 'Computer Science / Applications', value: 'Computer Science' },
+      ];
+    }
+
+    if (['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(studentClass)) {
+      if (stream === 'Science') {
+        return [
+          { label: 'English Paper - I (Grammar)', value: 'English Paper 1' },
+          { label: 'English Paper - II (Literature)', value: 'English Paper 2' },
+          { label: 'Science 1 (Physics)', value: 'Science 1' },
+          { label: 'Science 2 (Chemistry)', value: 'Science 2' },
+          { label: 'Science 3 (Biology)', value: 'Science 3' },
+          { label: 'Mathematics', value: 'Mathematics' },
+          { label: 'HCG 1 (History & Civics)', value: 'HCG 1' },
+          { label: 'HCG 2 (Geography)', value: 'HCG 2' },
+          { label: 'Hindi', value: 'Hindi' },
+          { label: 'Computer Applications (Java)', value: 'Computer Applications' },
+          { label: 'Physical Education', value: 'Physical Education' },
+        ];
+      }
+      if (stream === 'Commerce') {
+        return [
+          { label: 'English Paper - I (Grammar)', value: 'English Paper 1' },
+          { label: 'English Paper - II (Literature)', value: 'English Paper 2' },
+          { label: 'Commercial Studies', value: 'Commercial Studies' },
+          { label: 'Commercial Applications', value: 'Commercial Applications' },
+          { label: 'Economics', value: 'Economics' },
+          { label: 'Mathematics', value: 'Mathematics' },
+          { label: 'HCG 1 (History & Civics)', value: 'HCG 1' },
+          { label: 'HCG 2 (Geography)', value: 'HCG 2' },
+          { label: 'Hindi', value: 'Hindi' },
+          { label: 'Computer Applications (Java)', value: 'Computer Applications' },
+          { label: 'Physical Education', value: 'Physical Education' },
+        ];
+      }
+      if (stream === 'Arts') {
+        return [
+          { label: 'English Paper - I (Grammar)', value: 'English Paper 1' },
+          { label: 'English Paper - II (Literature)', value: 'English Paper 2' },
+          { label: 'HCG 1 (History & Civics)', value: 'HCG 1' },
+          { label: 'HCG 2 (Geography)', value: 'HCG 2' },
+          { label: 'Economics', value: 'Economics' },
+          { label: 'Hindi', value: 'Hindi' },
+          { label: 'Mathematics', value: 'Mathematics' },
+          { label: 'Computer Applications (Java)', value: 'Computer Applications' },
+          { label: 'Physical Education', value: 'Physical Education' },
+        ];
+      }
+      // If stream not selected yet, return all ICSE subjects so user can also pick directly if needed
+      return [
+        { label: 'English Paper - I (Grammar)', value: 'English Paper 1' },
+        { label: 'English Paper - II (Literature)', value: 'English Paper 2' },
+        { label: 'HCG 1 (History & Civics)', value: 'HCG 1' },
+        { label: 'HCG 2 (Geography)', value: 'HCG 2' },
+        { label: 'Hindi', value: 'Hindi' },
+        { label: 'Mathematics', value: 'Mathematics' },
+        { label: 'Computer Applications (Java)', value: 'Computer Applications' },
+        { label: 'Commercial Studies', value: 'Commercial Studies' },
+        { label: 'Commercial Applications', value: 'Commercial Applications' },
+        { label: 'Science 1 (Physics)', value: 'Science 1' },
+        { label: 'Science 2 (Chemistry)', value: 'Science 2' },
+        { label: 'Science 3 (Biology)', value: 'Science 3' },
+        { label: 'Physical Education', value: 'Physical Education' },
+        { label: 'Economics', value: 'Economics' },
+      ];
+    }
+    return [];
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CBSE / State Board / Competitive
+  // ══════════════════════════════════════════════════════════════════════════
   if (['Class 11', 'Class 12'].includes(studentClass)) {
     if (stream === 'Science') {
       return [
@@ -71,7 +185,7 @@ export const getSubjectsForClass = (studentClass, stream) => {
     return []; // Stream selection required
   }
 
-  // Classes 9 & 10
+  // Classes 9 & 10 (CBSE / State)
   if (['Class 9', 'Class 10'].includes(studentClass)) {
     return [
       { label: 'Mathematics', value: 'Mathematics' },
@@ -104,12 +218,41 @@ export const getSubjectsForClass = (studentClass, stream) => {
   ];
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Subject name normalizer (for auto-detect from route params / YouTube titles)
-// ─────────────────────────────────────────────────────────────────────────────
+export const formatSubjectForBoard = (subject, board = 'CBSE') => {
+  if (!subject) return '';
+  const s = String(subject).trim();
+  const sl = s.toLowerCase();
+  
+  if (board === 'ICSE') {
+    if (sl === 'physics' || sl === 'physic') return 'Science 1';
+    if (sl === 'chemistry' || sl === 'chem') return 'Science 2';
+    if (sl === 'biology' || sl === 'bio') return 'Science 3';
+    if (sl === 'history' || sl === 'civics' || sl === 'history & civics' || sl.includes('civic') || sl.includes('history')) return 'HCG 1';
+    if (sl === 'geography' || sl.includes('geography')) return 'HCG 2';
+    if (sl === 'computer science' || sl === 'computer applications' || sl.includes('computer') || sl.includes('coding')) return 'Computer Applications';
+    if (sl === 'english grammar' || sl === 'english 1' || sl === 'english paper 1') return 'English Paper 1';
+    if (sl === 'english literature' || sl === 'english 2' || sl === 'english paper 2') return 'English Paper 2';
+    if (sl === 'commercial studies' || sl === 'commercial application') return 'Commercial Studies';
+  }
+  return s;
+};
+
 export const normalizeSubject = (rawSub, topicOrTitle = '') => {
   const text = `${rawSub || ''} ${topicOrTitle || ''}`.toLowerCase();
 
+  // ── ICSE-specific subject values (check first) ────────────────────────────
+  if (/\b(english paper.?1|english paper.?i\b|english grammar)/i.test(text)) return 'English Paper 1';
+  if (/\b(english paper.?2|english paper.?ii\b|english literature|drama|prose.*poem)/i.test(text)) return 'English Paper 2';
+  if (/\b(hcg.?1|history.*civics|civics.*history)/i.test(text)) return 'HCG 1';
+  if (/\b(hcg.?2)/i.test(text)) return 'HCG 2';
+  if (/\b(science.?1|science.*physics)/i.test(text)) return 'Science 1';
+  if (/\b(science.?2|science.*chemistry)/i.test(text)) return 'Science 2';
+  if (/\b(science.?3|science.*biology)/i.test(text)) return 'Science 3';
+  if (/\b(commercial studies)/i.test(text)) return 'Commercial Studies';
+  if (/\b(commercial application)/i.test(text)) return 'Commercial Applications';
+  if (/\b(computer application|java programming)/i.test(text)) return 'Computer Applications';
+
+  // ── Generic subject patterns (CBSE / all boards) ──────────────────────────
   if (/\b(math|maths|mathematics|algebra|geometry|trigonometry|calculus|polynomials?|number system|equations?|stats?|statistics|vectors?|matrix|probability|arithmetic|progression|mensuration|quadratic)\b/i.test(text)) return 'Mathematics';
   if (/\b(physic|physics|motion|force|gravity|electricity|optics|magnet|thermo|wave|current|kinematics|gravitation|oscillation|semiconductor)\b/i.test(text)) return 'Physics';
   if (/\b(chem|chemistry|acid|base|organic|periodic|reaction|atom|element|compound|carbon|bonding|solution|electrochemistry|equilibrium)\b/i.test(text)) return 'Chemistry';
@@ -178,13 +321,15 @@ export const normalizeClass = (rawClass, topicOrTitle = '') => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Stream normalizer
 // ─────────────────────────────────────────────────────────────────────────────
-export const normalizeStream = (subject, studentClass) => {
+export const normalizeStream = (subject, studentClass, board = 'CBSE') => {
+  // ICSE Class 9-10 doesn't need streams
+  if (board === 'ICSE' && ['Class 9', 'Class 10'].includes(studentClass)) return '';
   if (!['Class 11', 'Class 12'].includes(studentClass)) return '';
   const s = (subject || '').trim().toLowerCase();
 
-  if (s.includes('physic') || s.includes('chem') || s.includes('bio') || s.includes('computer')) return 'Science';
-  if (s.includes('account') || s.includes('business') || s.includes('ledger') || s.includes('journal') || s.includes('econ')) return 'Commerce';
-  if (s.includes('history') || s.includes('pol') || s.includes('political') || s.includes('psych') || s.includes('soc') || s.includes('geo')) return 'Arts';
+  if (s.includes('physic') || s.includes('chem') || s.includes('bio') || s.includes('computer') || s.includes('science 1') || s.includes('science 2') || s.includes('science 3')) return 'Science';
+  if (s.includes('account') || s.includes('business') || s.includes('ledger') || s.includes('journal') || s.includes('econ') || s.includes('commercial')) return 'Commerce';
+  if (s.includes('history') || s.includes('pol') || s.includes('political') || s.includes('psych') || s.includes('soc') || s.includes('geo') || s.includes('hcg')) return 'Arts';
   if (s.includes('math') || s.includes('english') || s.includes('hindi')) return 'Science'; // default common subjects to Science
   return 'Science';
 };
@@ -197,18 +342,30 @@ export const getSyllabusData = (studentClass = 'Class 10', subject = '') => {
   const normSub = (subject || '').trim().toLowerCase();
   const cls = (studentClass || 'Class 10').trim();
 
-  // ── Subject Type Flags ──────────────────────────────────────────────────
-  const isHistory    = normSub.includes('history');
-  const isGeography  = normSub.includes('geography') || normSub.includes('geo');
-  const isCivics     = normSub.includes('civic') || normSub.includes('political') || normSub.includes('polity');
+  // ── ICSE-Specific Subject Flags ──────────────────────────────────────────
+  const isEngPaper1 = normSub.includes('english paper 1') || normSub.includes('english paper - i') || normSub === 'english paper 1';
+  const isEngPaper2 = normSub.includes('english paper 2') || normSub.includes('english paper - ii') || normSub === 'english paper 2';
+  const isHCG1      = normSub.includes('hcg 1') || normSub.includes('hcg1');
+  const isHCG2      = normSub.includes('hcg 2') || normSub.includes('hcg2');
+  const isSci1      = normSub.includes('science 1') || normSub.includes('science1');
+  const isSci2      = normSub.includes('science 2') || normSub.includes('science2');
+  const isSci3      = normSub.includes('science 3') || normSub.includes('science3');
+  const isCommStud  = normSub.includes('commercial studies');
+  const isCommApp   = normSub.includes('commercial application');
+  const isCompApp   = normSub.includes('computer application');
+
+  // ── Generic Subject Type Flags ──────────────────────────────────────────
+  const isHistory    = isHCG1 || normSub.includes('history');
+  const isGeography  = isHCG2 || normSub.includes('geography') || normSub.includes('geo');
+  const isCivics     = isHCG1 || normSub.includes('civic') || normSub.includes('political') || normSub.includes('polity');
   const isPolity     = isCivics; // Political Science is the Class 11/12 name for Civics
-  const isEnglish    = normSub.includes('english');
+  const isEnglish    = isEngPaper1 || isEngPaper2 || normSub.includes('english');
   const isHindi      = normSub.includes('hindi');
   const isSanskrit   = normSub.includes('sanskrit');
   const isMath       = normSub.includes('math');
-  const isPhysics    = normSub.includes('physic');
-  const isChemistry  = normSub.includes('chem');
-  const isBiology    = normSub.includes('bio');
+  const isPhysics    = isSci1 || normSub.includes('physic');
+  const isChemistry  = isSci2 || normSub.includes('chem');
+  const isBiology    = isSci3 || normSub.includes('bio');
   const isScience    = normSub === 'science';
   const isEconomics  = normSub.includes('econ');
   const isAccountancy = normSub.includes('account');
@@ -218,27 +375,90 @@ export const getSyllabusData = (studentClass = 'Class 10', subject = '') => {
   const isPsychology = normSub.includes('psych');
   const isPE         = normSub.includes('physical') || normSub.includes(' pe');
 
-  // ── Subject-Aware Action Chips (shown above NCERT topic chips) ───────────
+  // ── Subject-Aware Action Chips ───────────────────────────────────────────
   let actionChips = [];
-  if (isHistory) {
+  if (isEngPaper1) {
+    actionChips = [
+      { label: 'Functional Grammar Rules', icon: 'format-text' },
+      { label: 'Letter & Email Formats', icon: 'email-edit-outline' },
+      { label: 'Composition & Essay Writing', icon: 'pencil-box-outline' },
+      { label: 'Unseen Passage Techniques', icon: 'file-document-outline' },
+    ];
+  } else if (isEngPaper2) {
+    actionChips = [
+      { label: 'Merchant of Venice / Drama', icon: 'theater' },
+      { label: 'Treasure Trove Prose Summary', icon: 'book-open-variant' },
+      { label: 'Treasure Trove Poetry Analysis', icon: 'script-text-outline' },
+      { label: 'Character Sketches & Extracts', icon: 'account-details' },
+    ];
+  } else if (isHCG1) {
+    actionChips = [
+      { label: 'Key Dates & Timelines', icon: 'calendar-clock' },
+      { label: 'Civics: Parliament & Courts', icon: 'scale-balance' },
+      { label: '1857 Revolt & Freedom Struggle', icon: 'shield-cross' },
+      { label: 'ICSE Previous Year Questions', icon: 'history' },
+    ];
+  } else if (isHCG2) {
+    actionChips = [
+      { label: 'Topographical Maps (Topo Sheet)', icon: 'map-marker-radius' },
+      { label: 'Map Work of India', icon: 'terrain' },
+      { label: 'Climate, Soils & Vegetation', icon: 'leaf' },
+      { label: 'ICSE Previous Year Questions', icon: 'history' },
+    ];
+  } else if (isSci1) {
+    actionChips = [
+      { label: 'Physics Formulas & Units', icon: 'axis-arrow' },
+      { label: 'Ray Diagrams & Lens Refraction', icon: 'sine-wave' },
+      { label: 'Circuit Diagrams & Ohm\'s Law', icon: 'flash-outline' },
+      { label: 'Calorimetry & Radioactivity', icon: 'calculator' },
+    ];
+  } else if (isSci2) {
+    actionChips = [
+      { label: 'Chemical Equations & Balancing', icon: 'flask-outline' },
+      { label: 'Periodic Trends & Bonding', icon: 'atom' },
+      { label: 'Mole Concept & Stoichiometry', icon: 'calculator' },
+      { label: 'Study of Compounds & Reactions', icon: 'test-tube' },
+    ];
+  } else if (isSci3) {
+    actionChips = [
+      { label: 'Important Biological Diagrams', icon: 'shape-outline' },
+      { label: 'Plant Physiology & Transpiration', icon: 'sprout-outline' },
+      { label: 'Human Systems & Anatomy', icon: 'heart-pulse' },
+      { label: 'Genetics & Cell Division', icon: 'dna' },
+    ];
+  } else if (isCommStud || isCommApp) {
+    actionChips = [
+      { label: 'Commercial Terms & Stakeholders', icon: 'briefcase-outline' },
+      { label: 'Accounting Rules & Ledger', icon: 'book-account-outline' },
+      { label: 'Marketing & E-Commerce', icon: 'bullhorn-outline' },
+      { label: 'Banking & Financial Services', icon: 'bank-outline' },
+    ];
+  } else if (isCompApp) {
+    actionChips = [
+      { label: 'Java Syntax & Keywords', icon: 'code-tags' },
+      { label: 'OOP Concepts & Definitions', icon: 'sitemap' },
+      { label: 'String & Array Methods', icon: 'code-braces' },
+      { label: 'ICSE Java Program Solutions', icon: 'laptop' },
+    ];
+  } else if (isHistory) {
     actionChips = [
       { label: 'Key Dates & Timelines', icon: 'calendar-clock' },
       { label: 'Important Wars & Treaties', icon: 'shield-cross' },
-      { label: 'NCERT Chapter Summary', icon: 'book-open-page-variant' },
+      { label: 'Chapter Summary', icon: 'book-open-page-variant' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isGeography) {
     actionChips = [
       { label: 'Map Work & Locations', icon: 'map-marker-radius' },
       { label: 'Physical Features & Climate', icon: 'terrain' },
-      { label: 'NCERT Chapter Summary', icon: 'book-open-page-variant' },
+      { label: 'Chapter Summary', icon: 'book-open-page-variant' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isCivics || isPolity) {
     actionChips = [
       { label: 'Articles & Constitution', icon: 'file-certificate' },
       { label: 'Rights & Governance', icon: 'scale-balance' },
-      { label: 'NCERT Key Concepts', icon: 'book-outline' },
+      { label: 'Key Concepts', icon: 'book-outline' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isEnglish) {
@@ -294,14 +514,14 @@ export const getSyllabusData = (studentClass = 'Class 10', subject = '') => {
     actionChips = [
       { label: 'Important Formulas & Definitions', icon: 'molecule' },
       { label: 'Diagrams & Reactions', icon: 'flask-outline' },
-      { label: 'NCERT Chapter Summary', icon: 'book-open-page-variant' },
+      { label: 'Chapter Summary', icon: 'book-open-page-variant' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isEconomics) {
     actionChips = [
       { label: 'Key Economic Terms', icon: 'finance' },
       { label: 'Graphs & Market Curves', icon: 'chart-line' },
-      { label: 'NCERT Case Studies', icon: 'briefcase-outline' },
+      { label: 'Case Studies', icon: 'briefcase-outline' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isAccountancy) {
@@ -315,14 +535,14 @@ export const getSyllabusData = (studentClass = 'Class 10', subject = '') => {
     actionChips = [
       { label: 'Principles of Management', icon: 'account-group' },
       { label: 'Case Studies', icon: 'briefcase-search' },
-      { label: 'NCERT Key Concepts', icon: 'lightbulb-outline' },
+      { label: 'Key Concepts', icon: 'lightbulb-outline' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   } else if (isCS) {
     actionChips = [
       { label: 'Syntax & Code Examples', icon: 'code-tags' },
       { label: 'Algorithms & Logic', icon: 'sitemap' },
-      { label: 'Database & SQL Queries', icon: 'database' },
+      { label: 'Database & Queries', icon: 'database' },
     ];
   } else if (isSociology) {
     actionChips = [
@@ -346,19 +566,245 @@ export const getSyllabusData = (studentClass = 'Class 10', subject = '') => {
     ];
   } else {
     actionChips = [
-      { label: 'NCERT Chapter Summary', icon: 'book-open-page-variant' },
+      { label: 'Chapter Summary', icon: 'book-open-page-variant' },
       { label: 'Important Questions', icon: 'help-circle-outline' },
       { label: 'Previous Year Questions', icon: 'history' },
     ];
   }
 
-  // ── NCERT Topic Chips per Class & Subject ────────────────────────────────
+  // ── NCERT / ICSE Topic Chips per Class & Subject ──────────────────────────
   let topicPlaceholder = 'e.g. Select Class & Subject first';
   let subtopicPlaceholder = 'e.g. Select Topic first';
   let topicChips = [];
 
-  // ── CLASS 6 ──────────────────────────────────────────────────────────────
-  if (cls === 'Class 6') {
+  // ── CLASS 9 (ICSE & CBSE Specific Topic Chips) ───────────────────────────
+  if (cls === 'Class 9') {
+    if (isEngPaper1) {
+      topicPlaceholder = 'e.g. Tenses, Active Voice, Essay Writing';
+      subtopicPlaceholder = 'e.g. Prepositions, Sentence Transformation';
+      topicChips = ['Tenses & Verb Forms', 'Active & Passive Voice', 'Direct & Indirect Speech', 'Prepositions & Conjunctions', 'Transformation of Sentences', 'Agreement of Verb with Subject', 'Synthesis of Sentences', 'Formal & Informal Letter Writing', 'Notice & Email Formats', 'Composition & Essay Writing', 'Unseen Passage & Comprehension'];
+    } else if (isEngPaper2) {
+      topicPlaceholder = 'e.g. Julius Caesar Act 1, Bonku Babu';
+      subtopicPlaceholder = 'e.g. Character Sketch, Theme';
+      topicChips = ['Drama: Julius Caesar (Act 1 & 2)', 'Drama: The Merchant of Venice (Act 1 & 2)', 'Prose: Bonku Babu\'s Friend (Satyajit Ray)', 'Prose: Oliver Asks for More (Charles Dickens)', 'Prose: The Model Millionaire (Oscar Wilde)', 'Poetry: A Work of Artifice (Marge Piercy)', 'Poetry: Skimbleshanks the Railway Cat', 'Poetry: I Remember, I Remember'];
+    } else if (isHCG1) {
+      topicPlaceholder = 'e.g. Harappan Civilization, Constitution';
+      subtopicPlaceholder = 'e.g. Vedic Period, Local Self Govt';
+      topicChips = ['The Harappan Civilization', 'Early Vedic & Later Vedic Age', 'Jainism & Buddhism', 'The Mauryan Empire', 'The Gupta Empire & Golden Age', 'The Delhi Sultanate', 'The Mughal Empire', 'The Renaissance in Europe', 'Civics: Our Constitution & Features', 'Civics: Elections & Election Commission', 'Civics: Local Self-Government (Rural & Urban)'];
+    } else if (isHCG2) {
+      topicPlaceholder = 'e.g. Latitudes & Longitudes, Rocks, Oceans';
+      subtopicPlaceholder = 'e.g. Earth Movements, Weathering';
+      topicChips = ['Earth as a Planet', 'Geographic Grid (Latitudes & Longitudes)', 'Rotation and Revolution of Earth', 'Earth\'s Structure & Types of Rocks', 'Volcanoes and Earthquakes', 'Weathering and Denudation', 'Oceans, Tides and Ocean Currents', 'Atmosphere: Composition & Structure', 'Insolation and Heat Belts', 'Humidity and Precipitation', 'Natural Regions of the World'];
+    } else if (isSci1) {
+      topicPlaceholder = 'e.g. Measurements, Motion, Pressure, Heat';
+      subtopicPlaceholder = 'e.g. Laws of Motion, Reflection of Light';
+      topicChips = ['Measurements and Experimentation', 'Motion in One Dimension', 'Laws of Motion', 'Fluids & Atmospheric Pressure', 'Upthrust in Fluids & Archimedes Principle', 'Heat & Temperature Basics', 'Reflection of Light in Plane Mirrors', 'Propagation of Sound Waves', 'Simple Electricity and Magnetism'];
+    } else if (isSci2) {
+      topicPlaceholder = 'e.g. Matter, Gas Laws, Atomic Structure';
+      subtopicPlaceholder = 'e.g. Chemical Bonding, Hydrogen';
+      topicChips = ['Matter and Its Composition', 'Study of Gas Laws (Boyle & Charles)', 'Elements, Compounds and Mixtures', 'Atomic Structure & Chemical Bonding', 'The Periodic Table (Class 9 Intro)', 'Study of Hydrogen', 'Physical and Chemical Changes', 'Water & Water Pollution'];
+    } else if (isSci3) {
+      topicPlaceholder = 'e.g. Cell Unit of Life, Plant Tissues, Flower';
+      subtopicPlaceholder = 'e.g. Seeds & Germination, Respiration';
+      topicChips = ['Introducing Biology', 'Cell: The Unit of Life', 'Tissues (Plant & Animal Tissues)', 'The Flower: Structure & Floral Parts', 'Pollination and Fertilization', 'Seeds: Structure & Germination', 'Respiration in Plants', 'Diversity in Living Organisms', 'Economic Importance of Bacteria & Fungi', 'Human Anatomy: Digestive System', 'Skeleton & Movement', 'Hygiene, Health & Diseases'];
+    } else if (isCompApp) {
+      topicPlaceholder = 'e.g. Scanner Input, Math Class, Loops';
+      subtopicPlaceholder = 'e.g. Data Types, Conditional if-else';
+      topicChips = ['Introduction to OOP Concepts', 'Elementary Concept of Objects & Classes', 'Values, Data Types & Variables', 'Operators & Expressions in Java', 'Input in Java (Scanner Class)', 'Mathematical Library Methods (Math Class)', 'Conditional Constructs (if, if-else, switch)', 'Iterative Constructs (for, while, do-while)', 'Nested Loops & Patterns'];
+    } else if (isMath) {
+      topicPlaceholder = 'e.g. Rational Numbers, Expansions, Triangles';
+      subtopicPlaceholder = 'e.g. Compound Interest, Logarithms';
+      topicChips = ['Rational and Irrational Numbers', 'Compound Interest (Without Formula & Formula)', 'Expansions and Factorisation', 'Simultaneous Linear Equations', 'Indices & Exponents', 'Logarithms', 'Triangles & Congruency Theorems', 'Pythagoras Theorem', 'Rectilinear Figures (Polygons & Quadrilaterals)', 'Statistics (Frequency & Mean)', 'Mensuration (Area & Perimeter)', 'Trigonometry (Standard Angles)', 'Coordinate Geometry'];
+    } else if (isHistory) {
+      topicPlaceholder = 'e.g. French Revolution, Nazism';
+      subtopicPlaceholder = 'e.g. Bastille, Versailles Treaty';
+      topicChips = ['The French Revolution', 'Socialism in Europe & the Russian Revolution', 'Nazism and the Rise of Hitler', 'Forest Society & Colonialism', 'Pastoralists in the Modern World'];
+    } else if (isGeography) {
+      topicPlaceholder = 'e.g. Physical Features, Climate';
+      subtopicPlaceholder = 'e.g. Himalayan Rivers, Monsoon';
+      topicChips = ['India: Size & Location', 'Physical Features of India', 'Drainage System', 'Climate', 'Natural Vegetation & Wildlife', 'Population'];
+    } else if (isCivics) {
+      topicPlaceholder = 'e.g. Constitutional Design, Electoral';
+      subtopicPlaceholder = 'e.g. Preamble, Fundamental Rights';
+      topicChips = ["What is Democracy? Why Democracy?", 'Constitutional Design', 'Electoral Politics', 'Working of Institutions', 'Democratic Rights'];
+    } else if (isEconomics) {
+      topicPlaceholder = 'e.g. People as Resource, Poverty';
+      subtopicPlaceholder = 'e.g. Human Capital, Food Security';
+      topicChips = ['The Story of Village Palampur', 'People as Resource', 'Poverty as a Challenge', 'Food Security in India'];
+    } else if (isEnglish) {
+      topicPlaceholder = 'e.g. The Fun They Had, Sound of Music';
+      subtopicPlaceholder = 'e.g. Reported Speech, Tenses';
+      topicChips = ['The Fun They Had', 'The Sound of Music', 'The Little Girl', 'A Truly Beautiful Mind', 'The Snake and the Mirror', 'My Childhood', 'Reach for the Top', 'Grammar: Tenses, Voice & Reported Speech', 'Letter Writing & Diary Entry'];
+    } else if (isHindi) {
+      topicPlaceholder = 'e.g. दो बैलों की कथा, ल्हासा की ओर';
+      subtopicPlaceholder = 'e.g. उपसर्ग, प्रत्यय, समास';
+      topicChips = ['दो बैलों की कथा', 'ल्हासा की ओर', 'उपभोक्तावाद की संस्कृति', 'साँवले सपनों की याद', 'मेरे बचपन के दिन', 'व्याकरण: समास, उपसर्ग एवं प्रत्यय', 'लेखन: निबंध एवं पत्र', 'काव्य: साखियाँ एवं सबद'];
+    } else if (isPhysics) {
+      topicPlaceholder = 'e.g. Motion, Laws of Motion';
+      subtopicPlaceholder = "e.g. Equations of Motion, Work";
+      topicChips = ['Motion (Distance, Speed, Velocity, Acceleration)', 'Force & Laws of Motion', 'Gravitation & Flotation', 'Work, Energy & Power', 'Sound & Its Properties'];
+    } else if (isChemistry) {
+      topicPlaceholder = 'e.g. Matter, Atoms & Molecules';
+      subtopicPlaceholder = 'e.g. Valency, Atomic Mass';
+      topicChips = ['Matter in Our Surroundings', 'Is Matter Around Us Pure?', 'Atoms and Molecules', 'Structure of the Atom'];
+    } else if (isBiology) {
+      topicPlaceholder = 'e.g. Cell Unit of Life, Tissues';
+      subtopicPlaceholder = 'e.g. Cell Organelles, Plant Tissues';
+      topicChips = ['The Fundamental Unit of Life (Cell)', 'Tissues', 'Diversity in Living Organisms', 'Why Do We Fall Ill?', 'Improvement in Food Resources'];
+    } else if (isScience) {
+      topicPlaceholder = 'e.g. Motion, Atoms, Cell Unit';
+      subtopicPlaceholder = "e.g. Newton's Laws, Valency";
+      topicChips = ['Motion & Force', 'Matter in Surroundings', 'Atoms and Molecules', 'Fundamental Unit of Life (Cell)', 'Tissues', 'Gravitation', 'Work & Energy', 'Sound'];
+    } else if (isCS) {
+      topicPlaceholder = 'e.g. Python Functions, SQL Basics';
+      subtopicPlaceholder = 'e.g. Read/Write Files, SELECT';
+      topicChips = ['Python: Functions & Modules', 'Python: Lists, Tuples & Dictionaries', 'Python: File Handling', 'Introduction to SQL', 'SQL: SELECT, WHERE, ORDER BY', 'Cyber Safety & Ethics'];
+    }
+
+  // ── CLASS 10 (ICSE & CBSE Specific Topic Chips) ──────────────────────────
+  } else if (cls === 'Class 10') {
+    if (isEngPaper1) {
+      topicPlaceholder = 'e.g. Tenses, Active Voice, Essay Writing';
+      subtopicPlaceholder = 'e.g. Prepositions, Transformation of Sentences';
+      topicChips = ['Tenses & Verb Forms', 'Active & Passive Voice', 'Direct & Indirect Speech', 'Prepositions & Conjunctions', 'Transformation of Sentences', 'Agreement of Verb with Subject', 'Synthesis of Sentences', 'Formal & Informal Letter Writing', 'Notice & Email Formats', 'Composition & Essay Writing', 'Unseen Passage & Comprehension'];
+    } else if (isEngPaper2) {
+      topicPlaceholder = 'e.g. Merchant of Venice Act 3, Bonku Babu';
+      subtopicPlaceholder = 'e.g. Shylock Character Sketch, Theme';
+      topicChips = ['Drama: The Merchant of Venice (Act 3, 4 & 5)', 'Drama: Julius Caesar (Act 3, 4 & 5)', 'Prose: The Home-Coming (Rabindranath Tagore)', 'Prose: The Boy Who Broke the Bank', 'Prose: A Face in the Dark (Ruskin Bond)', 'Poetry: A Doctor\'s Journal Entry', 'Poetry: The Cold Within', 'Poetry: Nine Gold Medals', 'Character Sketches & Extracts'];
+    } else if (isHCG1) {
+      topicPlaceholder = 'e.g. First War of Independence 1857, Lok Sabha';
+      subtopicPlaceholder = 'e.g. Cause of 1857 Revolt, Supreme Court';
+      topicChips = ['The First War of Independence (1857)', 'Growth of Nationalism & Early Nationalists', 'Assertive Nationalism & Partition of Bengal', 'Muslim League & Lucknow Pact', 'National Movement & Mahatma Gandhi', 'Quit India Movement & Forward Bloc', 'Independence & Partition of India', 'First World War & Second World War', 'United Nations Organization & Agencies', 'Non-Aligned Movement (NAM)', 'Civics: Union Parliament (Lok Sabha & Rajya Sabha)', 'Civics: President & Vice-President', 'Civics: Prime Minister & Cabinet', 'Civics: Supreme Court & High Courts'];
+    } else if (isHCG2) {
+      topicPlaceholder = 'e.g. Topo Sheets, Climate of India';
+      subtopicPlaceholder = 'e.g. Grid Reference, Soils of India';
+      topicChips = ['Interpretation of Topographical Maps (Topo Sheets)', 'Map Work of India (Mountains, Rivers, Minerals)', 'Location, Extent & Physical Features of India', 'Climate of India (Monsoon Mechanism & Seasons)', 'Soils of India (Alluvial, Black, Red, Laterite)', 'Natural Vegetation of India & Conservation', 'Water Resources & Irrigation Systems', 'Mineral & Energy Resources (Iron, Coal, Petroleum)', 'Agriculture in India (Kharif, Rabi, Crops)', 'Manufacturing Industries (Agro & Mineral Based)', 'Transport System in India', 'Waste Management (Impact & Safe Disposal)'];
+    } else if (isSci1) {
+      topicPlaceholder = 'e.g. Force, Machines, Refraction, Echo';
+      subtopicPlaceholder = 'e.g. Work Power Energy, Ohm\'s Law';
+      topicChips = ['Force, Turning Effect & Center of Gravity', 'Work, Power and Energy', 'Machines (Pulleys, Levers, Mechanical Advantage)', 'Refraction of Light at Plane Surfaces', 'Refraction through Lenses & Prism', 'Spectrum & Dispersion of Light', 'Sound (Echo, Resonance, Damped Vibrations)', 'Current Electricity (Ohm\'s Law, Resistance)', 'Electrical Power & Household Circuits', 'Electromagnetism (Magnetic Field, Induction)', 'Calorimetry & Specific Heat Capacity', 'Radioactivity & Nuclear Decay'];
+    } else if (isSci2) {
+      topicPlaceholder = 'e.g. Periodic Table, Mole Concept, Organic Chem';
+      subtopicPlaceholder = 'e.g. Chemical Bonding, Study of HCl';
+      topicChips = ['Periodic Properties and Variations', 'Chemical Bonding (Electrovalent, Covalent, Coordinate)', 'Acids, Bases and Salts', 'Analytical Chemistry (Action of NH4OH & NaOH)', 'Mole Concept and Stoichiometry', 'Electrolysis (Electroplating, Electro-refining)', 'Metallurgy (Extraction of Aluminium & Ores)', 'Study of Compounds: Hydrogen Chloride (HCl)', 'Study of Compounds: Ammonia (NH3)', 'Study of Compounds: Nitric Acid (HNO3)', 'Study of Compounds: Sulphuric Acid (H2SO4)', 'Organic Chemistry (Alkanes, Alkenes, Alkynes, Alcohols)'];
+    } else if (isSci3) {
+      topicPlaceholder = 'e.g. Cell Division, Circulatory System';
+      subtopicPlaceholder = 'e.g. Transpiration, Photosynthesis';
+      topicChips = ['Cell Cycle, Cell Division & Chromosomes', 'Genetics (Mendel\'s Laws of Inheritance)', 'Absorption by Roots & Osmosis', 'Transpiration & Factors Affecting Transpiration', 'Photosynthesis & Carbon Fixation', 'Chemical Coordination in Plants (Plant Hormones)', 'Circulatory System & Heart Structure', 'Excretory System & Kidney Anatomy', 'Nervous System & Brain Structure', 'Sense Organs (Eye & Ear Anatomy)', 'Endocrine System & Hormones', 'Reproductive System', 'Population Explosion & Pollution Control'];
+    } else if (isCompApp) {
+      topicPlaceholder = 'e.g. User Defined Methods, String Methods, Pattern Loops';
+      subtopicPlaceholder = 'e.g. 1D & 2D Arrays, Wrapper Classes';
+      topicChips = ['Revision of Class 9 Java Basics', 'Library & Wrapper Classes (Math & Character)', 'Class as the Basis of Computation', 'User-Defined Methods & Parameter Passing', 'Constructors (Default, Parameterized, Overloading)', 'Encapsulation, Abstraction & Scope of Variables', 'Single Dimensional Arrays (Searching & Sorting)', 'Double Dimensional Arrays (2D Matrix Operations)', 'String Handling & String Functions'];
+    } else if (isCommStud || isCommApp) {
+      topicPlaceholder = 'e.g. Stakeholders, E-Commerce, Final Accounts';
+      subtopicPlaceholder = 'e.g. Marketing Mix, Banking Services';
+      topicChips = ['Commercial Organisations & Stakeholders', 'Marketing & Sales Functions', 'Advertising & Brand Promotion', 'Consumer Protection & Consumer Rights', 'E-Commerce & Digital Business', 'Capital & Revenue Expenditure', 'Final Accounts of Commercial Organisations', 'Banking Functions & E-Banking Services', 'Fundamental Accounting Concepts', 'Human Resource Management & Recruitment', 'Logistics & Supply Chain Management'];
+    } else if (isHistory) {
+      topicPlaceholder = 'e.g. Nationalism in India, Europe';
+      subtopicPlaceholder = 'e.g. Salt March, Unification';
+      topicChips = ['The Rise of Nationalism in Europe', 'Nationalism in India', 'The Making of a Global World', 'The Age of Industrialisation', 'Print Culture & the Modern World'];
+    } else if (isGeography) {
+      topicPlaceholder = 'e.g. Resources, Agriculture';
+      subtopicPlaceholder = 'e.g. Soil Erosion, Hydro Power';
+      topicChips = ['Resources and Development', 'Forest & Wildlife Resources', 'Water Resources', 'Agriculture', 'Minerals & Energy Resources', 'Manufacturing Industries', 'Lifelines of National Economy'];
+    } else if (isCivics) {
+      topicPlaceholder = 'e.g. Power Sharing, Federalism';
+      subtopicPlaceholder = 'e.g. Union & State Lists, Belgian Model';
+      topicChips = ['Power Sharing', 'Federalism', 'Democracy & Diversity', 'Gender, Religion & Caste', 'Popular Struggles & Movements', 'Political Parties', 'Outcomes of Democracy', 'Challenges to Democracy'];
+    } else if (isEconomics) {
+      topicPlaceholder = 'e.g. Sectors of Economy, Money';
+      subtopicPlaceholder = 'e.g. Primary Sector, Formal Credit';
+      topicChips = ['Development', 'Sectors of the Indian Economy', 'Money and Credit', 'Globalisation & the Indian Economy', 'Consumer Rights'];
+    } else if (isEnglish) {
+      topicPlaceholder = 'e.g. Letter to God, Nelson Mandela';
+      subtopicPlaceholder = 'e.g. Reported Speech, Letter Writing';
+      topicChips = ['A Letter to God', 'Nelson Mandela: Long Walk to Freedom', 'Two Stories About Flying', 'From the Diary of Anne Frank', 'Glimpses of India', 'Madam Rides the Bus', 'The Hack Driver', 'Grammar: Clauses, Conditionals & Reported Speech', 'Letter Writing & Formal Formats'];
+    } else if (isHindi) {
+      topicPlaceholder = 'e.g. सूरदास, तुलसीदास, नेताजी का चश्मा';
+      subtopicPlaceholder = 'e.g. पद व्याख्या, रस, अलंकार';
+      topicChips = ['सूरदास के पद', 'राम-लक्ष्मण-परशुराम संवाद (तुलसीदास)', 'बालगोबिन भगत', 'नेताजी का चश्मा', 'माता का आँचल', 'व्याकरण: रस, छन्द एवं अलंकार', 'लेखन: निबंध एवं अनुच्छेद', 'पत्र लेखन (औपचारिक / अनौपचारिक)'];
+    } else if (isMath) {
+      topicPlaceholder = 'e.g. Quadratic Equations, Trigonometry';
+      subtopicPlaceholder = 'e.g. Quadratic Formula, BPT';
+      topicChips = ['Commercial Mathematics (GST, Banking & RD)', 'Quadratic Equations', 'Matrices & Determinants Basics', 'Arithmetic Progressions', 'Triangles & Similarity', 'Coordinate Geometry (Reflection & Section)', 'Introduction to Trigonometry & Identities', 'Heights and Distances', 'Circles & Tangents', 'Areas Related to Circles', 'Surface Areas & Volumes', 'Statistics & Ogive', 'Probability'];
+    } else if (isPhysics) {
+      topicPlaceholder = 'e.g. Electricity, Light Reflection';
+      subtopicPlaceholder = "e.g. Ohm's Law, Lens Formula";
+      topicChips = ['Light: Reflection & Refraction', 'Human Eye & the Colourful World', 'Electricity', 'Magnetic Effects of Electric Current', 'Sources of Energy'];
+    } else if (isChemistry) {
+      topicPlaceholder = 'e.g. Chemical Reactions, Carbon';
+      subtopicPlaceholder = 'e.g. Esterification, Metals';
+      topicChips = ['Chemical Reactions & Equations', 'Acids, Bases and Salts', 'Metals and Non-Metals', 'Carbon and Its Compounds'];
+    } else if (isBiology) {
+      topicPlaceholder = 'e.g. Life Processes, Reproduction';
+      subtopicPlaceholder = "e.g. Photosynthesis, Mendel's Laws";
+      topicChips = ['Life Processes (Nutrition, Respiration, Transportation)', 'Control & Coordination', 'How Do Organisms Reproduce?', 'Heredity & Evolution', 'Our Environment', 'Management of Natural Resources'];
+    } else if (isScience) {
+      topicPlaceholder = 'e.g. Chemical Reactions, Electricity';
+      subtopicPlaceholder = "e.g. Ohm's Law, Life Processes";
+      topicChips = ['Chemical Reactions & Equations', 'Life Processes', 'Light: Reflection & Refraction', 'Electricity', 'Carbon & Its Compounds', 'Heredity & Evolution'];
+    } else if (isCS) {
+      topicPlaceholder = 'e.g. Python OOP, SQL Databases';
+      subtopicPlaceholder = 'e.g. Classes & Objects, Joins';
+      topicChips = ['Python: Object-Oriented Programming (OOP)', 'Python: Inheritance & Polymorphism', 'Python: File Handling & Exception', 'Database Concepts & SQL', 'SQL: Joins & Aggregate Functions', 'Computer Networks & Internet'];
+    }
+
+  // ── CLASS 11 (ISC & CBSE Specific Topic Chips) ───────────────────────────
+  } else if (cls === 'Class 11') {
+    if (isPhysics) {
+      topicPlaceholder = 'e.g. Kinematics, Rotational Motion';
+      subtopicPlaceholder = 'e.g. Laws of Motion, Work Power Energy';
+      topicChips = ['Units & Measurements', 'Kinematics (Motion in Straight Line & Plane)', 'Laws of Motion & Friction', 'Work, Energy & Power', 'System of Particles & Rotational Motion', 'Gravitation & Orbital Motion', 'Mechanical Properties of Solids & Fluids', 'Thermal Properties of Matter & Thermodynamics', 'Kinetic Theory of Gases', 'Oscillations (Simple Harmonic Motion) & Waves'];
+    } else if (isChemistry) {
+      topicPlaceholder = 'e.g. Structure of Atom, Thermodynamics';
+      subtopicPlaceholder = 'e.g. Chemical Bonding, Hydrocarbons';
+      topicChips = ['Some Basic Concepts of Chemistry', 'Structure of Atom', 'Classification of Elements & Periodicity', 'Chemical Bonding & Molecular Structure', 'Chemical Thermodynamics', 'Equilibrium (Chemical & Ionic)', 'Redox Reactions', 'Organic Chemistry: Basic Principles & Techniques', 'Hydrocarbons (Alkanes, Alkenes, Alkynes, Aromatic)'];
+    } else if (isBiology) {
+      topicPlaceholder = 'e.g. Plant Kingdom, Cell Cycle';
+      subtopicPlaceholder = 'e.g. Biomolecules, Photosynthesis';
+      topicChips = ['Diversity of Living Organisms & Biological Classification', 'Plant Kingdom & Animal Kingdom', 'Morphology & Anatomy of Flowering Plants', 'Structural Organisation in Animals', 'Cell: Structure & Function', 'Biomolecules & Cell Cycle', 'Plant Physiology (Photosynthesis, Respiration)', 'Human Physiology (Digestion, Circulation, Excretion, Locomotion)'];
+    } else if (isMath) {
+      topicPlaceholder = 'e.g. Sets, Trigonometric Functions';
+      subtopicPlaceholder = 'e.g. Complex Numbers, Permutations';
+      topicChips = ['Sets and Functions', 'Trigonometric Functions', 'Complex Numbers & Quadratic Equations', 'Linear Inequations', 'Permutations & Combinations', 'Binomial Theorem', 'Sequences and Series (AP & GP)', 'Straight Lines & Conic Sections', 'Limits & Derivatives', 'Statistics & Probability'];
+    } else if (isCS || isCompApp) {
+      topicPlaceholder = 'e.g. Boolean Algebra, Java OOP, Arrays';
+      subtopicPlaceholder = 'e.g. Logic Gates, Functions & Recursion';
+      topicChips = ['Numbers & Boolean Algebra', 'Logic Gates & Truth Tables', 'Basic Java Concepts & OOP Principles', 'Control Statements & Functions', 'Recursion Basics', 'Single Dimensional & 2D Arrays', 'Data Structure Concepts'];
+    } else if (isEngPaper2) {
+      topicPlaceholder = 'e.g. The Tempest Act 1 & 2, Prism Stories';
+      subtopicPlaceholder = 'e.g. Prospero Character Sketch, Rhapsody';
+      topicChips = ['Drama: The Tempest (Act 1 & 2)', 'Drama: Macbeth (Act 1 & 2)', 'Prose: Prism Short Stories Collection', 'Poetry: Rhapsody Poems Collection'];
+    }
+
+  // ── CLASS 12 (ISC & CBSE Specific Topic Chips) ───────────────────────────
+  } else if (cls === 'Class 12') {
+    if (isPhysics) {
+      topicPlaceholder = 'e.g. Electrostatics, Ray Optics, AC';
+      subtopicPlaceholder = 'e.g. Kirchhoff\'s Laws, Wave Optics';
+      topicChips = ['Electrostatics (Electric Charges, Fields, Potential & Capacitance)', 'Current Electricity & Kirchhoff\'s Laws', 'Magnetic Effects of Current & Magnetism', 'Electromagnetic Induction & Alternating Current (AC)', 'Electromagnetic Waves', 'Ray Optics & Optical Instruments', 'Wave Optics (Interference & Diffraction)', 'Dual Nature of Radiation & Matter', 'Atoms & Atomic Nuclei', 'Semiconductor Electronics & Logic Gates'];
+    } else if (isChemistry) {
+      topicPlaceholder = 'e.g. Electrochemistry, Organic Reactions';
+      subtopicPlaceholder = 'e.g. Nernst Equation, Aldehydes & Ketones';
+      topicChips = ['Solutions & Colligative Properties', 'Electrochemistry & Nernst Equation', 'Chemical Kinetics & Rate Laws', 'd-and f-Block Elements', 'Coordination Compounds', 'Haloalkanes & Haloarenes', 'Alcohols, Phenols & Ethers', 'Aldehydes, Ketones & Carboxylic Acids', 'Organic Compounds Containing Nitrogen (Amines)', 'Biomolecules & Polymers'];
+    } else if (isBiology) {
+      topicPlaceholder = 'e.g. Genetics, Biotechnology, DNA';
+      subtopicPlaceholder = 'e.g. Mendel\'s Laws, Human Reproduction';
+      topicChips = ['Reproduction in Organisms & Flowering Plants', 'Human Reproduction & Reproductive Health', 'Principles of Inheritance & Variation (Genetics)', 'Molecular Basis of Inheritance (DNA & RNA)', 'Evolution', 'Human Health & Diseases', 'Microbes in Human Welfare', 'Biotechnology: Principles & Processes', 'Biotechnology & Its Applications', 'Ecology, Biodiversity & Environment'];
+    } else if (isMath) {
+      topicPlaceholder = 'e.g. Integrals, Matrices, 3D Geometry';
+      subtopicPlaceholder = 'e.g. Chain Rule, Differential Equations';
+      topicChips = ['Relations and Functions & Inverse Trig', 'Matrices & Determinants', 'Continuity, Differentiability & Derivatives', 'Application of Derivatives (Maxima & Minima)', 'Integrals (Indefinite & Definite)', 'Application of Integrals (Area under Curves)', 'Differential Equations', 'Vector Algebra & 3D Geometry', 'Linear Programming', 'Probability & Bayes\' Theorem'];
+    } else if (isCS || isCompApp) {
+      topicPlaceholder = 'e.g. Karnaugh Maps (K-Maps), Data Structures';
+      subtopicPlaceholder = 'e.g. Recursion, Stacks & Queues, Inheritance';
+      topicChips = ['Boolean Algebra & Karnaugh Maps (K-Maps)', 'Computer Hardware & Logic Circuits', 'Java Programming OOP Review', 'Object-Oriented Design & Inheritance', 'Recursion & Recursive Functions', 'Data Structures: Stacks & Queues', 'Linked Lists & Binary Trees', 'Computational Complexity & Algorithms'];
+    } else if (isEngPaper2) {
+      topicPlaceholder = 'e.g. The Tempest Act 3, 4 & 5, Prism';
+      subtopicPlaceholder = 'e.g. Caliban Character Sketch, Rhapsody';
+      topicChips = ['Drama: The Tempest (Act 3, 4 & 5)', 'Drama: Macbeth (Act 3, 4 & 5)', 'Prose: Prism Short Stories (Class 12 Selection)', 'Poetry: Rhapsody Poems (Class 12 Selection)'];
+    }
+  } else if (cls === 'Class 6') {
     if (isHistory) {
       topicPlaceholder = 'e.g. Earliest Cities, New Empires';
       subtopicPlaceholder = 'e.g. Harappan Seals, Vedic Era';

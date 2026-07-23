@@ -6,6 +6,7 @@ import {View, ScrollView, Image, StyleSheet} from 'react-native';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Text} from '../../Components/Input';
 import {getTopEngagedSubjects, getRecentNote, openRecentItem} from '../../Utils/EngagementTracker';
+import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
 
 
 const getSubjectInfo = (subject) => {
@@ -126,7 +127,7 @@ const Search = ({navigation}) => {
                           {recentNote.name}
                         </Text>
                         <Text size="small" style={{ color: colors.outline, textTransform: 'capitalize' }}>
-                          Subject: {recentNote.subject} • {recentNote.type}
+                          Subject: {formatSubjectForBoard(recentNote.subject, recentNote.board)} • {recentNote.type}
                         </Text>
                       </View>
                       <Micon name="chevron-right" size={24} color={colors.primary} />

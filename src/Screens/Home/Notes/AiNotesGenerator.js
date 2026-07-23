@@ -129,6 +129,8 @@ export default function AiNotesGenerator({ route }) {
   useEffect(() => {
     let normSub = '';
     let normClass = '';
+    const normBoard = route?.params?.board || 'CBSE';
+    setBoard(normBoard);
     if (route?.params?.subject || route?.params?.topic) {
       normSub = normalizeSubject(route?.params?.subject, route?.params?.topic);
       setSubject(normSub);
@@ -138,11 +140,8 @@ export default function AiNotesGenerator({ route }) {
       setStudentClass(normClass);
     }
     if (normSub && normClass) {
-      const normStream = normalizeStream(normSub, normClass);
+      const normStream = normalizeStream(normSub, normClass, normBoard);
       setStream(normStream);
-    }
-    if (route?.params?.board) {
-      setBoard(route.params.board);
     }
     if (route?.params?.topic) {
       setTopic(route.params.topic);

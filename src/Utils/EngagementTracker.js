@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee, { AndroidImportance } from '@notifee/react-native';
+import { formatSubjectForBoard } from './CurriculumConfig.js';
 
 const ENGAGEMENT_KEY = '@studify_subject_engagement';
 const FEATURE_USAGE_KEY = '@studify_feature_usage';
@@ -136,8 +137,12 @@ export const setRecentNote = async (noteObj) => {
 /**
  * Open recent note item based on type and screen parameters
  */
-export const openRecentItem = (navigation, recentNote) => {
+export const openRecentItem = (navigation, recentNote, currentBoard = 'CBSE') => {
   if (!recentNote || !navigation) return;
+
+  const board = recentNote.board || currentBoard || 'CBSE';
+  const rawSubject = recentNote.subject || recentNote.targetSubject || 'General';
+  const subject = formatSubjectForBoard(rawSubject, board);
 
   // 1. Explicit Screen Routing
   if (recentNote.screen) {
@@ -146,15 +151,15 @@ export const openRecentItem = (navigation, recentNote) => {
         navigation.navigate('Pdf', {
           url: recentNote.pdf_url,
           title: recentNote.name,
-          subject: recentNote.subject,
+          subject: subject,
           studentClass: recentNote.studentClass,
         });
         return;
       }
     } else if (recentNote.screen === 'AiNotesGenerator') {
       navigation.navigate('AiNotesGenerator', {
-        board: recentNote.board || 'CBSE',
-        subject: recentNote.subject || 'General',
+        board: board,
+        subject: subject,
         topic: recentNote.targetTopic || recentNote.name,
         subtopic: recentNote.subtopic || '',
         studentClass: recentNote.class || recentNote.studentClass || 'Class 10',
@@ -162,8 +167,8 @@ export const openRecentItem = (navigation, recentNote) => {
       return;
     } else if (recentNote.screen === 'AiLecturePlayer') {
       navigation.navigate('AiLecturePlayer', {
-        board: recentNote.board || 'CBSE',
-        subject: recentNote.subject || 'General',
+        board: board,
+        subject: subject,
         topic: recentNote.topic || recentNote.name,
         subtopic: recentNote.subtopic || '',
         studentClass: recentNote.class || recentNote.studentClass || 'Class 10',
@@ -185,23 +190,23 @@ export const openRecentItem = (navigation, recentNote) => {
     navigation.navigate('Pdf', {
       url: recentNote.pdf_url,
       title: recentNote.name,
-      subject: recentNote.subject,
+      subject: subject,
       studentClass: recentNote.studentClass,
     });
   } else if (recentNote.url) {
     navigation.navigate('WebView', { url: recentNote.url });
   } else if (recentNote.type === 'lecture') {
     navigation.navigate('AiLecturePlayer', {
-      board: recentNote.board || 'CBSE',
-      subject: recentNote.subject || 'General',
+      board: board,
+      subject: subject,
       topic: recentNote.name,
       studentClass: recentNote.class || 'Class 10',
     });
   } else {
     // Default fallback for notes without PDF URL (AI Notes / Generated Notes)
     navigation.navigate('AiNotesGenerator', {
-      board: recentNote.board || 'CBSE',
-      subject: recentNote.subject || 'General',
+      board: board,
+      subject: subject,
       topic: recentNote.name,
       subtopic: recentNote.subtopic || '',
       studentClass: recentNote.class || 'Class 10',

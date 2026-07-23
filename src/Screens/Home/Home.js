@@ -23,6 +23,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import {checkStreak} from '../../Redux/Slices/GamificationSlice';
 import {syncGamificationToFirebase} from '../../Utils/GamificationSync';
 import {getRecentNote, getTopEngagedSubjects, openRecentItem} from '../../Utils/EngagementTracker';
+import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
 import Notifee, { TriggerType, RepeatFrequency } from '@notifee/react-native';
 
 
@@ -825,7 +826,7 @@ const Home = () => {
                   {recentNote.name}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.outline, textTransform: 'capitalize' }}>
-                  Subject: {recentNote.subject} • {recentNote.type}
+                  Subject: {formatSubjectForBoard(recentNote.subject, recentNote.board)} • {recentNote.type}
                 </Text>
               </View>
               <Icon name="arrow-right-circle" size={24} color={colors.primary} />
@@ -834,8 +835,6 @@ const Home = () => {
         )}
 
 
-        {/* 3. Promo Banner Slides */}
-        <Banner />
 
         {/* Personalized Learning Banner Card */}
         <BouncyButton

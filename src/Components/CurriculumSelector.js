@@ -4,7 +4,7 @@ import { useTheme } from 'react-native-paper';
 import GlassDropdown from './Input/GlassDropdown';
 import GlassTextInput from './Input/GlassTextInput';
 import { TopicChips } from './Input/TopicChips';
-import { BOARDS, CLASSES, STREAMS, getSubjectsForClass, getSyllabusData } from '../Utils/CurriculumConfig';
+import { BOARDS, CLASSES, STREAMS, getClassesForBoard, getSubjectsForClass, getSyllabusData } from '../Utils/CurriculumConfig';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -23,9 +23,9 @@ export const CurriculumSelector = ({
   const { dark } = useTheme();
 
   useEffect(() => {
-    // When class or stream changes, update subject options
+    // When class, stream, or board changes, update subject options
     if (studentClass) {
-      const subjects = getSubjectsForClass(studentClass, stream);
+      const subjects = getSubjectsForClass(studentClass, stream, board);
       setSubjectOptions(subjects);
       
       // If the current subject is no longer in the list, clear it
@@ -33,7 +33,7 @@ export const CurriculumSelector = ({
         setSubject('');
       }
     }
-  }, [studentClass, stream]);
+  }, [studentClass, stream, board]);
 
   const handleBoardChange = (val) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -69,8 +69,14 @@ export const CurriculumSelector = ({
     setSubtopic('');
   };
 
-  const showStream = ['Class 11', 'Class 12'].includes(studentClass);
+  // ICSE: Stream selection applies to Class 9, 10, 11, 12. CBSE: Class 11, 12
+  const showStream = board === 'ICSE' 
+    ? ['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(studentClass)
+    : ['Class 11', 'Class 12'].includes(studentClass);
   const streamSelectedIfRequired = showStream ? !!stream : true;
+
+  // Board-specific class list
+  const classOptions = getClassesForBoard(board);
 
   // Dynamically compute syllabus placeholders for topic and subtopic
   const syllabusInfo = getSyllabusData(studentClass, subject);
@@ -96,10 +102,10 @@ export const CurriculumSelector = ({
             <GlassDropdown
               label="Class"
               value={studentClass}
-              options={CLASSES}
+              options={classOptions}
               onSelect={handleClassChange}
               disabled={!board}
-              placeholder="Class 10"
+              placeholder="Select Class"
             />
           </View>
         </View>

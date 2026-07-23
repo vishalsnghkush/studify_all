@@ -599,13 +599,13 @@ export default function GamificationDashboard() {
                       </Text>
                     </View>
                     <View style={{
-                      backgroundColor: '#ff9800',
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      backgroundColor: 'rgba(16,185,129,0.15)',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
                       borderRadius: 12,
                     }}>
-                      <Text style={{color: '#ffffff', fontSize: 10, fontWeight: 'bold'}}>
-                        COMING SOON
+                      <Text style={{color: '#10b981', fontSize: 10, fontWeight: 'bold'}}>
+                        5 WORKOUT GAMES
                       </Text>
                     </View>
                   </View>
@@ -614,30 +614,31 @@ export default function GamificationDashboard() {
                       styles.streakDesc,
                       {color: colors.onSurfaceVariant, marginTop: 4},
                     ]}>
-                    Interactive mental workouts & mini-games (Coming Soon)!
+                    Play Math Quest, Zip, Patches, Sudoku & Wend for daily XP rewards!
                   </Text>
                 </View>
 
                 <View style={{marginTop: 15}}>
                   <TouchableOpacity
-                    disabled={true}
+                    onPress={() => navigation.navigate('BrainGym')}
                     style={[
                       styles.claimBtn,
                       {
                         alignSelf: 'stretch',
-                        backgroundColor: theme.dark ? '#334155' : '#cbd5e1',
-                        height: 44,
+                        backgroundColor: '#008b8b',
+                        height: 48,
                         justifyContent: 'center',
                         alignItems: 'center',
-                        borderRadius: 8,
+                        borderRadius: 12,
+                        elevation: 2,
                       },
                     ]}>
                     <Text
                       style={[
                         styles.claimBtnText,
-                        {fontSize: 14, fontWeight: 'bold', color: theme.dark ? '#94a3b8' : '#64748b'},
+                        {fontSize: 15, fontWeight: 'bold', color: '#ffffff'},
                       ]}>
-                      Coming Soon
+                      Enter Brain Gym 🎮
                     </Text>
                   </TouchableOpacity>
                 </View>
