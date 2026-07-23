@@ -21,6 +21,12 @@ import {setUser, setLastSeenMsgId, setUnreadDiscussion} from '../../../Redux/Sli
 import useApi from '../../../Components/Api/Api';
 import {Screen} from '../../../Components/Screen';
 import {Text} from '../../../Components/Input';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+const Micon = Icon;
+const IconText = ({icon, color, size}) => (
+  <Icon name={icon} size={size || 40} color={color} style={{alignSelf: 'center', marginBottom: 8}} />
+);
 
 const isValidAvatarUri = (uri) => {
   return uri && (uri.startsWith('data:image') || uri.startsWith('http://') || uri.startsWith('https://'));
@@ -601,11 +607,7 @@ const DiscussionForum = ({navigation}) => {
   );
 };
 
-// Helper SVG/Vector Icon placeholder for react-native-vector-icons
-import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
-const IconText = ({icon, color, size}) => (
-  <Micon name={icon} color={color} size={size} />
-);
+
 
 const styles = StyleSheet.create({
   centerContainer: {

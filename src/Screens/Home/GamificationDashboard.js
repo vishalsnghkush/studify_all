@@ -260,10 +260,10 @@ export default function GamificationDashboard() {
       ? globalLeaderboard
       : [
           {
-            email: user.email || 'you@studify.com',
-            name: user.fname ? `${user.fname} ${user.lname}` : 'You',
+            email: user?.email || 'you@studify.com',
+            name: user?.fname ? `${user.fname} ${user?.lname || ''}` : 'You',
             xp: xp,
-            avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
+            avatar: (user?.fname?.[0] || 'Y') + (user?.lname?.[0] || ''),
             isUser: true,
             level: level,
             streak: streak,
@@ -583,37 +583,49 @@ export default function GamificationDashboard() {
             <Card
               style={[
                 styles.card,
-                {backgroundColor: theme.dark ? colors.surface : '#ffffff'},
+                {backgroundColor: theme.dark ? colors.surface : '#ffffff', opacity: 0.85},
               ]}>
               <Card.Content>
                 <View style={styles.streakHeader}>
-                  <View style={styles.streakHeadingCol}>
-                    <Micon name="brain" size={28} color="#008b8b" />
-                    <Text
-                      style={[
-                        styles.streakTitle,
-                        {color: colors.onSurface, marginLeft: 8},
-                      ]}>
-                      Daily Brain Gym
-                    </Text>
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <View style={styles.streakHeadingCol}>
+                      <Micon name="brain" size={28} color="#008b8b" />
+                      <Text
+                        style={[
+                          styles.streakTitle,
+                          {color: colors.onSurface, marginLeft: 8},
+                        ]}>
+                        Daily Brain Gym
+                      </Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: '#ff9800',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 12,
+                    }}>
+                      <Text style={{color: '#ffffff', fontSize: 10, fontWeight: 'bold'}}>
+                        COMING SOON
+                      </Text>
+                    </View>
                   </View>
                   <Text
                     style={[
                       styles.streakDesc,
                       {color: colors.onSurfaceVariant, marginTop: 4},
                     ]}>
-                    Keep your mind sharp and earn +5 XP per game daily!
+                    Interactive mental workouts & mini-games (Coming Soon)!
                   </Text>
                 </View>
 
                 <View style={{marginTop: 15}}>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('BrainGym')}
+                    disabled={true}
                     style={[
                       styles.claimBtn,
                       {
                         alignSelf: 'stretch',
-                        backgroundColor: '#008b8b',
+                        backgroundColor: theme.dark ? '#334155' : '#cbd5e1',
                         height: 44,
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -623,9 +635,9 @@ export default function GamificationDashboard() {
                     <Text
                       style={[
                         styles.claimBtnText,
-                        {fontSize: 15, fontWeight: 'bold'},
+                        {fontSize: 14, fontWeight: 'bold', color: theme.dark ? '#94a3b8' : '#64748b'},
                       ]}>
-                      Enter Brain Gym
+                      Coming Soon
                     </Text>
                   </TouchableOpacity>
                 </View>

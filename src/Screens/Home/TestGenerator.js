@@ -299,6 +299,11 @@ export default function TestGenerator({ route }) {
   const [gradedAnswers, setGradedAnswers] = useState({});
   const [isGrading, setIsGrading] = useState(false);
 
+  // Blueprint (Custom Topic Weightage) States
+  const [blueprintList, setBlueprintList] = useState([]);
+  const [blueprintChapter, setBlueprintChapter] = useState('');
+  const [blueprintCount, setBlueprintCount] = useState('');
+
   useEffect(() => {
     if (appState === 'testing') {
       const startTime = Date.now();
@@ -2198,6 +2203,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
     paddingVertical: 4,
+  },
+  formContainer: {
+    paddingHorizontal: 16,
   },
   hint: {
     fontSize: 11,

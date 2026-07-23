@@ -1174,12 +1174,9 @@ export default function VoiceNotebook({navigation}) {
           </div>
 
           <div id="pages-wrapper">
-            ${
-              currentPage.content.indexOf('page-sheet') !== -1
-                ? currentPage.content
-                : `
+            ${(currentPage?.content || '').indexOf('page-sheet') !== -1 ? (currentPage?.content || '') : `
               <div class="page-sheet" contenteditable="${!isReadOnly}" id="page-1" oninput="saveContent()" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off">
-                ${currentPage.content}
+                ${currentPage?.content || ''}
               </div>
             `
             }

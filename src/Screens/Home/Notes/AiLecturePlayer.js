@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
-import {trackEngagement, setRecentNote, getTopEngagedSubjects} from '../../../Utils/EngagementTracker';
+import {trackEngagement, setRecentNote, getTopEngagedSubjects, logStudySession} from '../../../Utils/EngagementTracker';
 import {normalizeSubject, normalizeClass, normalizeStream} from '../../../Utils/CurriculumConfig';
 
 import { PremiumLoader } from '../../../Components/PremiumLoader';
