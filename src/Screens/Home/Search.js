@@ -5,6 +5,9 @@ import useApi from '../../Components/Api/Api';
 import {View, ScrollView, Image, StyleSheet} from 'react-native';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Text} from '../../Components/Input';
+import {getTopEngagedSubjects, getRecentNote, openRecentItem} from '../../Utils/EngagementTracker';
+import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
+
 
 const getSubjectInfo = (subject) => {
   const s = subject?.toLowerCase() || '';
@@ -20,7 +23,10 @@ const Search = ({navigation}) => {
   const [courses, setCourses] = useState([]);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [suggestedSubjects, setSuggestedSubjects] = useState([]);
+  const [recentNote, setRecentNoteState] = useState(null);
   const ref = useRef();
+
   const {get} = useApi();
   const {colors} = useTheme();
 
@@ -28,7 +34,20 @@ const Search = ({navigation}) => {
     setTimeout(() => {
       ref.current?.focus();
     }, 100);
+
+    const loadSuggestions = async () => {
+      try {
+        const top = await getTopEngagedSubjects(3);
+        setSuggestedSubjects(top);
+        const recent = await getRecentNote();
+        setRecentNoteState(recent);
+      } catch (e) {
+        console.log('Error loading search suggestions', e);
+      }
+    };
+    loadSuggestions();
   }, []);
+
 
   const fetchData = async () => {
     if (!value.trim()) {
@@ -81,7 +100,75 @@ const Search = ({navigation}) => {
         />
       ) : (
         <ScrollView style={{marginVertical: 10, paddingHorizontal: 12}} contentContainerStyle={{paddingBottom: 40}}>
+          {!value && (
+            <View style={{ marginBottom: 20 }}>
+              {/* Recent study note card */}
+              {recentNote && (
+                <View style={{ marginBottom: 20 }}>
+                  <Text size="medium" style={{ fontWeight: 'bold', marginBottom: 10, color: colors.onSurface }}>
+                    Recently Studied 🕒
+                  </Text>
+                  <TouchableRipple
+                    onPress={() => openRecentItem(navigation, recentNote)}
+                    style={[
+                      styles.noteCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.outlineVariant,
+                      },
+                    ]}
+                  >
+                    <View style={styles.cardRow}>
+                      <View style={[styles.iconBadge, { backgroundColor: '#ffebee' }]}>
+                        <Micon name={recentNote.type === 'note' ? 'file-pdf-box' : 'play-circle'} size={24} color="#e53935" />
+                      </View>
+                      <View style={styles.cardDetails}>
+                        <Text size="medium" numberOfLines={1} style={[styles.noteName, { color: colors.onSurface }]}>
+                          {recentNote.name}
+                        </Text>
+                        <Text size="small" style={{ color: colors.outline, textTransform: 'capitalize' }}>
+                          Subject: {formatSubjectForBoard(recentNote.subject, recentNote.board)} • {recentNote.type}
+                        </Text>
+                      </View>
+                      <Micon name="chevron-right" size={24} color={colors.primary} />
+                    </View>
+                  </TouchableRipple>
+                </View>
+              )}
+
+              {/* Recommended subject shortcut tags */}
+              {suggestedSubjects.length > 0 && (
+                <View>
+                  <Text size="medium" style={{ fontWeight: 'bold', marginBottom: 10, color: colors.onSurface }}>
+                    Suggested Subjects 💡
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {suggestedSubjects.map(subj => (
+                      <TouchableRipple
+                        key={subj}
+                        onPress={() => setValue(subj)}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: 20,
+                          backgroundColor: colors.surfaceVariant,
+                          borderWidth: 1,
+                          borderColor: colors.outlineVariant
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary, textTransform: 'capitalize' }}>
+                          {subj}
+                        </Text>
+                      </TouchableRipple>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
           {courses.length > 0 && (
+
             <View style={{marginBottom: 20}}>
               <Text size="large" style={{fontWeight: 'bold', marginBottom: 12, color: colors.onSurface}}>
                 Courses 🎓
@@ -106,7 +193,8 @@ const Search = ({navigation}) => {
                       navigation.navigate('Pdf', {
                         url: item.pdf_url,
                         title: item.title || 'Note',
-                        subject: item.subject || 'General'
+                        subject: item.subject || 'General',
+                        studentClass: item.class || item.studentClass || item.cls || item.form
                       });
                     }}
                     rippleColor="rgba(0,113,113,0.1)"

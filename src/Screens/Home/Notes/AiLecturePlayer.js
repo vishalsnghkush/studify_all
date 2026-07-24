@@ -6,17 +6,25 @@ import {
   TouchableOpacity,
   Alert,
   TextInput as RNTextInput,
+  Image,
+  Text as RNText,
 } from 'react-native';
 import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
+import { SvgXml } from 'react-native-svg';
+import {trackEngagement, setRecentNote, getTopEngagedSubjects, logStudySession} from '../../../Utils/EngagementTracker';
+import {normalizeSubject, normalizeClass, normalizeStream} from '../../../Utils/CurriculumConfig';
+
+import { PremiumLoader } from '../../../Components/PremiumLoader';
 
 // App components
 import {Screen} from '../../../Components/Screen';
-import {Text, Button} from '../../../Components/Input';
-import Dropdown from '../../../Components/Input/Dropdown';
+import {Text} from '../../../Components/Input';
+import {CurriculumSelector} from '../../../Components/CurriculumSelector';
+import GlassButton from '../../../Components/Input/GlassButton';
 
 const BOARD_OPTIONS = [
   {label: 'CBSE Board', value: 'CBSE'},
@@ -203,7 +211,7 @@ const WEBVIEW_SPEECH_HTML = `
 </html>
 `;
 
-export default function AiLecturePlayer() {
+export default function AiLecturePlayer({ route }) {
   const theme = useTheme();
   const navigation = useNavigation();
 
@@ -214,7 +222,8 @@ export default function AiLecturePlayer() {
   // Input states
   const [board, setBoard] = useState('CBSE');
   const [studentClass, setStudentClass] = useState('Class 10');
-  const [subject, setSubject] = useState('Physics');
+  const [stream, setStream] = useState('');
+  const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
   const [subtopic, setSubtopic] = useState('');
 
@@ -231,13 +240,74 @@ export default function AiLecturePlayer() {
 
   // Saved library state
   const [savedLectures, setSavedLectures] = useState([]);
+  const [topSubject, setTopSubject] = useState('');
+
+  useEffect(() => {
+    if (appState === 'playing') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            subject || 'General',
+            topic || 'AI Lecture',
+            'AI Lecture',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [appState, subject, topic]);
+
+  useEffect(() => {
+    const fetchRecommendation = async () => {
+      try {
+        const top = await getTopEngagedSubjects(1);
+        if (top && top.length > 0) {
+          setTopSubject(top[0]);
+        }
+      } catch (e) {
+        console.log('Error loading recommendations in lecture generator', e);
+      }
+    };
+    if (appState === 'setup') {
+      fetchRecommendation();
+    }
+  }, [appState]);
 
   const webViewRef = useRef(null);
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   // Load saved library on start
   useEffect(() => {
     loadSavedLectures();
   }, []);
+
+  // Read navigation parameters (autofill)
+  useEffect(() => {
+    let normSub = '';
+    let normClass = '';
+    const normBoard = route?.params?.board || 'CBSE';
+    setBoard(normBoard);
+    if (route?.params?.subject || route?.params?.topic) {
+      normSub = normalizeSubject(route?.params?.subject, route?.params?.topic);
+      setSubject(normSub);
+    }
+    if (route?.params?.studentClass || route?.params?.class || route?.params?.topic) {
+      normClass = normalizeClass(route?.params?.studentClass || route?.params?.class, route?.params?.topic);
+      setStudentClass(normClass);
+    }
+    if (normSub && normClass) {
+      const normStream = normalizeStream(normSub, normClass, normBoard);
+      setStream(normStream);
+    }
+    if (route?.params?.topic) {
+      setTopic(route.params.topic);
+    }
+  }, [route?.params]);
 
   // Cleanup speech synthesis when exiting screen
   useEffect(() => {
@@ -476,6 +546,19 @@ export default function AiLecturePlayer() {
     setSlides([]);
     setCurrentSlideIndex(0);
 
+    // Track local engagement
+    trackEngagement(subject || 'General', 'lecture');
+    setRecentNote({
+      name: topic.trim(),
+      subject: subject,
+      type: 'lecture',
+      screen: 'AiLecturePlayer',
+      board: board,
+      class: studentClass,
+      subtopic: subtopic.trim() || ''
+    });
+
+
     const systemPrompt =
       'You are an expert audio-visual academic content generator.\n' +
       "Convert the user's study topic into a structured, engaging slide lecture package.\n\n" +
@@ -487,6 +570,7 @@ export default function AiLecturePlayer() {
       '    {\n' +
       '      "slideNo": 1,\n' +
       '      "title": "Slide Title Header",\n' +
+      '      "imageKeywords": "3-5 descriptive visual keywords for this slide topic, e.g. electric circuit resistor battery current flow",\n' +
       '      "bullets": [\n' +
       '        "High-quality detailed academic concept bullet 1",\n' +
       '        "High-quality detailed academic concept bullet 2",\n' +
@@ -497,7 +581,7 @@ export default function AiLecturePlayer() {
       '        "Conversational spoken narrative explaining bullet 2. Keep it detailed, engaging, and clear.",\n' +
       '        "Conversational spoken narrative explaining bullet 3. Keep it detailed, engaging, and clear."\n' +
       '      ],\n' +
-      '      "diagramSvg": "<svg viewBox=\\"0 0 300 150\\" width=\\"100%\\" height=\\"100%\\">...clean chalkboard-style inline SVG code... </svg> (Use empty string if not applicable.)"\n' +
+      '      "diagramSvg": "<svg viewBox=\\"0 0 300 150\\" xmlns=\\"http://www.w3.org/2000/svg\\">...chalkboard-style SVG with visible white/colored strokes on dark bg...</svg>"\n' +
       '    }\n' +
       '  ]\n' +
       '}\n\n' +
@@ -506,7 +590,8 @@ export default function AiLecturePlayer() {
       '- HIGH LEVEL & HARD DIFFICULTY: The content must be highly challenging and suitable for revision. Each slide must contain definitions, equations, derivations, or analytical concepts, not basic descriptions.\n' +
       '- Create exactly 5 to 7 slides mapping the topic.\n' +
       '- HIGH QUALITY CONTENT: Each slide must have 3 to 5 comprehensive bullet points. Do not write short 1-line summaries; make them detailed, educational, and high-quality containing definitions, equations, or key facts.\n' +
-      '- DIAGRAMS / VISUAL ILLUSTRATIONS: For technical subjects (especially Chemistry carbon bonds/molecules, Physics free body force diagrams/circuits, Math coordinate systems/shapes, Biology flowcharts), you MUST provide a clean, beautifully formatted chalkboard-styled inline SVG vector graphic inside the "diagramSvg" field. Use standard tags like <line>, <circle>, <rect>, <polygon>, <text> (with font-size 10-12px), and <path>. Use visible chalk colors: "white", "#a3e635" (lime green), "#60a5fa" (sky blue), "#f472b6" (pink), "#f59e0b" (yellow).\n' +
+      '- IMAGE KEYWORDS: For EVERY slide, provide 3-5 specific visual keywords in the "imageKeywords" field describing what an illustration for this slide should depict. Be specific and academic (e.g. "mitochondria cell membrane ATP energy" NOT just "biology").\n' +
+      '- DIAGRAMS / VISUAL ILLUSTRATIONS: For technical subjects (Chemistry molecules, Physics circuits/forces, Math graphs, Biology anatomy), provide a clean chalkboard-style inline SVG in "diagramSvg". IMPORTANT SVG RULES: Always include xmlns="http://www.w3.org/2000/svg" in the svg tag. Use viewBox="0 0 300 150". Use ONLY white (#ffffff), lime (#a3e635), sky-blue (#60a5fa), pink (#f472b6), yellow (#f59e0b) as stroke/fill colors. Set stroke-width to at least 2. Use <text> with fill="white" and font-size="12". Do NOT use black or dark colors. If the topic is non-technical or you cannot make a meaningful diagram, set diagramSvg to empty string "".\n' +
       '- SEQUENTIAL SCRIPTS: You MUST provide a matching array in "bulletScripts" with exactly the same length as "bullets". Each entry in "bulletScripts" represents the script spoken by the teacher when that specific bullet point is revealed.\n' +
       '- The spoken scripts must be plain text. Do not use LaTeX, backslashes, or formulas. Speak math/symbols in words (e.g. "x squared plus three", "delta t", "integral from zero to infinity").';
 
@@ -609,34 +694,42 @@ export default function AiLecturePlayer() {
         />
       </View>
 
-      {/* Dynamic Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme.colors.surface,
-            borderBottomColor: theme.colors.outlineVariant,
-          },
-        ]}>
-        <TouchableOpacity
-          onPress={() => {
-            if (appState === 'playing') {
-              handleBackToSetup();
-            } else {
-              navigation.goBack();
-            }
-          }}
-          style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {appState === 'playing' ? 'Lecture Board' : 'Lecture Generator'}
-        </Text>
-        <View style={{width: 40}} />
-      </View>
+      {/* Dynamic Header (Hidden in setup since navigation header already says "AI Lecture Generator") */}
+      {appState !== 'setup' && (
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outlineVariant,
+            },
+          ]}>
+          <TouchableOpacity
+            onPress={() => {
+              if (appState === 'playing') {
+                handleBackToSetup();
+              } else {
+                navigation.goBack();
+              }
+            }}
+            style={styles.backBtn}>
+            <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {appState === 'playing' ? 'Lecture Board' : 'Lecture Generator'}
+          </Text>
+          <View style={{width: 40}} />
+        </View>
+      )}
 
       {appState === 'setup' && (
         <View style={{flex: 1}}>
+          {/* Back button for setup state — header is hidden so this is the only way back */}
+          <TouchableOpacity
+            onPress={() => navigation.canGoBack() && navigation.goBack()}
+            style={{padding: 12, flexDirection: 'row', alignItems: 'center', gap: 6}}>
+            <Icon name="arrow-left" size={22} color={theme.colors.onBackground} />
+          </TouchableOpacity>
           {/* Tab Selection */}
           <View style={styles.tabContainer}>
             <TouchableOpacity
@@ -725,67 +818,24 @@ export default function AiLecturePlayer() {
                 </Card.Content>
               </Card>
 
+
+
               {/* Form Input Fields */}
-              <Dropdown
-                label="Select Board / Level"
-                name="board"
-                value={board}
-                list={BOARD_OPTIONS}
-                updateFormValue={({value}) => setBoard(value)}
+              <CurriculumSelector
+                board={board} setBoard={setBoard}
+                studentClass={studentClass} setStudentClass={setStudentClass}
+                stream={stream} setStream={setStream}
+                subject={subject} setSubject={setSubject}
+                topic={topic} setTopic={setTopic}
+                subtopic={subtopic} setSubtopic={setSubtopic}
               />
 
-              <Dropdown
-                label="Select Class / Grade"
-                name="studentClass"
-                value={studentClass}
-                list={CLASS_OPTIONS}
-                updateFormValue={({value}) => setStudentClass(value)}
-              />
-
-              <Dropdown
-                label="Select Subject"
-                name="subject"
-                value={subject}
-                list={SUBJECT_OPTIONS}
-                updateFormValue={({value}) => setSubject(value)}
-              />
-
-              <Text style={styles.inputLabel}>Lecture Topic / Chapter</Text>
-              <RNTextInput
-                placeholder="e.g. Laws of Motion, Carbon Compounds"
-                value={topic}
-                onChangeText={setTopic}
-                placeholderTextColor={theme.colors.outline}
-                style={[
-                  styles.textInput,
-                  {
-                    color: theme.colors.onSurface,
-                    borderColor: theme.colors.outlineVariant,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              />
-
-              <Text style={styles.inputLabel}>Subtopic Focus (Optional)</Text>
-              <RNTextInput
-                placeholder="e.g. Nature of Roots, Light Reaction"
-                value={subtopic}
-                onChangeText={setSubtopic}
-                placeholderTextColor={theme.colors.outline}
-                style={[
-                  styles.textInput,
-                  {
-                    color: theme.colors.onSurface,
-                    borderColor: theme.colors.outlineVariant,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              />
-
-              <Button
-                style={[styles.generateBtn, {backgroundColor: '#d946ef'}]}
-                name="Create AI Lecture"
+              <GlassButton
+                label="Generate AI Lecture"
+                icon="sparkles"
+                color="#d946ef"
                 onPress={triggerGeneration}
+                disabled={!topic || !subject || !board || !studentClass}
               />
             </ScrollView>
           ) : (
@@ -872,23 +922,16 @@ export default function AiLecturePlayer() {
       )}
 
       {appState === 'generating' && (
-        <View style={styles.centered}>
-          <ActivityIndicator size={60} color="#d946ef" />
-          <Text style={[styles.loadingTitle, {color: '#d946ef'}]} size="medium">
-            AI is creating your slides & script...
-          </Text>
-          <Text
-            style={{
-              color: theme.colors.onSurfaceVariant,
-              fontSize: 12,
-              textAlign: 'center',
-              marginTop: 8,
-              paddingHorizontal: 40,
-            }}>
-            Formatting content boards, structure, and oral narrative. This takes
-            about 15 seconds.
-          </Text>
-        </View>
+        <PremiumLoader 
+           title="AI is creating your slides & script..." 
+           accentColor="#d946ef" 
+           tips={[
+             "Formatting content boards and structure...",
+             "Writing engaging oral narratives...",
+             "Generating mathematical diagrams...",
+             "Syncing audio cues with bullet points..."
+           ]}
+        />
       )}
 
       {appState === 'playing' && slides.length > 0 && (
@@ -952,13 +995,17 @@ export default function AiLecturePlayer() {
 
               {(() => {
                 const currentSlide = slides[currentSlideIndex];
-                if (!currentSlide || !currentSlide.diagramSvg) {
-                  return null;
-                }
-                const svgText = currentSlide.diagramSvg.trim();
-                const hasSvgTag = svgText.toLowerCase().startsWith('<svg');
+                if (!currentSlide) return null;
 
-                // Strict validation: must contain actual vector shapes to prevent empty card boxes
+                // ── Step 1: Try SVG diagram first ──
+                let rawSvgText = (currentSlide.diagramSvg || '').trim();
+                let svgText = '';
+                const svgMatch = rawSvgText.match(/<svg[\s\S]*?<\/svg>/i);
+                if (svgMatch) {
+                  svgText = svgMatch[0];
+                }
+
+                const hasSvgTag = svgText.length > 0;
                 const hasDrawingElements =
                   svgText.includes('<line') ||
                   svgText.includes('<circle') ||
@@ -968,65 +1015,59 @@ export default function AiLecturePlayer() {
                   svgText.includes('<ellipse') ||
                   svgText.includes('<text');
 
-                if (!hasSvgTag || !hasDrawingElements) {
-                  return null;
+                const svgIsValid = hasSvgTag && hasDrawingElements;
+
+                if (svgIsValid) {
+                  // Chalkboard color normalization
+                  let cleanSvg = svgText
+                    .replace(/stroke\s*=\s*["']black["']/gi, 'stroke="white"')
+                    .replace(/stroke\s*=\s*["']#000000["']/gi, 'stroke="white"')
+                    .replace(/stroke\s*=\s*["']#000["']/gi, 'stroke="white"')
+                    .replace(/fill\s*=\s*["']black["']/gi, 'fill="none"')
+                    .replace(/fill\s*=\s*["']#000000["']/gi, 'fill="none"')
+                    .replace(/fill\s*=\s*["']#333["']/gi, 'fill="none"')
+                    .replace(/stroke\s*=\s*["']#333["']/gi, 'stroke="#60a5fa"');
+                    
+                  // Auto-fix LLM SVG syntax errors without overriding valid viewBoxes
+                  cleanSvg = cleanSvg.replace(/viewBox\s*=\s*["']\s*0\s*=\s*(\d+)\s*(\d+)\s*["']/gi, 'viewBox="0 0 $1 $2"');
+                  if (!/viewBox\s*=/i.test(cleanSvg)) {
+                    cleanSvg = cleanSvg.replace(/<svg/i, '<svg viewBox="0 0 300 300"');
+                  }
+                  
+                  // Strip out any background rectangles the AI might have drawn
+                  cleanSvg = cleanSvg.replace(/<rect[^>]*width=["']300["'][^>]*fill=["']#(1a1a1a|000000|222222|333333)["'][^>]*\/?>/gi, '');
+
+                  return (
+                    <View
+                      style={[
+                        styles.diagramContainer,
+                        {
+                          height: Math.round(require('react-native').Dimensions.get('window').width * 0.65),
+                          backgroundColor: '#0f172a',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          padding: 6,
+                        },
+                      ]}>
+                      <SvgXml 
+                        xml={cleanSvg} 
+                        width="100%" 
+                        height="100%" 
+                        onError={(e) => console.log('SVG Parse Error:', e)}
+                        fallback={
+                          <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                            <Icon name="image-broken-variant" size={40} color="rgba(255,255,255,0.2)" />
+                            <RNText style={{color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 8}}>
+                              Diagram generation failed
+                            </RNText>
+                          </View>
+                        }
+                      />
+                    </View>
+                  );
                 }
 
-                // Chalkboard color normalization: auto-convert dark/black lines to white chalk
-                const cleanSvg = svgText
-                  .replace(/stroke\s*=\s*["']black["']/gi, 'stroke="white"')
-                  .replace(/stroke\s*=\s*["']#000000["']/gi, 'stroke="white"')
-                  .replace(/stroke\s*=\s*["']#000["']/gi, 'stroke="white"')
-                  .replace(/fill\s*=\s*["']black["']/gi, 'fill="none"')
-                  .replace(/fill\s*=\s*["']#000000["']/gi, 'fill="none"');
-
-                return (
-                  <View style={styles.diagramContainer}>
-                    <WebView
-                      originWhitelist={['*']}
-                      source={{
-                        html: `
-                        <html>
-                        <head>
-                          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                          <style>
-                            html, body {
-                              background-color: ${
-                                theme.dark ? '#0c1410' : '#1e3328'
-                              };
-                              margin: 0;
-                              padding: 0;
-                              display: flex;
-                              justify-content: center;
-                              align-items: center;
-                              overflow: hidden;
-                              height: 100%;
-                              width: 100%;
-                            }
-                            svg {
-                              width: 100%;
-                              height: 100%;
-                              max-width: 100%;
-                              max-height: 100%;
-                            }
-                          </style>
-                        </head>
-                        <body>
-                          ${cleanSvg}
-                        </body>
-                        </html>
-                      `,
-                      }}
-                      style={{
-                        height: 160,
-                        width: '100%',
-                        backgroundColor: theme.dark ? '#0c1410' : '#1e3328',
-                      }}
-                      scrollEnabled={false}
-                      javaScriptEnabled={true}
-                    />
-                  </View>
-                );
+                return null;
               })()}
 
               {(() => {
@@ -1200,6 +1241,34 @@ export default function AiLecturePlayer() {
                 {Math.round(((currentSlideIndex + 1) / slides.length) * 100)}%
               </Text>
             </View>
+            
+            {/* Automated "Infinite Loop" CTA (Phase 1) */}
+            {currentSlideIndex === slides.length - 1 && (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('TestGenerator', { 
+                    subject: subject || 'General', 
+                    topic: topic || 'Review',
+                    studentClass: studentClass,
+                    board: board,
+                    stream: stream,
+                  });
+                }}
+                style={{
+                  backgroundColor: '#673ab7',
+                  marginHorizontal: 10,
+                  marginTop: 16,
+                  padding: 12,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  elevation: 2,
+                }}>
+                <Icon name="brain" size={20} color="white" />
+                <Text style={{color: 'white', fontWeight: 'bold', marginLeft: 8}}>Test your Knowledge (AI Quiz)</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
@@ -1453,13 +1522,30 @@ const styles = StyleSheet.create({
   diagramContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 8,
-    padding: 10,
+    padding: 6,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  fallbackBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    marginTop: 4,
+    gap: 3,
+  },
+  fallbackBadgeText: {
+    fontSize: 9,
+    color: '#a3e635',
+    fontWeight: 'bold',
   },
   diagramText: {
     fontFamily: 'monospace',

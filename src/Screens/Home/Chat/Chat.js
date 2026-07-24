@@ -174,7 +174,7 @@ const Chat = ({route}) => {
         },
         image:
           c.message_type === 'image' && c?.media_url
-            ? JSON.parse(c.media_url)
+            ? (() => { try { return JSON.parse(c.media_url); } catch { return []; } })()
             : [],
         video: c.message_type === 'video' ? c.media_url : undefined,
         docUrl: c.message_type === 'document' ? c.media_url : undefined,

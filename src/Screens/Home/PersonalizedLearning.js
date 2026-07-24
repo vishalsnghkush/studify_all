@@ -14,6 +14,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import {
+  getAllSubjectStats,
+  getTopEngagedSubjects,
+  getAIFocusSubject
+} from '../../Utils/EngagementTracker';
+
+const formatSubjectName = (name) => {
+  if (!name) return 'General';
+  return name.trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 
 const PersonalizedLearning = () => {
   const navigation = useNavigation();
@@ -32,6 +43,52 @@ const PersonalizedLearning = () => {
   const [tempDate, setTempDate] = useState(new Date());
   const [tempTotalChapters, setTempTotalChapters] = useState('10');
   const [tempCompletedChapters, setTempCompletedChapters] = useState('0');
+
+  // Personalization local states
+  const [subjectStats, setSubjectStats] = useState({});
+  const [aiFocusSub, setAiFocusSub] = useState(null);
+  const [repetitionNudge, setRepetitionNudge] = useState(null);
+  const [failedTopicNudge, setFailedTopicNudge] = useState(null);
+
+  const loadPersonalizationData = useCallback(async () => {
+    try {
+      const stats = await getAllSubjectStats();
+      setSubjectStats(stats);
+
+      const focus = await getAIFocusSubject();
+      setAiFocusSub(focus);
+
+      const failedTop = await AsyncStorage.getItem('@studify_last_failed_topic');
+      if (failedTop) {
+        setFailedTopicNudge(JSON.parse(failedTop));
+      } else {
+        setFailedTopicNudge(null);
+      }
+
+      const top = await getTopEngagedSubjects(1);
+      if (top && top.length > 0) {
+        const topSubjectName = top[0];
+        const topSubjectData = stats[topSubjectName];
+        if (topSubjectData && topSubjectData.lastOpenedTime) {
+          const diffMs = Date.now() - topSubjectData.lastOpenedTime;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          if (diffDays >= 3) {
+            setRepetitionNudge({
+              subject: topSubjectName,
+              days: diffDays
+            });
+          } else {
+            setRepetitionNudge(null);
+          }
+        }
+      } else {
+        setRepetitionNudge(null);
+      }
+    } catch (e) {
+      console.log('Error loading personalization data', e);
+    }
+  }, []);
+
 
   const loadExamTarget = useCallback(async () => {
     try {
@@ -112,8 +169,10 @@ const PersonalizedLearning = () => {
     useCallback(() => {
       loadDashboardData();
       loadExamTarget();
-    }, [loadDashboardData, loadExamTarget]),
+      loadPersonalizationData();
+    }, [loadDashboardData, loadExamTarget, loadPersonalizationData]),
   );
+
 
   const handleToggleTask = async id => {
     try {
@@ -387,6 +446,76 @@ const PersonalizedLearning = () => {
             style={styles.progressBar}
           />
         </Card>
+
+        {/* Local Personalization Section */}
+        {(repetitionNudge || Object.keys(subjectStats).length > 0) && (
+          <View style={{ marginBottom: 20 }}>
+
+            {aiFocusSub && (
+              <View
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#007171',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}>
+                <Icon name="rocket-launch" size={20} color="#007171" style={{marginRight: 10}} />
+                <Text style={{fontSize: 12, color: theme.colors.onSurface, flex: 1, lineHeight: 16}}>
+                  ✨ <Text style={{fontWeight: 'bold'}}>AI Focus of the Day:</Text> Boost your learning in <Text style={{ fontWeight: 'bold' }}>{formatSubjectName(aiFocusSub)}</Text> based on your spaced repetition & weakness score!
+                </Text>
+              </View>
+            )}
+
+            {/* 2. Spaced Repetition Nudge (if active) */}
+            {repetitionNudge && (
+              <View
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(76, 175, 80, 0.15)' : '#e8f5e9',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#4caf50',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}>
+                <Icon name="brain" size={20} color="#4caf50" style={{marginRight: 10}} />
+                <Text style={{fontSize: 12, color: theme.colors.onSurface, flex: 1, lineHeight: 16}}>
+                  You studied <Text style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{repetitionNudge.subject}</Text> {repetitionNudge.days} days ago. A quick 5-minute recap helps retain 90% of memory!
+                </Text>
+              </View>
+            )}
+
+            {failedTopicNudge && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AiNotesGenerator', { subject: failedTopicNudge.subject, topic: failedTopicNudge.topic })}
+                style={{
+                  backgroundColor: theme.dark ? 'rgba(233, 30, 99, 0.15)' : '#fce4ec',
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#e91e63',
+                  padding: 14,
+                  borderRadius: 12,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                }}>
+                <Icon name="robot-outline" size={26} color="#e91e63" style={{marginTop: 2, marginRight: 12}} />
+                <View style={{flex: 1}}>
+                  <Text style={{fontWeight: 'bold', fontSize: 14, color: '#e91e63', marginBottom: 4}}>Context-Aware AI Tutor</Text>
+                  <Text style={{fontSize: 12, color: theme.colors.onSurface, lineHeight: 18}}>
+                    I noticed you struggled with <Text style={{fontWeight: 'bold'}}>{failedTopicNudge.topic}</Text> in your last quiz. Want me to generate a custom study guide for you?
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+          </View>
+        )}
+
 
         {/* Feature Cards Grid (Test Generator & Full Planner) */}
         <View style={styles.featuresRow}>
@@ -817,7 +946,7 @@ const PersonalizedLearning = () => {
                               {color: theme.colors.onSurface},
                               isCompleted && styles.completedTaskText,
                             ]}>
-                            {item.description}
+                            {item.topic || item.description || 'Specific study topic'}
                           </Text>
                           <View style={styles.taskMetaRow}>
                             <View
@@ -856,6 +985,114 @@ const PersonalizedLearning = () => {
             </View>
           )}
         </View>
+
+        {/* Learning Diet (Balance Meter) - Moved to bottom */}
+        <Card style={[styles.dietCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, marginTop: 20 }]}>
+          <Card.Content>
+            <View style={styles.dietHeader}>
+              <Icon name="scale-balance" size={20} color={theme.colors.primary} />
+              <Text style={[styles.dietTitle, { color: theme.colors.onSurface }]}>Your Subject Learning Diet</Text>
+            </View>
+            <Text style={{ fontSize: 11, color: theme.colors.outline, marginBottom: 12 }}>
+              Tracks which subjects you focus on. Powered by AI priority recommendation engine!
+            </Text>
+
+            {Object.keys(subjectStats).length === 0 ? (
+              <View style={styles.emptyDiet}>
+                <Icon name="book-open-outline" size={32} color="#aaa" />
+                <Text style={{ fontSize: 12, color: theme.colors.outline, marginTop: 6, textAlign: 'center' }}>
+                  No study sessions tracked. Open notes or create quizzes to see your distribution!
+                </Text>
+              </View>
+            ) : (() => {
+              const totalClicks = Object.values(subjectStats).reduce((sum, d) => sum + d.count, 0) || 1;
+
+              // Normalize and group duplicates
+              const normalizedStats = {};
+              Object.entries(subjectStats).forEach(([subj, data]) => {
+                const normName = formatSubjectName(subj);
+                if (!normalizedStats[normName]) {
+                  normalizedStats[normName] = { count: 0, lastOpenedTime: data.lastOpenedTime };
+                }
+                normalizedStats[normName].count += data.count;
+                if (data.lastOpenedTime > normalizedStats[normName].lastOpenedTime) {
+                  normalizedStats[normName].lastOpenedTime = data.lastOpenedTime;
+                }
+              });
+
+              // Sort normalized subjects descending by count
+              const sortedEntries = Object.entries(normalizedStats).sort((a, b) => b[1].count - a[1].count);
+
+              // Separate main vs others (less than 5% clicks)
+              const mainEntries = [];
+              let othersCount = 0;
+              const othersList = [];
+
+              sortedEntries.forEach(([subj, data]) => {
+                const percentage = (data.count / totalClicks) * 100;
+                if (percentage >= 5) {
+                  mainEntries.push({ name: subj, count: data.count, percent: Math.round(percentage) });
+                } else {
+                  othersCount += data.count;
+                  othersList.push({ name: subj, count: data.count, percent: Math.round(percentage) });
+                }
+              });
+
+              if (othersCount > 0) {
+                mainEntries.push({ name: 'Others', count: othersCount, percent: Math.round((othersCount / totalClicks) * 100), isOthers: true });
+              }
+
+              const colorsList = ['#007171', '#673ab7', '#ff9800', '#2196f3', '#4caf50', '#e91e63', '#9c27b0', '#795548', '#3f51b5'];
+
+              return (
+                <View>
+                  {/* Stacked diet progress bar */}
+                  <View style={{ flexDirection: 'row', height: 16, borderRadius: 8, overflow: 'hidden', marginVertical: 12, backgroundColor: theme.dark ? '#334155' : '#f1f5f9' }}>
+                    {mainEntries.map((item, idx) => {
+                      const color = item.isOthers ? '#94a3b8' : colorsList[idx % colorsList.length];
+                      return (
+                        <View
+                          key={item.name}
+                          style={{
+                            flex: item.count,
+                            backgroundColor: color,
+                            height: '100%',
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  {/* Legend breakdown list */}
+                  <View style={{ gap: 10, marginTop: 10 }}>
+                    {sortedEntries.map(([subj, data], idx) => {
+                      const percentage = Math.round((data.count / totalClicks) * 100);
+                      const isOthers = percentage < 5;
+                      const mainIdx = mainEntries.findIndex(m => m.name === subj);
+                      const color = isOthers ? '#94a3b8' : colorsList[mainIdx !== -1 ? mainIdx : idx % colorsList.length];
+                      const isAiFocus = aiFocusSub?.toLowerCase() === subj.toLowerCase();
+
+                      return (
+                        <View key={subj} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginRight: 8 }} />
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.onSurface }}>{subj}</Text>
+                            {isAiFocus && (
+                              <View style={{ backgroundColor: '#007171', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#ffffff' }}>✨ AI Focus</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={{ fontSize: 12, color: theme.colors.outline }}>{percentage}% ({data.count} clicks)</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
+          </Card.Content>
+        </Card>
       </ScrollView>
       <Confetti
         active={showGrandConfetti}
@@ -1234,6 +1471,98 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  personaCard: {
+    borderRadius: 16,
+    elevation: 2,
+    marginBottom: 12,
+  },
+  personaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  personaIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  personaTextDetails: {
+    flex: 1,
+  },
+  personaLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pulseIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  personaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 2,
+  },
+  personaDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  nudgeCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    elevation: 1,
+  },
+  nudgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  dietCard: {
+    borderRadius: 16,
+    elevation: 2,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  dietHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  dietTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyDiet: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  dietRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dietLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dietSubjectName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+  },
+  dietBar: {
+    height: 6,
+    borderRadius: 3,
+  },
 });
+
 
 export default PersonalizedLearning;
