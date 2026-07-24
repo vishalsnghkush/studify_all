@@ -25,7 +25,15 @@ import {syncGamificationToFirebase} from '../../Utils/GamificationSync';
 import {getRecentNote, getTopEngagedSubjects, openRecentItem} from '../../Utils/EngagementTracker';
 import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
 import Notifee, { TriggerType, RepeatFrequency } from '@notifee/react-native';
+import {CopilotProvider, CopilotStep, walkthroughable, useCopilot} from 'react-native-copilot';
 
+const CopilotView = walkthroughable(View);
+const copilotStartRef = {current: null};
+const TourStarter = () => {
+  const {start} = useCopilot();
+  copilotStartRef.current = start;
+  return null;
+};
 
 // Defined OUTSIDE component — static constant, never recreated on re-renders
 const STATIC_PHRASES = [
@@ -647,7 +655,19 @@ const Home = () => {
   const completedTasks = useMemo(() => tasks.filter(t => t.completed).length, [tasks]);
 
   return (
-    <View style={[styles.mainContainer, {backgroundColor: colors.background}]}>
+    <CopilotProvider overlay="view" tooltipStyle={{borderRadius: 17}}>
+      <TourStarter />
+      <TouchableOpacity
+        onPress={() => {
+          copilotStartRef.current && copilotStartRef.current();
+        }}
+        style={[
+          styles.helpButton,
+          dark && {backgroundColor: colors.surface, borderColor: colors.outlineVariant},
+        ]}>
+        <Icon name="help-circle-outline" size={20} color={colors.primary} />
+      </TouchableOpacity>
+      <View style={[styles.mainContainer, {backgroundColor: colors.background}]}>
       <Screen NoHeader style={styles.screenContainer}>
         {/* 1. Header component */}
         <HomeHeader />
@@ -686,7 +706,8 @@ const Home = () => {
         )}
 
         {/* 2. Interactive Quick Stats Dashboard */}
-        <View style={styles.statsRow}>
+        <CopilotStep text="🔥 Your progress lives here. Keep that streak alive!" order={3} name="statsRow">
+        <CopilotView style={styles.statsRow}>
           <BouncyButton
             onPress={() => navigation.navigate('PersonalizedLearning')}
             style={[
@@ -804,7 +825,8 @@ const Home = () => {
               </Text>
             </View>
           </BouncyButton>
-        </View>
+        </CopilotView>
+        </CopilotStep>
 
         {recentNote && (
           <BouncyButton
@@ -837,6 +859,7 @@ const Home = () => {
 
 
         {/* Personalized Learning Banner Card */}
+        <CopilotStep text="🎯 For all your study planner & targets." order={4} name="studyHub">
         <BouncyButton
           onPress={() => navigation.navigate('PersonalizedLearning')}
           style={[
@@ -884,6 +907,7 @@ const Home = () => {
             style={styles.personalImage}
           />
         </BouncyButton>
+        </CopilotStep>
 
         {/* AI Flashcards Banner Card */}
         <BouncyButton
@@ -1279,6 +1303,7 @@ const Home = () => {
         </Animated.View>
       </View>
     </View>
+    </CopilotProvider>
   );
 };
 
@@ -1309,8 +1334,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mainContainer: {
-
     flex: 1,
+  },
+  helpButton: {
+    position: 'absolute',
+    top: 55,
+    right: 16,
+    zIndex: 99999,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   screenContainer: {
     marginBottom: 80,

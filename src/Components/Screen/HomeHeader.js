@@ -9,6 +9,7 @@ import {
   fetchGlobalLeaderboard,
   fetchUserRank,
 } from '../../Utils/GamificationSync';
+import {CopilotStep, walkthroughable} from 'react-native-copilot';
 
 var myDate = new Date();
 var hrs = myDate.getHours();
@@ -22,6 +23,8 @@ if (hrs < 12) {
 } else {
   greet = 'Welcome 👋';
 }
+
+const CopilotView = walkthroughable(View);
 
 const HomeHeader = () => {
   const navigation = useNavigation();
@@ -80,14 +83,18 @@ const HomeHeader = () => {
             </Text>
           </View>
         </View>
-        <IconButton
-          icon="bell"
-          color="white"
-          size={23}
-          onPress={() => {
-            navigation.navigate('Notifications');
-          }}
-        />
+        <CopilotStep text="📣 All your updates, reminders & alerts land here. Never miss a beat!" order={1} name="bellIcon">
+        <CopilotView>
+          <IconButton
+            icon="bell"
+            color="white"
+            size={23}
+            onPress={() => {
+              navigation.navigate('Notifications');
+            }}
+          />
+        </CopilotView>
+        </CopilotStep>
       </View>
 
       {/* Gamification Mini-Stats Bar */}
@@ -152,13 +159,17 @@ const HomeHeader = () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => navigation.navigate('Search')}>
-        <View pointerEvents="none">
-          <Searchbar placeholder="Search" style={{marginTop: 8}} />
-        </View>
-      </TouchableOpacity>
+      <CopilotStep text="🔍 Lost? Just search it. Notes, tests, topics: we've got you." order={2} name="searchBar">
+      <CopilotView>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Search')}>
+          <View pointerEvents="none">
+            <Searchbar placeholder="Search" style={{marginTop: 8}} />
+          </View>
+        </TouchableOpacity>
+      </CopilotView>
+      </CopilotStep>
     </View>
   );
 };
