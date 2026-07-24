@@ -25,8 +25,8 @@ const {width, height} = Dimensions.get('window');
 
 // Dynamic Zip Path Generator with Obstacles & Hamiltonian Path
 const generateZipGame = () => {
-  const gridRows = 4;
-  const gridCols = 4;
+  const gridRows = 6;
+  const gridCols = 6;
 
   const getNeighbors = (cellIdx, obstaclesSet) => {
     const r = Math.floor(cellIdx / gridCols);
@@ -39,65 +39,67 @@ const generateZipGame = () => {
     return nbrs.filter(idx => !obstaclesSet.has(idx));
   };
 
-  const findPath = (curr, visited, obstaclesSet, targetLen) => {
-    if (visited.length === targetLen) return visited;
-    const nbrs = getNeighbors(curr, obstaclesSet).sort(() => Math.random() - 0.5);
-    for (const next of nbrs) {
-      if (!visited.includes(next)) {
-        const res = findPath(next, [...visited, next], obstaclesSet, targetLen);
-        if (res) return res;
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const allIndices = Array.from({ length: 36 }, (_, i) => i).sort(() => Math.random() - 0.5);
+    const obstaclesArr = allIndices.slice(0, 6);
+    const obstaclesSet = new Set(obstaclesArr);
+    const walkableIndices = allIndices.slice(6);
+    
+    let connected = true;
+    const visitedBFS = new Set();
+    const q = [walkableIndices[0]];
+    visitedBFS.add(walkableIndices[0]);
+    while(q.length > 0) {
+      const curr = q.shift();
+      const nbrs = getNeighbors(curr, obstaclesSet);
+      for (const n of nbrs) {
+        if (!visitedBFS.has(n)) {
+          visitedBFS.add(n);
+          q.push(n);
+        }
       }
     }
-    return null;
-  };
+    if (visitedBFS.size !== walkableIndices.length) continue;
 
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const allIndices = Array.from({ length: 16 }, (_, i) => i).sort(() => Math.random() - 0.5);
-    const obstaclesArr = allIndices.slice(0, 2);
-    const obstaclesSet = new Set(obstaclesArr);
+    let dfsSteps = 0;
+    const findPath = (curr, visitedArr, targetLen) => {
+      if (dfsSteps > 2000) return null;
+      dfsSteps++;
+      if (visitedArr.length === targetLen) return visitedArr;
+      const nbrs = getNeighbors(curr, obstaclesSet).sort(() => Math.random() - 0.5);
+      for (const next of nbrs) {
+        if (!visitedArr.includes(next)) {
+          const res = findPath(next, [...visitedArr, next], targetLen);
+          if (res) return res;
+        }
+      }
+      return null;
+    };
 
-    const walkableIndices = allIndices.slice(2);
+    const targetLen = 30;
     const startNode = walkableIndices[Math.floor(Math.random() * walkableIndices.length)];
-    const targetLen = 14;
-
-    const path = findPath(startNode, [startNode], obstaclesSet, targetLen);
+    const path = findPath(startNode, [startNode], targetLen);
+    
     if (path) {
-      const labels = Array(16).fill('');
-      const totalSteps = path.length;
-
-      const dotIntervals = [0, 2, 4, 6, 8, 10, 12, totalSteps - 1];
+      const labels = Array(36).fill('');
+      const dotIntervals = [0, 4, 9, 14, 19, 24, 29];
       dotIntervals.forEach((stepIdx, numIdx) => {
         if (stepIdx < path.length) {
           labels[path[stepIdx]] = String(numIdx + 1);
         }
       });
-
-      return {
-        path,
-        labels,
-        startIdx: path[0],
-        obstacles: obstaclesArr,
-        totalWalkable: targetLen,
-        gridSize: 4,
-      };
+      return { path, labels, startIdx: path[0], obstacles: obstaclesArr, totalWalkable: targetLen, gridSize: 6 };
     }
   }
 
-  // Fallback 3x3 with 1 obstacle
-  const obstaclesArr = [4];
-  const path = [0, 1, 2, 5, 8, 7, 6, 3];
-  const labels = Array(9).fill('');
+  // Fallback 6x6
+  const obstaclesArr = [0, 5, 30, 35, 14, 21];
+  const path = [1,2,3,4,10,16,15,9,8,7,13,19,25,31,32,33,27,26,20,28,34,22,23,29,17,11,12,18,24];
+  const labels = Array(36).fill('');
   path.forEach((cellIdx, stepIdx) => {
-    labels[cellIdx] = String(stepIdx + 1);
+    if (stepIdx % 4 === 0) labels[cellIdx] = String(Math.floor(stepIdx/4) + 1);
   });
-  return {
-    path,
-    labels,
-    startIdx: path[0],
-    obstacles: obstaclesArr,
-    totalWalkable: 8,
-    gridSize: 3,
-  };
+  return { path, labels, startIdx: path[0], obstacles: obstaclesArr, totalWalkable: path.length, gridSize: 6 };
 };
 
 // Dynamic Multi-Size Sudoku Generator (Supports 4x4, 6x6, and 9x9 Sudoku grids dynamically!)
@@ -551,6 +553,7 @@ export default function BrainGym() {
 
   const isPlayedToday = useCallback(
     gameId => {
+      if (gameId === 'math_quest') return false;
       const todayStr = new Date().toISOString().split('T')[0];
       const lastDate = lastBrainGymDates ? lastBrainGymDates[gameId] : null;
       return lastDate === todayStr;
@@ -3240,20 +3243,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#1f2937',
+    overflow: 'hidden',
+    backgroundColor: '#1f2937',
   },
   gridCell4x4: {
-    width: (width - 100) / 4,
-    height: (width - 100) / 4,
-    borderRadius: 16,
-    borderWidth: 2.5,
+    width: (width - 70) / 4,
+    height: (width - 70) / 4,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
   },
   // LinkedIn Zip Custom Styles
   zipHeaderRow: {
