@@ -31,10 +31,17 @@ const initialSlice = createSlice({
       state.token = action.payload.token;
     },
     setUser(state, action) {
-      const wasIntern = state.user?.is_intern;
+      // AsyncStorage role controls is_intern/is_tl.
+      // If state already has a role set to true, NEVER let an API response set it back to false.
+      // Only allow changing to true or keeping true. Role can only be cleared on logout.
+      const wasIntern = state.user?.is_intern === true;
+      const wasTl = state.user?.is_tl === true;
+      const payloadIsIntern = action.payload?.is_intern === true;
+      const payloadIsTl = action.payload?.is_tl === true;
       state.user = {
         ...action.payload,
-        is_intern: wasIntern !== undefined ? wasIntern : action.payload?.is_intern,
+        is_intern: wasIntern || payloadIsIntern,
+        is_tl: wasTl || payloadIsTl,
       };
     },
     setUserLogout(state) {

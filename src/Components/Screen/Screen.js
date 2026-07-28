@@ -13,7 +13,8 @@ function Screen({
 }) {
   const height = StatusBar.currentHeight || 0;
   const theme = useTheme();
-  const {bottom} = useSafeAreaInsets();
+  const {top, bottom} = useSafeAreaInsets();
+  const safeTop = top > 0 ? top + 10 : (height > 0 ? height + 10 : 38);
 
   if (list) {
     return (
@@ -25,7 +26,7 @@ function Screen({
         }}>
         <View
           style={{
-            marginTop: NoHeader ? height : 0,
+            marginTop: NoHeader ? safeTop : 0,
             paddingHorizontal: padding ? 0 : windowPaddingHorizontal,
             backgroundColor: theme.colors.background,
             flexGrow: 1,
@@ -43,7 +44,7 @@ function Screen({
       style={{
         flex: 1,
         backgroundColor: theme.colors.background,
-        paddingTop: NoHeader ? height : 0,
+        paddingTop: NoHeader ? safeTop : 0,
         paddingBottom: bottom || 0,
       }}>
       <ScrollView

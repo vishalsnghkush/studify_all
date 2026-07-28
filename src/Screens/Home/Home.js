@@ -135,6 +135,20 @@ const Home = () => {
   const [isDizzy, setIsDizzy] = useState(false);
   const isAnimating = useRef(false);
 
+  // Mascot visibility toggle — persisted in AsyncStorage (OFF by default)
+  const [showMascot, setShowMascot] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@studify_show_mascot').then(val => {
+      if (val !== null) setShowMascot(val === 'true');
+    });
+  }, []);
+
+  const handleToggleMascot = async (val) => {
+    setShowMascot(val);
+    await AsyncStorage.setItem('@studify_show_mascot', val ? 'true' : 'false');
+  };
+
   const spinCount = useRef(0);
 
   const startFloat = useCallback(() => {
@@ -1192,10 +1206,74 @@ const Home = () => {
             </BouncyButton>
           </View>
         </View>
+
+        {/* ✨ Mascot Toggle Card — at the very bottom */}
+        <View style={styles.mascotToggleCard}>
+          {/* Gradient-like layered background */}
+          <View style={[
+            styles.mascotToggleBg,
+            dark && {backgroundColor: '#1a1a2e', borderColor: '#7c3aed44'}
+          ]}>
+            {/* Styled Toggle — LEFT side so mascot doesn't cover it */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleToggleMascot(!showMascot)}
+              style={[
+                styles.mascotToggleTrack,
+                showMascot
+                  ? {backgroundColor: colors.primary}
+                  : {backgroundColor: dark ? '#3a3a50' : '#d1d5db'},
+                {marginRight: 14},
+              ]}>
+              <Animated.View
+                style={[
+                  styles.mascotToggleThumb,
+                  {
+                    transform: [{
+                      translateX: showMascot ? 24 : 2,
+                    }],
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.mascotToggleLeft}>
+              <Text style={styles.mascotToggleEmoji}>🤖</Text>
+              <View style={{flex: 1, marginLeft: 12}}>
+                <Text style={[
+                  styles.mascotToggleTitle,
+                  dark && {color: '#e0d7ff'}
+                ]}>
+                  Your Study Buddy
+                </Text>
+                <Text style={[
+                  styles.mascotToggleSubtitle,
+                  dark && {color: '#a78bfa'}
+                ]}>
+                  {showMascot
+                    ? '✨ Buddy is here! Drag me around 🎉'
+                    : '💤 Call your buddy to play!'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Tagline below */}
+          <Text style={[
+            styles.mascotToggleTagline,
+            dark && {color: '#a78bfa'}
+          ]}>
+            {showMascot
+              ? '🌟 Your buddy is watching you study — keep going!'
+              : '👋 Toggle on to summon your mascot companion!'}
+          </Text>
+        </View>
+
       </Screen>
 
-      {/* Floating AI Bot Assistant */}
-      <View style={styles.botContainer} pointerEvents="box-none">
+      {/* Floating AI Bot Assistant — only when mascot is ON */}
+      {showMascot && (
+        <View style={styles.botContainer} pointerEvents="box-none">
         {/* Cloud/Bubble for Chat with AI */}
         <Animated.View
           style={[
@@ -1302,12 +1380,79 @@ const Home = () => {
           </Animated.View>
         </Animated.View>
       </View>
+      )}
     </View>
     </CopilotProvider>
   );
 };
 
 const styles = StyleSheet.create({
+  mascotToggleCard: {
+    marginHorizontal: 15,
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  mascotToggleBg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1.5,
+    borderColor: '#D8B4FE',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    elevation: 2,
+    shadowColor: '#7C3AED',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  mascotToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 10,
+  },
+  mascotToggleEmoji: {
+    fontSize: 28,
+  },
+  mascotToggleTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#581C87',
+  },
+  mascotToggleSubtitle: {
+    fontSize: 12,
+    color: '#7E22CE',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  mascotToggleTrack: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  mascotToggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  mascotToggleTagline: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 8,
+    color: '#6B21A8',
+    fontWeight: '600',
+  },
   recentCard: {
     marginHorizontal: 15,
     marginTop: 0,

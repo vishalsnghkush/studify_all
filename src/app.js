@@ -110,6 +110,25 @@ const App = () => {
     runDecayCheck();
   }, []);
 
+  // One-time cleanup: remove stale saved roles for re-registration
+  // This runs once on fresh install of the new APK
+  useEffect(() => {
+    const clearStaleRoles = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('@studify_roles_cleared_v2');
+        if (!flag) {
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@ce.du.ac.in');
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@gmail.com');
+          await AsyncStorage.setItem('@studify_roles_cleared_v2', 'done');
+          console.log('Stale role keys cleared for re-registration.');
+        }
+      } catch (e) {
+        console.log('clearStaleRoles error:', e);
+      }
+    };
+    clearStaleRoles();
+  }, []);
+
   useEffect(() => {
     const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
     if (verificationToken !== _t) {

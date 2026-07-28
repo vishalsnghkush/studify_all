@@ -16,6 +16,7 @@ import {useDispatch} from 'react-redux';
 import {setUserLogin} from '../../Redux/Slices/InitialSlice';
 import useApi from '../../Components/Api/Api';
 import {useMutation} from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Google from './Google';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -137,14 +138,33 @@ const Sign_in = ({navigation}) => {
 
   const {mutate, isPending} = useMutation({
     mutationFn: data => useApi().post('/auth', data),
-    onSuccess: res => {
+    onSuccess: async res => {
       if (res.message) {
         navigation.navigate('Otp', {email: form.email.trim().toLowerCase(), type: 1});
         return;
       }
+      const cleanEmail = (form.email || res.data?.user?.email || '').trim().toLowerCase();
+      
+      // The role tab the user explicitly selected ALWAYS wins at login time.
+      // Only fall back to AsyncStorage if user left the default 'student' tab AND has a saved role.
+      let finalRole = selectedRole;
+      if (selectedRole === 'student' && cleanEmail) {
+        // Check if they had a saved role that's not student — respect that
+        const savedRole = await AsyncStorage.getItem(`@studify_role_${cleanEmail}`);
+        if (savedRole === 'intern' || savedRole === 'tl') {
+          finalRole = savedRole;
+        }
+      }
+      
+      // Always save the definitive role
+      if (cleanEmail) {
+        await AsyncStorage.setItem(`@studify_role_${cleanEmail}`, finalRole);
+      }
+
       const updatedUser = {
         ...res.data.user,
-        is_intern: selectedRole === 'intern',
+        is_intern: finalRole === 'intern',
+        is_tl: finalRole === 'tl',
       };
       dispatch(
         setUserLogin({
@@ -257,6 +277,28 @@ const Sign_in = ({navigation}) => {
                   ]}
                 >
                   Intern
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.roleTab,
+                  selectedRole === 'tl' && styles.activeRoleTab,
+                ]}
+                onPress={() => setSelectedRole('tl')}
+              >
+                <Icon
+                  name="award"
+                  size={18}
+                  color={selectedRole === 'tl' ? '#FFF' : '#666'}
+                  style={{marginRight: 8}}
+                />
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === 'tl' && styles.activeRoleTabText,
+                  ]}
+                >
+                  TL
                 </Text>
               </Pressable>
             </View>

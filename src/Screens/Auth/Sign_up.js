@@ -18,6 +18,7 @@ import useApi from '../../Components/Api/Api';
 import {useMutation} from '@tanstack/react-query';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashMessage from '../../Components/Screen/FlashMessage';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 import DropDown from 'react-native-paper-dropdown';
@@ -113,6 +114,9 @@ const Sign_up = ({navigation}) => {
   const {colors} = useTheme();
   const insets = useSafeAreaInsets();
   const [dropdown, setDropdown] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('student');
+  const [tlAccessCode, setTlAccessCode] = useState('');
+  const [tlAccessError, setTlAccessError] = useState(false);
   const [form, setForm] = useState({
     fname: '',
     lname: '',
@@ -238,12 +242,24 @@ const Sign_up = ({navigation}) => {
           type: 'danger',
         });
       }
+      if (selectedRole === 'tl' && tlAccessCode !== 'TL@STUDIFY2026') {
+        setTlAccessError(true);
+        return FlashMessage({
+          message: 'Invalid TL Access Code. Registration denied.',
+          type: 'danger',
+        });
+      }
+      const cleanEmail = form.email.trim().toLowerCase();
+      await AsyncStorage.setItem(`@studify_role_${cleanEmail}`, selectedRole);
+
       mutate({
         ...form,
-        email: form.email.trim().toLowerCase(),
+        email: cleanEmail,
         phone: form.phone.trim(),
         fname: form.fname.trim(),
         lname: form.lname.trim(),
+        is_intern: selectedRole === 'intern',
+        is_tl: selectedRole === 'tl',
       });
     }
   };
@@ -281,6 +297,92 @@ const Sign_up = ({navigation}) => {
           </View>
 
           <View style={styles.formContainer}>
+            <StaggeredEntrance delay={100} index={1.5}>
+              <View style={styles.roleSelectorContainer}>
+                <Pressable
+                  style={[
+                    styles.roleTab,
+                    selectedRole === 'student' && styles.activeRoleTab,
+                  ]}
+                  onPress={() => setSelectedRole('student')}
+                >
+                  <Icon
+                    name="book-open"
+                    size={18}
+                    color={selectedRole === 'student' ? '#FFF' : '#666'}
+                    style={{marginRight: 8}}
+                  />
+                  <Text
+                    style={[
+                      styles.roleTabText,
+                      selectedRole === 'student' && styles.activeRoleTabText,
+                    ]}
+                  >
+                    Student
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.roleTab,
+                    selectedRole === 'intern' && styles.activeRoleTab,
+                  ]}
+                  onPress={() => setSelectedRole('intern')}
+                >
+                  <Icon
+                    name="briefcase"
+                    size={18}
+                    color={selectedRole === 'intern' ? '#FFF' : '#666'}
+                    style={{marginRight: 8}}
+                  />
+                  <Text
+                    style={[
+                      styles.roleTabText,
+                      selectedRole === 'intern' && styles.activeRoleTabText,
+                    ]}
+                  >
+                    Intern
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.roleTab,
+                    selectedRole === 'tl' && styles.activeRoleTab,
+                  ]}
+                  onPress={() => setSelectedRole('tl')}
+                >
+                  <Icon
+                    name="award"
+                    size={18}
+                    color={selectedRole === 'tl' ? '#FFF' : '#666'}
+                    style={{marginRight: 8}}
+                  />
+                  <Text
+                    style={[
+                      styles.roleTabText,
+                      selectedRole === 'tl' && styles.activeRoleTabText,
+                    ]}
+                  >
+                    TL
+                  </Text>
+                </Pressable>
+              </View>
+            </StaggeredEntrance>
+
+            {selectedRole === 'tl' && (
+              <StaggeredEntrance delay={100} index={1.6}>
+                <MinimalInput
+                  label="TL Access Security Code"
+                  icon="lock"
+                  value={tlAccessCode}
+                  onChangeText={(text) => {
+                    setTlAccessCode(text);
+                    setTlAccessError(false);
+                  }}
+                  error={tlAccessError}
+                  secureTextEntry
+                />
+              </StaggeredEntrance>
+            )}
             <StaggeredEntrance delay={100} index={2}>
               <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                 <View style={{flex: 1, marginRight: 10}}>
@@ -559,6 +661,39 @@ const styles = StyleSheet.create({
     color: '#D81B60',
     fontWeight: '600',
     fontSize: 13,
+  },
+  roleSelectorContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 25,
+    padding: 4,
+    marginBottom: 30,
+    marginTop: -10,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+  },
+  activeRoleTab: {
+    backgroundColor: '#D81B60',
+    shadowColor: '#D81B60',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  roleTabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeRoleTabText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   },
 });
 

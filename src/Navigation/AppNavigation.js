@@ -1,6 +1,12 @@
 import {CardStyleInterpolators} from '@react-navigation/stack';
 import DrawerNavigation from './DrawerNavigation';
+import InternDrawerNavigation from './InternDrawerNavigation';
+import TLDrawerNavigation from './TLDrawerNavigation';
 import React, {lazy} from 'react';
+import {useSelector} from 'react-redux';
+import InternAiHub from '../Screens/Home/Intern/InternAiHub';
+import InternLearningHub from '../Screens/Home/Intern/InternLearningHub';
+import InternReports from '../Screens/Home/Intern/InternReports';
 import {
   Profile,
   EditProfile,
@@ -52,6 +58,7 @@ const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
 const Stack = createStackNavigator();
 
 const AppNavigation = () => {
+  const {user} = useSelector(state => state.initial);
   return (
     <Stack.Navigator
       screenOptions={{
@@ -59,9 +66,43 @@ const AppNavigation = () => {
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
       }}>
       <Stack.Screen
+        key={user?.is_tl ? 'tl_stack' : user?.is_intern ? 'intern_stack' : 'student_stack'}
         options={{headerShown: false}}
         name="Main"
-        component={DrawerNavigation}
+        component={
+          user?.is_tl
+            ? TLDrawerNavigation
+            : user?.is_intern
+            ? InternDrawerNavigation
+            : DrawerNavigation
+        }
+      />
+      <Stack.Screen
+        name="InternAiHub"
+        component={InternAiHub}
+        options={{
+          title: 'AI Productivity Hub',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="InternLearningHub"
+        component={InternLearningHub}
+        options={{
+          title: 'Learning & Training',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="InternReports"
+        component={InternReports}
+        options={{
+          title: 'EOD & Reports',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
       />
       <Stack.Screen name="Profile" component={Profile} />
       <Stack.Screen

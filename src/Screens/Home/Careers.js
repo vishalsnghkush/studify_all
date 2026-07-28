@@ -579,11 +579,77 @@ const Careers = () => {
             </TouchableOpacity>
           </Card>
 
+          {/* 5.5 FAMOUS JOB CAREER ROADMAPS (PRE-STORED) */}
+          <Card style={[styles.salesCard, {backgroundColor: colors.surface, marginVertical: 14}]}>
+            <Text size="medium" style={[styles.salesTitle, {color: colors.onSurface}]}>
+              🗺️ Famous Job Career Roadmaps
+            </Text>
+            <Text size="small" style={{color: colors.outline, fontSize: 11.5, marginBottom: 12}}>
+              Step-by-step pre-stored learning pathways for top industry roles
+            </Text>
+
+            {[
+              {
+                role: '💻 Software Engineer (Full Stack)',
+                duration: '6 Months Pathway',
+                steps: ['1. HTML/CSS & Modern JavaScript', '2. React Native & Node.js APIs', '3. SQL & MongoDB Database Design', '4. Git, CI/CD & Production Deployment'],
+                badge: 'High Demand 🔥',
+                badgeBg: '#E8F5E9',
+                badgeText: '#2E7D32',
+              },
+              {
+                role: '📊 Data Scientist & Analyst',
+                duration: '5 Months Pathway',
+                steps: ['1. Python, SQL & Data Wrangling', '2. PowerBI, Tableau & Visualizations', '3. Machine Learning Algorithms (Scikit-Learn)', '4. Capstone Portfolio & Real Datasets'],
+                badge: 'Trending ⚡',
+                badgeBg: '#E3F2FD',
+                badgeText: '#1565C0',
+              },
+              {
+                role: '🎨 UI/UX Product Designer',
+                duration: '4 Months Pathway',
+                steps: ['1. Design Systems & Visual Principles', '2. Figma Wireframing & Prototyping', '3. User Research & Usability Testing', '4. Complete UX Case Study Portfolio'],
+                badge: 'Creative ✨',
+                badgeBg: '#F3E5F5',
+                badgeText: '#7B1FA2',
+              },
+              {
+                role: '📣 Digital Marketing Specialist',
+                duration: '3 Months Pathway',
+                steps: ['1. SEO, Content Marketing & Copywriting', '2. Meta Ads & Google Ads Mastery', '3. Google Analytics & Conversion Funnels', '4. Live Client Marketing Campaigns'],
+                badge: 'Popular 🎯',
+                badgeBg: '#FFF3E0',
+                badgeText: '#E65100',
+              },
+            ].map((rm, idx) => (
+              <View key={idx} style={{backgroundColor: colors.elevation?.level1 || '#F8F9FA', padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: colors.outlineVariant || '#E0E0E0'}}>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6}}>
+                  <Text size="small" style={{fontWeight: 'bold', color: colors.onSurface, fontSize: 13, flex: 1}}>
+                    {rm.role}
+                  </Text>
+                  <View style={{backgroundColor: rm.badgeBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6}}>
+                    <Text size="small" style={{color: rm.badgeText, fontSize: 10, fontWeight: 'bold'}}>
+                      {rm.badge}
+                    </Text>
+                  </View>
+                </View>
+                <Text size="small" style={{color: colors.primary, fontSize: 11, fontWeight: 'bold', marginBottom: 6}}>
+                  ⏱️ {rm.duration}
+                </Text>
+                {rm.steps.map((st, sIdx) => (
+                  <Text key={sIdx} size="small" style={{color: colors.onSurfaceVariant, fontSize: 11, marginVertical: 1, paddingLeft: 4}}>
+                    • {st}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </Card>
+
           {/* 6. PLACEMENT GUIDANCE */}
           <Card
             style={[styles.placementCard, {backgroundColor: colors.surface}]}>
             <Image
-              source={{uri: 'https://www.studifysuccess.com/images/pg.webp'}}
+              source={require('../../Assets/Images/placement_guidance.jpg')}
               style={styles.placementImage}
               resizeMode="contain"
             />

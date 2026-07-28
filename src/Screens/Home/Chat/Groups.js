@@ -12,13 +12,38 @@ import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import {Screen} from '../../../Components/Screen';
 import Text from '../../../Components/Input/Text';
+import {fetchChatGroups} from '../../../Redux/Slices/ChatSlice';
 
 const Groups = () => {
   const navigation = useNavigation();
   const {colors} = useTheme();
-  const {groups} = useSelector(state => state.chat);
+  const {groups, loadingGroups} = useSelector(state => state.chat);
+  const {user} = useSelector(state => state.initial);
   const [query, setQuery] = useState('');
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (user?.is_intern) {
+      dispatch(
+        fetchChatGroups({
+          department: user?.department || 'Tech',
+          is_tl: user?.is_tl ? 'true' : 'false',
+        }),
+      );
+    }
+  }, [dispatch, user]);
+
+  const handleRefresh = () => {
+    if (user?.is_intern) {
+      dispatch(
+        fetchChatGroups({
+          department: user?.department || 'Tech',
+          is_tl: user?.is_tl ? 'true' : 'false',
+        }),
+      );
+    }
+  };
+
   const filtered = useMemo(() => {
     if (!query.trim()) return groups;
     return groups.filter(c =>
@@ -72,7 +97,7 @@ const Groups = () => {
           value={query}
           onChangeText={setQuery}
           style={{borderRadius: 30}}
-          loading={false}
+          loading={loadingGroups}
         />
       </View>
       <FlatList
@@ -80,6 +105,8 @@ const Groups = () => {
         keyExtractor={item => item.chat_group_id.toString()}
         renderItem={renderItem}
         contentContainerStyle={{paddingBottom: 40}}
+        refreshing={loadingGroups}
+        onRefresh={handleRefresh}
         ListEmptyComponent={() => (
           <View style={{marginTop: 60, alignItems: 'center'}}>
             <Text size="medium" style={{color: colors.onSurfaceVariant}}>
