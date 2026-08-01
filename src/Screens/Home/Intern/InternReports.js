@@ -15,7 +15,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Share from 'react-native-share';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {getInternDb, addMockReport, markInternPresent, syncInternProfile} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
 
 // Graceful import for PDF library
 let RNHTMLtoPDF = null;
@@ -30,7 +30,7 @@ const InternReports = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
-  const internId = user?.user_id || 'alice_123';
+  const { get, post } = useApi();
 
   const [reportType, setReportType] = useState('daily');
   const [loading, setLoading] = useState(false);
@@ -49,15 +49,17 @@ const InternReports = () => {
   const [internStatus, setInternStatus] = useState('Pending');
 
   const loadData = async () => {
-    if (user) {
-      await syncInternProfile(user);
-    }
-    const db = await getInternDb();
-    const list = db.reports.filter(r => r.internId === internId);
-    setReportsList(list);
+    try {
+      const res = await get('/interns/reports');
+      if (res && res.data) setReportsList(res.data);
 
-    const myRecord = db.interns.find(i => i.id === internId);
-    setInternStatus(myRecord?.status || 'Pending');
+      const profileRes = await get('/interns/profile');
+      if (profileRes && profileRes.data) {
+        setInternStatus(profileRes.data.status || 'Pending');
+      }
+    } catch (e) {
+      console.log('Error loading reports', e);
+    }
   };
 
   useEffect(() => {
@@ -86,13 +88,7 @@ const InternReports = () => {
       summaryText = dailyForm.tasks.substring(0, 60) + '...';
       detailsData = {...dailyForm};
       setDailyForm({tasks: '', progress: '', blocks: '', hours: ''});
-      
-      // Auto-mark attendance for today (if not Sunday)
-      const todayDate = new Date();
-      if (todayDate.getDay() !== 0) {
-        const today = todayDate.getDate();
-        await markInternPresent(internId, today);
-      }
+      setDailyForm({tasks: '', progress: '', blocks: '', hours: ''});
 
       // Cancel remaining EOD notifications for today
       try {
@@ -115,18 +111,17 @@ const InternReports = () => {
       setMonthlyForm({summary: '', learnings: '', evaluation: ''});
     }
 
-    const newReport = {
-      id: Date.now().toString(),
-      internId: internId,
-      date: new Date().toISOString().split('T')[0],
-      type: reportType === 'daily' ? 'Daily EOD' : reportType === 'weekly' ? 'Weekly Report' : 'Monthly Report',
-      summary: summaryText,
-      details: detailsData,
-    };
-
-    await addMockReport(newReport);
-    Alert.alert('Success', 'Report submitted successfully! Today has been marked present.');
-    loadData();
+    try {
+      await post('/interns/reports', {
+        type: reportType === 'daily' ? 'Daily EOD' : reportType === 'weekly' ? 'Weekly Report' : 'Monthly Report',
+        summary: summaryText,
+        details: detailsData,
+      });
+      Alert.alert('Success', 'Report submitted successfully! Today has been marked present.');
+      loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to submit report');
+    }
   };
 
   const generatePDFAndShare = async (report) => {

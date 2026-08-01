@@ -15,7 +15,9 @@ import {useTheme, Card, Avatar, Portal, Dialog, IconButton, Button} from 'react-
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {getInternDb, getInternTasks, saveInternTasks, syncInternProfile} from '../../../Utils/MockInternDb';
+import {getInternDb, syncInternProfile} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
+import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 
 const {width} = Dimensions.get('window');
 
@@ -34,10 +36,113 @@ const InternHome = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [db, setDb] = useState(null);
   const [internStatus, setInternStatus] = useState('Pending');
+  const [attendanceToday, setAttendanceToday] = useState(null);
+  const [markingAttendance, setMarkingAttendance] = useState(false);
+
+  // Added from Attendance screen
+  const [attendanceData, setAttendanceData] = useState({});
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveModal, setLeaveModal] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({startDate: '', endDate: '', type: 'Casual', reason: ''});
+  const [calendarDate, setCalendarDate] = useState(new Date());
+
+  const changeMonth = (offset) => {
+    setCalendarDate(prev => {
+      const newD = new Date(prev);
+      newD.setMonth(newD.getMonth() + offset);
+      return newD;
+    });
+  };
+
+  const showLeaveDatePicker = (targetField) => {
+    let initDate = new Date();
+    const currentVal = leaveForm[targetField];
+    if (currentVal) {
+      const parts = currentVal.split('-');
+      if (parts.length === 3) {
+        initDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+    }
+    DateTimePickerAndroid.open({
+      value: initDate,
+      mode: 'date',
+      onChange: (event, date) => {
+        if (event.type === 'set' && date) {
+          const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          setLeaveForm(prev => ({
+            ...prev,
+            [targetField]: formatted,
+            ...(targetField === 'startDate' && !prev.endDate ? { endDate: formatted } : {})
+          }));
+        }
+      },
+    });
+  };
+
+  const { get, post } = useApi();
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        // Fetch REAL status from MySQL API
+        try {
+          const profileRes = await get('/interns/profile', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (profileRes && profileRes.data) {
+            setInternStatus(profileRes.data.status || 'Pending');
+          }
+        } catch (profileErr) {
+          console.log('Could not fetch profile from API, falling back to mock', profileErr);
+        }
+
+        // Fetch today's attendance status
+        try {
+          const attRes = await get('/interns/attendance', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (attRes && attRes.data) {
+            const today = new Date().toISOString().split('T')[0];
+            const todayRecord = attRes.data.find(r => {
+              const d = new Date(r.date).toISOString().split('T')[0];
+              return d === today;
+            });
+            setAttendanceToday(todayRecord || null);
+          }
+        } catch (attErr) {
+          console.log('Could not fetch attendance', attErr);
+        }
+
+        // Fetch leaves
+        try {
+          const leavesRes = await get('/interns/leaves', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (leavesRes && leavesRes.data) {
+            setLeaveRequests(leavesRes.data.map(l => {
+              const startStr = typeof l.start_date === 'string' && l.start_date.length >= 10 && !l.start_date.includes('0000') ? l.start_date.substring(0, 10) : 'N/A';
+              const endStr = typeof l.end_date === 'string' && l.end_date.length >= 10 && !l.end_date.includes('0000') ? l.end_date.substring(0, 10) : 'N/A';
+              return {
+                id: l.id.toString(),
+                dates: startStr === endStr ? startStr : `${startStr} - ${endStr}`,
+                reason: l.reason,
+                status: l.status,
+                type: 'Leave'
+              };
+            }));
+          }
+        } catch (lErr) {}
+
+        // Fetch attendance map for calendar
+        try {
+          const attMapRes = await get('/interns/attendance', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (attMapRes && attMapRes.data) {
+            const mergedAtt = {};
+            attMapRes.data.forEach(a => {
+              if (a.date) {
+                const dateKey = typeof a.date === 'string' ? a.date.substring(0, 10) : new Date(a.date).toISOString().split('T')[0];
+                mergedAtt[dateKey] = a.status;
+              }
+            });
+            setAttendanceData(mergedAtt);
+          }
+        } catch (aErr) {}
+
+        // Keep mock data for tasks and announcements (not yet migrated)
         if (user) {
           await syncInternProfile(user);
         }
@@ -50,17 +155,31 @@ const InternHome = () => {
         const eodCount = myReports.filter(r => r.type === 'Daily EOD').length;
         setDaysCompleted(eodCount);
 
-        const loadedTasks = await getInternTasks(activeId);
-        setTasks(loadedTasks);
-        
-        // Count tasks completed specifically by this intern
-        const completedCount = loadedTasks.filter(t => t.completed && (t.assignedTo?.includes(activeId) || t.completedBy === activeId)).length;
-        setTasksDone(completedCount);
+        // Fetch live tasks from API
+        try {
+          const taskRes = await get('/interns/tasks', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (taskRes && taskRes.data) {
+            const loadedTasks = taskRes.data;
+            setTasks(loadedTasks);
+            
+            // Count tasks completed specifically by this intern
+            const completedCount = loadedTasks.filter(t => t.completed && (t.assigned_to?.includes(activeId) || t.completed_by === activeId)).length;
+            setTasksDone(completedCount);
+          }
+        } catch (tErr) {
+          console.log('Error fetching live tasks', tErr);
+        }
 
-        const myRecord = dbData.interns.find(i => i.id === activeId);
-        setInternStatus(myRecord?.status || 'Pending');
+        // Fetch Announcements from live API
+        try {
+          const annRes = await get('/interns/announcements', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (annRes && annRes.data) {
+            setAnnouncements(annRes.data);
+          }
+        } catch (annErr) {
+          console.log('Error fetching announcements', annErr);
+        }
 
-        setAnnouncements(dbData.announcements || []);
       } catch (e) {
         console.error('Error fetching intern stats:', e);
       }
@@ -345,6 +464,163 @@ const InternHome = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const markAttendance = async (type) => {
+    setMarkingAttendance(true);
+    try {
+      const res = await post('/interns/attendance/mark', { type }, {skipSuccessFlash: false});
+      if (res && res.data) {
+        setAttendanceToday(res.data);
+      }
+    } catch (e) {
+      console.log('Mark attendance error:', e);
+    } finally {
+      setMarkingAttendance(false);
+    }
+  };
+
+  const submitLeave = async () => {
+    if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason) {
+      return Alert.alert('Error', 'Please fill in all leave request fields.');
+    }
+    try {
+      await post('/interns/leaves', {
+        start_date: leaveForm.startDate,
+        end_date: leaveForm.endDate,
+        reason: leaveForm.reason
+      });
+      setLeaveForm({startDate: '', endDate: '', type: 'Casual', reason: ''});
+      setLeaveModal(false);
+      Alert.alert('Submitted', 'Leave request submitted to TL for approval.');
+      // Refresh leaves
+      const leavesRes = await get('/interns/leaves', {skipSuccessFlash: true});
+      if (leavesRes && leavesRes.data) {
+        setLeaveRequests(leavesRes.data.map(l => {
+          const startStr = typeof l.start_date === 'string' && l.start_date.length >= 10 && !l.start_date.includes('0000') ? l.start_date.substring(0, 10) : 'N/A';
+          const endStr = typeof l.end_date === 'string' && l.end_date.length >= 10 && !l.end_date.includes('0000') ? l.end_date.substring(0, 10) : 'N/A';
+          return {
+            id: l.id.toString(),
+            dates: startStr === endStr ? startStr : `${startStr} - ${endStr}`,
+            reason: l.reason,
+            status: l.status,
+            type: 'Leave'
+          };
+        }));
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to request leave.');
+    }
+  };
+
+  // Dynamic Monthly Calendar Renderer with Month Controls
+  const renderCalendar = () => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = new Date(year, month, 1).getDay(); // 0 = Sun, 1 = Mon ...
+    
+    const monthNames = ["January", "February", "March", "April", "May", "June", 
+                        "July", "August", "September", "October", "November", "December"];
+    const monthYearStr = `${monthNames[month]} ${year}`;
+    
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const cells = [];
+
+    // Header with Month Name and Navigation Controls
+    cells.push(
+      <View key="cal-header" style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4}}>
+        <TouchableOpacity 
+          activeOpacity={0.7} 
+          onPress={() => changeMonth(-1)} 
+          style={{paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.surfaceVariant || '#EEEEEE'}}>
+          <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.onSurface}}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.onSurface}}>
+          {monthYearStr}
+        </Text>
+        <TouchableOpacity 
+          activeOpacity={0.7} 
+          onPress={() => changeMonth(1)} 
+          style={{paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.surfaceVariant || '#EEEEEE'}}>
+          <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.onSurface}}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+
+    // Day Labels Header Row
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    cells.push(
+      <View key="labels" style={styles.calendarRow}>
+        {dayLabels.map(d => <Text key={d} style={styles.calLabel}>{d}</Text>)}
+      </View>
+    );
+
+    let currentRow = [];
+    for (let i = 0; i < startDay; i++) {
+      currentRow.push(<View key={`empty-${i}`} style={styles.calCell} />);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const status = attendanceData[dateKey];
+      const isToday = dateKey === todayStr;
+
+      let statusColor = colors.surfaceVariant || '#E0E0E0';
+      let textColor = colors.onSurface || '#333';
+      let isBold = false;
+      let borderWidth = 0;
+      let borderColor = 'transparent';
+
+      if (status === 'Full' || status === 'Present' || status === 1) {
+        statusColor = '#4CAF50'; // Green
+        textColor = '#FFFFFF';
+      } else if (status === 'Half' || status === 2) {
+        statusColor = '#FFC107'; // Amber
+        textColor = '#000000';
+      } else if (status === 'Absent' || status === 3) {
+        statusColor = '#F44336'; // Red
+        textColor = '#FFFFFF';
+      }
+
+      if (isToday) {
+        borderWidth = 2;
+        borderColor = (statusColor === '#4CAF50' || statusColor === '#F44336') ? '#000000' : '#FF9800'; 
+        isBold = true;
+        if (!status) {
+          statusColor = '#FFF9C4'; // Today highlight when no attendance marked yet
+          textColor = '#E65100';
+        }
+      }
+
+      currentRow.push(
+        <View key={d} style={styles.calCell}>
+          <View style={[
+            styles.calDayCircle, 
+            {backgroundColor: statusColor, borderWidth: borderWidth, borderColor: borderColor}
+          ]}>
+            <Text style={[styles.calDayText, {color: textColor, fontWeight: isBold ? 'bold' : '500'}]}>{d}</Text>
+          </View>
+        </View>
+      );
+
+      if (currentRow.length === 7) {
+        cells.push(<View key={`row-${d}`} style={styles.calendarRow}>{currentRow}</View>);
+        currentRow = [];
+      }
+    }
+
+    if (currentRow.length > 0) {
+      while (currentRow.length < 7) {
+        currentRow.push(<View key={`empty-end-${currentRow.length}`} style={styles.calCell} />);
+      }
+      cells.push(<View key="row-last" style={styles.calendarRow}>{currentRow}</View>);
+    }
+
+    return cells;
+  };
+
   return (
     <Screen NoHeader style={styles.scrollContainer}>
       {/* Header Greeting */}
@@ -412,6 +688,117 @@ const InternHome = () => {
               </Card.Content>
             </Card>
           </View>
+
+          {/* Daily Check-in Card */}
+          <Card style={{ marginVertical: 12, borderRadius: 16, elevation: 3, backgroundColor: '#fff' }}>
+            <Card.Content style={{ paddingVertical: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Icon name="clock-check-outline" size={22} color={colors.primary} />
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginLeft: 8 }}>Daily Check-in</Text>
+                <View style={{ 
+                  marginLeft: 'auto', 
+                  backgroundColor: !attendanceToday ? '#FFEBEE' : attendanceToday.status === 'Full' ? '#E8F5E9' : '#FFF8E1',
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 
+                }}>
+                  <Text style={{ 
+                    fontSize: 12, fontWeight: '600',
+                    color: !attendanceToday ? '#C62828' : attendanceToday.status === 'Full' ? '#2E7D32' : '#F9A825'
+                  }}>
+                    {!attendanceToday ? '❌ Absent' : attendanceToday.status === 'Full' ? '✅ Full Day' : '🟡 Half Day'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  disabled={!!attendanceToday?.morning_marked_at || markingAttendance || new Date().getHours() < 7 || new Date().getHours() >= 12}
+                  onPress={() => markAttendance('morning')}
+                  style={{
+                    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: attendanceToday?.morning_marked_at ? '#E8F5E9' : (new Date().getHours() < 7 || new Date().getHours() >= 12) ? '#F5F5F5' : '#E3F2FD',
+                    borderWidth: 1,
+                    borderColor: attendanceToday?.morning_marked_at ? '#66BB6A' : (new Date().getHours() < 7 || new Date().getHours() >= 12) ? '#E0E0E0' : '#42A5F5',
+                  }}
+                >
+                  <Icon 
+                    name={attendanceToday?.morning_marked_at ? 'check-circle' : 'weather-sunny'} 
+                    size={28} 
+                    color={attendanceToday?.morning_marked_at ? '#2E7D32' : (new Date().getHours() < 7 || new Date().getHours() >= 12) ? '#BDBDBD' : '#1565C0'} 
+                  />
+                  <Text style={{ 
+                    fontSize: 13, fontWeight: '600', marginTop: 6,
+                    color: attendanceToday?.morning_marked_at ? '#2E7D32' : (new Date().getHours() < 7 || new Date().getHours() >= 12) ? '#9E9E9E' : '#1565C0'
+                  }}>
+                    {attendanceToday?.morning_marked_at ? 'Morning ✓' : new Date().getHours() >= 12 ? 'Closed' : new Date().getHours() < 7 ? 'After 7 AM' : '☀️ Morning'}
+                  </Text>
+                  {attendanceToday?.morning_marked_at && (
+                    <Text style={{ fontSize: 10, color: '#66BB6A', marginTop: 2 }}>
+                      {new Date(attendanceToday.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={!!attendanceToday?.evening_marked_at || markingAttendance || new Date().getHours() < 16 || new Date().getHours() >= 22}
+                  onPress={() => markAttendance('evening')}
+                  style={{
+                    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: attendanceToday?.evening_marked_at ? '#E8F5E9' : (new Date().getHours() < 16 || new Date().getHours() >= 22) ? '#F5F5F5' : '#F3E5F5',
+                    borderWidth: 1,
+                    borderColor: attendanceToday?.evening_marked_at ? '#66BB6A' : (new Date().getHours() < 16 || new Date().getHours() >= 22) ? '#E0E0E0' : '#AB47BC',
+                  }}
+                >
+                  <Icon 
+                    name={attendanceToday?.evening_marked_at ? 'check-circle' : 'weather-night'} 
+                    size={28} 
+                    color={attendanceToday?.evening_marked_at ? '#2E7D32' : (new Date().getHours() < 16 || new Date().getHours() >= 22) ? '#BDBDBD' : '#7B1FA2'} 
+                  />
+                  <Text style={{ 
+                    fontSize: 13, fontWeight: '600', marginTop: 6,
+                    color: attendanceToday?.evening_marked_at ? '#2E7D32' : (new Date().getHours() < 16 || new Date().getHours() >= 22) ? '#9E9E9E' : '#7B1FA2'
+                  }}>
+                    {attendanceToday?.evening_marked_at ? 'Evening ✓' : new Date().getHours() >= 22 ? 'Closed' : new Date().getHours() < 16 ? 'After 4 PM' : '🌙 Evening'}
+                  </Text>
+                  {attendanceToday?.evening_marked_at && (
+                    <Text style={{ fontSize: 10, color: '#66BB6A', marginTop: 2 }}>
+                      {new Date(attendanceToday.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Card.Content>
+          </Card>
+
+          {/* Monthly Calendar & Leaves Hub */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+            <Text style={styles.sectionTitle}>Attendance & Leaves</Text>
+            <Button mode="text" compact onPress={() => setLeaveModal(true)} labelStyle={{ fontSize: 13, fontWeight: 'bold' }}>
+              + Apply Leave
+            </Button>
+          </View>
+          <Card style={{ marginVertical: 8, elevation: 2, backgroundColor: colors.elevation.level1, borderRadius: 12 }}>
+            <Card.Content>
+              {renderCalendar()}
+              
+              {leaveRequests.length > 0 && (
+                <View style={{ marginTop: 24 }}>
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.onSurface, marginBottom: 12 }}>Recent Leaves</Text>
+                  {leaveRequests.slice(0,3).map(l => (
+                    <View key={l.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant }}>
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.onSurface }}>{l.dates}</Text>
+                        <Text style={{ fontSize: 12, color: colors.onSurfaceVariant }}>{l.reason}</Text>
+                      </View>
+                      <Text style={{ 
+                        fontSize: 12, fontWeight: 'bold', alignSelf: 'center',
+                        color: l.status === 'Approved' ? '#4CAF50' : l.status === 'Rejected' ? '#F44336' : '#FF9800' 
+                      }}>
+                        {l.status}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </Card.Content>
+          </Card>
 
           {/* Core Hub Buttons (Styled with beautiful custom images like Student role) */}
           <Text style={styles.sectionTitle}>Intern Workspace Hubs</Text>
@@ -527,11 +914,11 @@ const InternHome = () => {
                   <View key={ann.id}>
                     {idx > 0 && <View style={[styles.divider, {backgroundColor: colors.outlineVariant}]} />}
                     <View style={styles.annItem}>
-                      <Icon name={ann.icon || 'bullhorn-outline'} size={24} color={ann.color || '#FF9800'} style={styles.annIcon} />
+                      <Icon name={ann.icon || (ann.type === 'Announcement' ? 'bullhorn-outline' : 'calendar-star')} size={24} color={ann.color || (ann.type === 'Announcement' ? '#FF9800' : '#2196F3')} style={styles.annIcon} />
                       <View style={styles.annTextContainer}>
                         <Text style={styles.annSubject}>{ann.title}</Text>
                         <Text style={styles.annBody}>{ann.body}</Text>
-                        <Text style={styles.annTime}>{ann.timeText}</Text>
+                        <Text style={styles.annTime}>{ann.time_text || ann.timeText}</Text>
                       </View>
                     </View>
                   </View>
@@ -543,7 +930,60 @@ const InternHome = () => {
       )}
 
       {/* Tasks are now in the dedicated Tasks tab (InternTasks screen) */}
-    </Screen>
+        <Portal>
+          <Dialog visible={leaveModal} onDismiss={() => setLeaveModal(false)} style={{ backgroundColor: colors.elevation.level3, borderRadius: 16 }}>
+            <Dialog.Title style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>Request Leave</Dialog.Title>
+            <Dialog.Content>
+              <Text style={{ fontSize: 13, color: colors.onSurfaceVariant, marginBottom: 16 }}>
+                Submit a leave request. Your Team Leader will review it. Half days are automatically applied if only one shift is missed.
+              </Text>
+              
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                <TouchableOpacity 
+                  activeOpacity={0.7} 
+                  onPress={() => showLeaveDatePicker('startDate')} 
+                  style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.onSurface, marginBottom: 4, fontWeight: 'bold' }}>Start Date</Text>
+                  <View style={{ backgroundColor: colors.background, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.outlineVariant, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: leaveForm.startDate ? colors.onSurface : colors.outline, fontSize: 13 }}>
+                      {leaveForm.startDate || 'YYYY-MM-DD'}
+                    </Text>
+                    <Icon name="calendar-month" size={18} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  activeOpacity={0.7} 
+                  onPress={() => showLeaveDatePicker('endDate')} 
+                  style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.onSurface, marginBottom: 4, fontWeight: 'bold' }}>End Date</Text>
+                  <View style={{ backgroundColor: colors.background, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.outlineVariant, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: leaveForm.endDate ? colors.onSurface : colors.outline, fontSize: 13 }}>
+                      {leaveForm.endDate || 'YYYY-MM-DD'}
+                    </Text>
+                    <Icon name="calendar-month" size={18} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontSize: 12, color: colors.onSurface, marginBottom: 4, fontWeight: 'bold' }}>Reason for leave</Text>
+              <TextInput 
+                placeholder="Briefly explain your reason..."
+                value={leaveForm.reason}
+                onChangeText={t => setLeaveForm({...leaveForm, reason: t})}
+                multiline
+                numberOfLines={3}
+                style={{ backgroundColor: colors.background, padding: 12, borderRadius: 8, color: colors.onSurface, borderWidth: 1, borderColor: colors.outlineVariant, minHeight: 80, textAlignVertical: 'top' }}
+                placeholderTextColor={colors.outline}
+              />
+            </Dialog.Content>
+            <Dialog.Actions style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+              <Button onPress={() => setLeaveModal(false)} textColor={colors.outline}>Cancel</Button>
+              <Button mode="contained" onPress={submitLeave} style={{ borderRadius: 8 }}>Submit Request</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+      </Screen>
   );
 };
 
@@ -814,6 +1254,36 @@ const styles = StyleSheet.create({
     color: '#01579B',
     flex: 1,
     lineHeight: 14,
+  },
+  calendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  calLabel: {
+    width: 32,
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#888',
+    fontWeight: 'bold',
+  },
+  calCell: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calDayCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calDayText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

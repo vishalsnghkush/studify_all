@@ -18,6 +18,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import {saveInternInterview, getInternDb} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
 
 const {width} = Dimensions.get('window');
 
@@ -25,6 +26,7 @@ const InternAiHub = () => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
+  const { get } = useApi();
   const insets = useSafeAreaInsets();
   const [activeTool, setActiveTool] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -43,11 +45,12 @@ const InternAiHub = () => {
     const loadOnboardingStatusAndResume = async () => {
       const activeId = user?.user_id || 'alice_123';
       try {
-        const db = await getInternDb();
-        const myRecord = db.interns.find(i => i.id === activeId);
-        setInternStatus(myRecord?.status || 'Pending');
-      } catch (e) {
-        console.log('Failed loading status in InternAiHub', e);
+        const profileRes = await get('/interns/profile', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (profileRes && profileRes.data) {
+          setInternStatus(profileRes.data.status || 'Pending');
+        }
+      } catch (profileErr) {
+        console.log('Failed loading status in InternAiHub', profileErr);
       }
       
       const saved = await AsyncStorage.getItem(`@studify_resume_name_${activeId}`);

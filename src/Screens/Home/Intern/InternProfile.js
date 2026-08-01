@@ -21,7 +21,7 @@ import {setUser, setUserLogout, setTheme} from '../../../Redux/Slices/InitialSli
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import {removeFcmToken} from '../../../Components/Api/CheckAuth';
 import DropDown from 'react-native-paper-dropdown';
-import { getInternDb, updateOfferLetter } from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
 // Simple try-catch for DocumentPicker
 let DocumentPicker = null;
 try {
@@ -61,8 +61,8 @@ const InternProfile = () => {
 
   // Profile data state
   const [skills, setSkills] = useState(['React Native', 'Redux Toolkit', 'JavaScript', 'Git', 'REST APIs']);
-  const [linkedin, setLinkedin] = useState('https://linkedin.com/in/intern-johndoe');
-  const [github, setGithub] = useState('https://github.com/intern-johndoe');
+  const [linkedin, setLinkedin] = useState('');
+  const [github, setGithub] = useState('');
   const [letterName, setLetterName] = useState('');
   const [resumeName, setResumeName] = useState('');
   const [verificationStatus, setVerificationStatus] = useState('Pending');
@@ -75,12 +75,12 @@ const InternProfile = () => {
   const [skillDialog, setSkillDialog] = useState(false);
   const [newSkillText, setNewSkillText] = useState('');
 
-  const tlDetails = {
-    name: 'John Doe',
-    email: 'john.doe@studifysuccess.com',
-    role: 'Tech Lead / Supervisor',
-    department: 'Software Engineering',
-  };
+  const [tlDetails, setTlDetails] = useState({
+    name: 'Vishal Kushwaha',
+    email: 'vishalsnghkush31@ce.du.ac.in',
+    role: `${user?.department || 'Tech'} Lead / Supervisor`,
+    department: user?.department || 'Tech',
+  });
 
   const deptList = [
     {label: 'Academics', value: 'Academics'},
@@ -107,6 +107,8 @@ const InternProfile = () => {
     {label: 'Partner Program', value: 'Partner Program'},
   ];
 
+  const { get, post } = useApi();
+
   const loadDeptAndResume = async () => {
     const savedDept = await AsyncStorage.getItem(DEPT_KEY);
     if (savedDept) {
@@ -114,7 +116,6 @@ const InternProfile = () => {
     }
     const activeId = user?.user_id;
     const email = user?.email;
-    // Resume stored by user_id or email
     const resumeKey = activeId
       ? `@studify_resume_name_${activeId}`
       : email
@@ -126,17 +127,31 @@ const InternProfile = () => {
     } else {
       setResumeName('');
     }
+
+    const keyId = activeId || email || 'guest';
+    const savedLinkedin = await AsyncStorage.getItem(`@studify_linkedin_${keyId}`);
+    const savedGithub = await AsyncStorage.getItem(`@studify_github_${keyId}`);
+    if (savedLinkedin) setLinkedin(savedLinkedin);
+    if (savedGithub) setGithub(savedGithub);
+
     try {
-      const dbData = await getInternDb();
-      const myRecord = dbData.interns.find(
-        i => i.id === activeId || (email && (i.email === email || i.id === email))
-      );
-      if (myRecord) {
-        setLetterName(myRecord.offerLetterName || '');
-        setVerificationStatus(myRecord.status || 'Pending');
+      const res = await get('/interns/profile', {skipErrorFlash: true});
+      if (res && res.data) {
+        setLetterName(res.data.offer_letter_name || '');
+        setVerificationStatus(res.data.status || 'Pending');
+        if (res.data.tl_details) {
+          setTlDetails(res.data.tl_details);
+        } else {
+          setTlDetails({
+            name: 'Vishal Kushwaha',
+            email: 'vishalsnghkush31@ce.du.ac.in',
+            role: `${res.data.department || selectedDept} Lead / Supervisor`,
+            department: res.data.department || selectedDept,
+          });
+        }
       }
     } catch (e) {
-      console.log('Failed to fetch DB record in profile', e);
+      console.log('Failed to fetch profile', e);
     }
   };
 
@@ -168,7 +183,6 @@ const InternProfile = () => {
   };
 
   const handleLetterUpload = async () => {
-    const activeId = user?.user_id || user?.email || 'guest';
     const dp = DocumentPicker?.default || DocumentPicker;
     if (dp && (typeof dp.pick === 'function' || typeof dp.pickSingle === 'function')) {
       try {
@@ -181,7 +195,7 @@ const InternProfile = () => {
         }
         if (pickedFile && pickedFile.name) {
           setLetterName(pickedFile.name);
-          await updateOfferLetter(activeId, pickedFile.name);
+          await post('/interns/offer_letter', { offerLetterName: pickedFile.name, department: selectedDept, duration: '6 Months' });
           Alert.alert('Upload Successful', `Selected offer letter: ${pickedFile.name}. Awaiting TL approval.`);
           loadDeptAndResume();
         }
@@ -197,7 +211,7 @@ const InternProfile = () => {
       setTimeout(async () => {
         const mockName = 'Offer_Letter_Verified.pdf';
         setLetterName(mockName);
-        await updateOfferLetter(activeId, mockName);
+        await post('/interns/offer_letter', { offerLetterName: mockName, department: selectedDept, duration: '6 Months' });
         Alert.alert('Upload Successful', 'Offer letter uploaded successfully. Awaiting TL approval.');
         loadDeptAndResume();
       }, 800);
@@ -205,9 +219,8 @@ const InternProfile = () => {
   };
 
   const handleRemoveLetter = async () => {
-    const activeId = user?.user_id || user?.email || 'guest';
     setLetterName('');
-    await updateOfferLetter(activeId, null);
+    await post('/interns/offer_letter', { offerLetterName: null, department: selectedDept, duration: '6 Months' });
     Alert.alert('Offer Letter Removed', 'Your offer letter has been deleted.');
     loadDeptAndResume();
   };
@@ -268,7 +281,10 @@ const InternProfile = () => {
     Alert.alert('Resume Removed', 'Your resume has been deleted.');
   };
 
-  const saveLinks = () => {
+  const saveLinks = async () => {
+    const keyId = user?.user_id || user?.email || 'guest';
+    if (linkedin) await AsyncStorage.setItem(`@studify_linkedin_${keyId}`, linkedin);
+    if (github) await AsyncStorage.setItem(`@studify_github_${keyId}`, github);
     Alert.alert('Saved', 'LinkedIn and GitHub links updated successfully.');
   };
 
@@ -284,7 +300,7 @@ const InternProfile = () => {
           />
           <View style={styles.headerInfo}>
             <Text style={styles.nameText}>{user?.fname || 'Intern'} {user?.lname || ''}</Text>
-            <Text style={styles.roleText}>{selectedDept} Division Intern</Text>
+            <Text style={styles.roleText}>{selectedDept} Division {user?.is_intern ? 'Intern' : 'Team Lead'}</Text>
             <Text style={styles.emailText}>{user?.email || 'intern@studifysuccess.com'}</Text>
           </View>
         </View>
@@ -309,35 +325,40 @@ const InternProfile = () => {
         </Card>
 
         {/* Internship Duration Card */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Internship Progress</Text>
-            <View style={styles.durationHeader}>
-              <Text style={styles.durationLabel}>Duration: 3 Months</Text>
-              <Text style={styles.durationDays}>45 / 90 Days Completed</Text>
-            </View>
-            <ProgressBar progress={0.5} color={colors.primary} style={styles.progressBar} />
-            <Text style={styles.durationDates}>Period: July 01, 2026 - October 01, 2026</Text>
-          </Card.Content>
-        </Card>
+        {user?.is_intern && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Internship Progress</Text>
+              <View style={styles.durationHeader}>
+                <Text style={styles.durationLabel}>Duration: 3 Months</Text>
+                <Text style={styles.durationDays}>45 / 90 Days Completed</Text>
+              </View>
+              <ProgressBar progress={0.5} color={colors.primary} style={styles.progressBar} />
+              <Text style={styles.durationDates}>Period: July 01, 2026 - October 01, 2026</Text>
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Supervisor details */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Supervisor / TL Details</Text>
-            <View style={styles.tlRow}>
-              <Icon name="account-tie" size={24} color={colors.primary} style={styles.tlIcon} />
-              <View>
-                <Text style={[styles.tlName, {color: colors.onSurface}]}>{tlDetails.name}</Text>
-                <Text style={[styles.tlRole, {color: colors.onSurfaceVariant}]}>{tlDetails.role}</Text>
-                <Text style={[styles.tlEmail, {color: colors.primary}]}>{tlDetails.email}</Text>
-                <Text style={[styles.tlDept, {color: colors.onSurfaceVariant}]}>Dept: {tlDetails.department}</Text>
+        {user?.is_intern && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Supervisor / TL Details</Text>
+              <View style={styles.tlRow}>
+                <Icon name="account-tie" size={24} color={colors.primary} style={styles.tlIcon} />
+                <View>
+                  <Text style={[styles.tlName, {color: colors.onSurface}]}>{tlDetails.name}</Text>
+                  <Text style={[styles.tlRole, {color: colors.onSurfaceVariant}]}>{tlDetails.role}</Text>
+                  <Text style={[styles.tlEmail, {color: colors.primary}]}>{tlDetails.email}</Text>
+                  <Text style={[styles.tlDept, {color: colors.onSurfaceVariant}]}>Dept: {tlDetails.department}</Text>
+                </View>
               </View>
-            </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        )}
 
-        {/* Skills Management */}
+        {/* Skills Management — intern only */}
+        {!user?.is_tl && (
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.skillsHeader}>
@@ -359,68 +380,72 @@ const InternProfile = () => {
             </View>
           </Card.Content>
         </Card>
+        )}
 
         {/* Internship Offer Letter Management */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Internship Offer Letter</Text>
-            <View style={styles.uploadContainer}>
-              {letterName ? (
-                <View style={[styles.uploadedFileBox, verificationStatus === 'Approved' ? { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' } : verificationStatus === 'Denied' ? { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' } : { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
-                  <Icon
-                    name={verificationStatus === 'Approved' ? 'file-document-check' : 'file-clock-outline'}
-                    size={40}
-                    color={verificationStatus === 'Approved' ? '#2E7D32' : verificationStatus === 'Denied' ? '#C62828' : '#EF6C00'}
-                  />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[styles.fileNameText, verificationStatus === 'Approved' ? { color: '#1B5E20' } : verificationStatus === 'Denied' ? { color: '#B71C1C' } : { color: '#E65100' }]}>{letterName}</Text>
-                    <Text style={[styles.fileSizeText, verificationStatus === 'Approved' ? { color: '#4CAF50' } : verificationStatus === 'Denied' ? { color: '#F44336' } : { color: '#FF9800' }]}>
-                      Status: {verificationStatus === 'Approved' ? 'Approved & Verified 🎉' : verificationStatus === 'Denied' ? 'Denied / Rejected ❌' : 'Awaiting TL Review 🕒'}
-                    </Text>
-                  </View>
-                  <View style={{flexDirection: 'column', alignItems: 'center'}}>
-                    {/* Always allow replacing — wrong doc fix */}
-                    <IconButton
-                      icon="file-replace-outline"
-                      iconColor={colors.primary}
-                      size={22}
-                      onPress={() => {
-                        Alert.alert(
-                          'Replace Offer Letter',
-                          'This will replace the current offer letter and reset approval status to Pending. Continue?',
-                          [
-                            {text: 'Cancel', style: 'cancel'},
-                            {text: 'Replace', onPress: handleLetterUpload},
-                          ],
-                        );
-                      }}
-                      style={{ margin: 0 }}
+        {user?.is_intern && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Internship Offer Letter</Text>
+              <View style={styles.uploadContainer}>
+                {letterName ? (
+                  <View style={[styles.uploadedFileBox, verificationStatus === 'Approved' ? { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' } : verificationStatus === 'Denied' ? { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' } : { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
+                    <Icon
+                      name={verificationStatus === 'Approved' ? 'file-document-check' : 'file-clock-outline'}
+                      size={40}
+                      color={verificationStatus === 'Approved' ? '#2E7D32' : verificationStatus === 'Denied' ? '#C62828' : '#EF6C00'}
                     />
-                    <IconButton
-                      icon="close-circle-outline"
-                      iconColor={colors.error}
-                      size={22}
-                      onPress={handleRemoveLetter}
-                      style={{ margin: 0 }}
-                    />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.fileNameText, verificationStatus === 'Approved' ? { color: '#1B5E20' } : verificationStatus === 'Denied' ? { color: '#B71C1C' } : { color: '#E65100' }]}>{letterName}</Text>
+                      <Text style={[styles.fileSizeText, verificationStatus === 'Approved' ? { color: '#4CAF50' } : verificationStatus === 'Denied' ? { color: '#F44336' } : { color: '#FF9800' }]}>
+                        Status: {verificationStatus === 'Approved' ? 'Approved & Verified 🎉' : verificationStatus === 'Denied' ? 'Denied / Rejected ❌' : 'Awaiting TL Review 🕒'}
+                      </Text>
+                    </View>
+                    <View style={{flexDirection: 'column', alignItems: 'center'}}>
+                      {/* Always allow replacing — wrong doc fix */}
+                      <IconButton
+                        icon="file-replace-outline"
+                        iconColor={colors.primary}
+                        size={22}
+                        onPress={() => {
+                          Alert.alert(
+                            'Replace Offer Letter',
+                            'This will replace the current offer letter and reset approval status to Pending. Continue?',
+                            [
+                              {text: 'Cancel', style: 'cancel'},
+                              {text: 'Replace', onPress: handleLetterUpload},
+                            ],
+                          );
+                        }}
+                        style={{ margin: 0 }}
+                      />
+                      <IconButton
+                        icon="close-circle-outline"
+                        iconColor={colors.error}
+                        size={22}
+                        onPress={handleRemoveLetter}
+                        style={{ margin: 0 }}
+                      />
+                    </View>
                   </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={handleLetterUpload}
-                  style={[styles.dropZone, { borderColor: '#E53935', backgroundColor: colors.elevation.level1 }]}
-                >
-                  <Icon name="file-pdf-box" size={40} color="#E53935" style={{ marginBottom: 6 }} />
-                  <Text style={[styles.dropZoneTitle, { color: colors.onSurface }]}>Upload Offer Letter</Text>
-                  <Text style={[styles.dropZoneSubtitle, { color: colors.onSurfaceVariant }]}>Required to unlock all app features (PDF only)</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </Card.Content>
-        </Card>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleLetterUpload}
+                    style={[styles.dropZone, { borderColor: '#E53935', backgroundColor: colors.elevation.level1 }]}
+                  >
+                    <Icon name="file-pdf-box" size={40} color="#E53935" style={{ marginBottom: 6 }} />
+                    <Text style={[styles.dropZoneTitle, { color: colors.onSurface }]}>Upload Offer Letter</Text>
+                    <Text style={[styles.dropZoneSubtitle, { color: colors.onSurfaceVariant }]}>Required to unlock all app features (PDF only)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
+        )}
 
-        {/* Resume Management */}
+        {/* Resume Management — intern only */}
+        {!user?.is_tl && (
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.cardTitle}>My Resume / Curriculum Vitae</Text>
@@ -463,8 +488,10 @@ const InternProfile = () => {
             </View>
           </Card.Content>
         </Card>
+        )}
 
-        {/* Social Links */}
+        {/* Social Links — intern only */}
+        {!user?.is_tl && (
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.cardTitle}>Professional Links</Text>
@@ -506,6 +533,7 @@ const InternProfile = () => {
             </Button>
           </Card.Content>
         </Card>
+        )}
 
         {/* Account & App Settings */}
         <View style={{marginTop: 16, marginBottom: 20}}>

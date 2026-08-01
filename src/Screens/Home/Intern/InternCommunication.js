@@ -17,10 +17,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {setUser, setUserLogout, setTheme} from '../../../Redux/Slices/InitialSlice';
 import {openModal} from '../../../Redux/Slices/ModalSlice';
 import {removeFcmToken} from '../../../Components/Api/CheckAuth';
-import {getInternDb, addMockFeedback} from '../../../Utils/MockInternDb';
+import {getInternDb, addMockFeedback, isMeetingExpired} from '../../../Utils/MockInternDb';
 import {fetchChatGroups} from '../../../Redux/Slices/ChatSlice';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 
 let notifee = null;
 try {
@@ -51,17 +52,54 @@ const InternCommunication = () => {
   const [newMeetDate, setNewMeetDate] = useState('');
   const [newMeetTime, setNewMeetTime] = useState('');
   const [newMeetLink, setNewMeetLink] = useState('');
+  // TL: Create Chat State
+  const [createChatDialog, setCreateChatDialog] = useState(false);
+  const [newChatName, setNewChatName] = useState('');
+
   const [newMeetScope, setNewMeetScope] = useState('dept'); // 'dept' or 'all'
+
+  const showMeetDatePicker = () => {
+    let initDate = new Date();
+    if (newMeetDate) {
+      const parts = newMeetDate.split('-');
+      if (parts.length === 3) {
+        initDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+    }
+    DateTimePickerAndroid.open({
+      value: initDate,
+      mode: 'date',
+      onChange: (event, date) => {
+        if (event.type === 'set' && date) {
+          const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          setNewMeetDate(formatted);
+        }
+      },
+    });
+  };
+
+  const showMeetTimePicker = () => {
+    let initTime = new Date();
+    DateTimePickerAndroid.open({
+      value: initTime,
+      mode: 'time',
+      is24Hour: false,
+      onChange: (event, time) => {
+        if (event.type === 'set' && time) {
+          const formatted = time.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+          setNewMeetTime(formatted);
+        }
+      },
+    });
+  };
 
   const loadOnboardingStatus = async () => {
     try {
-      const db = await getInternDb();
-      const activeId = user?.user_id;
-      const email = user?.email;
-      const myRecord = db.interns.find(
-        i => i.id === activeId || (email && (i.email === email || i.id === email))
-      );
-      setInternStatus(myRecord?.status || 'Pending');
+      const api = require('../../../Components/Api/Api').default();
+      const profileRes = await api.get('/interns/profile', {skipSuccessFlash: true, skipErrorFlash: true});
+      if (profileRes && profileRes.data) {
+        setInternStatus(profileRes.data.status || 'Pending');
+      }
     } catch (e) {
       console.log('Failed loading status in InternCommunication', e);
     }
@@ -80,7 +118,7 @@ const InternCommunication = () => {
         const db = await getInternDb();
         const dept = selectedDept || user?.department || 'Tech';
         const discussions = (db.meetings || []).filter(
-          m => m.type === 'Discussion' && 
+          m => !isMeetingExpired(m.date, m.time) && 
                (m.department.toLowerCase() === dept.toLowerCase() || m.department.toLowerCase() === 'all')
         );
         
@@ -229,7 +267,25 @@ const InternCommunication = () => {
     }
   };
 
-  if (internStatus !== 'Approved') {
+  const handleCreateChat = async () => {
+    if (!newChatName.trim()) return Alert.alert('Required', 'Please enter a chat group name.');
+    try {
+      const api = require('../../../Components/Api/Api').default();
+      const dept = selectedDept || user?.department || 'Tech';
+      await api.post('/chat/groups/intern', { name: newChatName.trim(), department: dept });
+      setCreateChatDialog(false);
+      setNewChatName('');
+      dispatch(fetchChatGroups({
+        department: dept,
+        is_tl: user?.is_tl ? 'true' : 'false'
+      }));
+      Alert.alert('Chat Created!', `"${newChatName.trim()}" group has been created and all ${dept} interns have been added automatically.`);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to create chat group. Please try again.');
+    }
+  };
+
+  if (internStatus !== 'Approved' && user?.is_intern) {
     return (
       <Screen NoHeader style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' }}>
         <Icon name="lock-outline" size={64} color="#999" style={{ marginBottom: 16 }} />
@@ -268,13 +324,25 @@ const InternCommunication = () => {
       {/* CHATS TAB */}
       {activeTab === 'chats' && (
         <View style={styles.tabContent}>
+          {/* TL-only: Create Chat button */}
+          {user?.is_tl && (
+            <Button
+              mode="contained"
+              icon="chat-plus"
+              onPress={() => setCreateChatDialog(true)}
+              style={[styles.scheduleBtn, {backgroundColor: colors.primary, marginBottom: 12}]}
+              labelStyle={{color: '#fff', fontWeight: 'bold'}}>
+              Create Chat Group
+            </Button>
+          )}
+
           {loadingGroups ? (
             <Text style={styles.emptyText}>Loading chat rooms...</Text>
           ) : groups.length === 0 ? (
             <Text style={styles.emptyText}>No chat groups found.</Text>
           ) : (
             groups.map((item) => (
-              <Card key={item.chat_group_id} style={styles.chatCard} onPress={() => navigation.navigate('Chat', { data: item })}>
+            <Card key={item.chat_group_id} style={styles.chatCard} onPress={() => navigation.navigate('Chat', { data: item })}>
                 <Card.Content style={styles.chatCardContent}>
                   <Avatar.Text
                     size={44}
@@ -462,26 +530,31 @@ const InternCommunication = () => {
             />
 
             <View style={styles.dateTimeRow}>
-              <View style={{flex: 1, marginRight: 8}}>
+              <TouchableOpacity 
+                activeOpacity={0.7} 
+                onPress={showMeetDatePicker} 
+                style={{flex: 1, marginRight: 8}}>
                 <Text style={[styles.fieldLabel, {color: colors.onSurfaceVariant}]}>Date *</Text>
-                <TextInput
-                  value={newMeetDate}
-                  onChangeText={setNewMeetDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#999"
-                  style={[styles.dialogInput, {borderColor: colors.outline, backgroundColor: colors.elevation.level1, color: colors.onSurface}]}
-                />
-              </View>
-              <View style={{flex: 1}}>
+                <View style={[styles.dialogInput, {borderColor: colors.outline, backgroundColor: colors.elevation.level1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12}]}>
+                  <Text style={{color: newMeetDate ? colors.onSurface : '#999', fontSize: 13}}>
+                    {newMeetDate || 'YYYY-MM-DD'}
+                  </Text>
+                  <Icon name="calendar-month" size={20} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                activeOpacity={0.7} 
+                onPress={showMeetTimePicker} 
+                style={{flex: 1}}>
                 <Text style={[styles.fieldLabel, {color: colors.onSurfaceVariant}]}>Time *</Text>
-                <TextInput
-                  value={newMeetTime}
-                  onChangeText={setNewMeetTime}
-                  placeholder="e.g. 4:00 PM"
-                  placeholderTextColor="#999"
-                  style={[styles.dialogInput, {borderColor: colors.outline, backgroundColor: colors.elevation.level1, color: colors.onSurface}]}
-                />
-              </View>
+                <View style={[styles.dialogInput, {borderColor: colors.outline, backgroundColor: colors.elevation.level1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12}]}>
+                  <Text style={{color: newMeetTime ? colors.onSurface : '#999', fontSize: 13}}>
+                    {newMeetTime || 'e.g. 4:00 PM'}
+                  </Text>
+                  <Icon name="clock-outline" size={20} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
             </View>
 
             <Text style={[styles.fieldLabel, {color: colors.onSurfaceVariant}]}>Google Meet Link *</Text>
@@ -518,6 +591,27 @@ const InternCommunication = () => {
           <Dialog.Actions>
             <Button onPress={() => setScheduleDialog(false)}>Cancel</Button>
             <Button mode="contained" onPress={handleScheduleMeeting} icon="calendar-check">Schedule</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* TL: Create Chat Dialog */}
+      <Portal>
+        <Dialog visible={createChatDialog} onDismiss={() => setCreateChatDialog(false)} style={[styles.dialog, {backgroundColor: colors.elevation.level3}]}>
+          <Dialog.Title style={{color: colors.onSurface}}>💬 Create Chat Group</Dialog.Title>
+          <Dialog.Content>
+            <Text style={[styles.fieldLabel, {color: colors.onSurfaceVariant}]}>Group Name *</Text>
+            <TextInput
+              value={newChatName}
+              onChangeText={setNewChatName}
+              placeholder="e.g. Tech Support Channel"
+              placeholderTextColor="#999"
+              style={[styles.dialogInput, {borderColor: colors.outline, backgroundColor: colors.elevation.level1, color: colors.onSurface}]}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setCreateChatDialog(false)}>Cancel</Button>
+            <Button mode="contained" onPress={handleCreateChat} icon="check">Create</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
