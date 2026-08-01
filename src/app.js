@@ -244,6 +244,7 @@ const App = () => {
     };
 
     client.connect({
+      useSSL: true,
       onSuccess: () => {
         console.log('Connected to MQTT');
         try {
@@ -252,7 +253,6 @@ const App = () => {
           console.log('MQTT notification subscribe error:', e);
         }
       },
-      useSSL: true, // false for localHost
       onFailure: onFailure,
       reconnect: true,
       timeout: 5,

@@ -12,12 +12,15 @@ import {
 } from 'react-native';
 import {Text} from '../../../Components/Input';
 import {Screen} from '../../../Components/Screen';
-import {useTheme, Card, Avatar, Button, IconButton, Dialog, Portal} from 'react-native-paper';
+import {useTheme, Card, Avatar, Button, IconButton, Dialog, Portal, SegmentedButtons} from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DropDown from 'react-native-paper-dropdown';
-import {getInternDb, updateMockLeaveStatus, updateInternApproval, addMockMeeting, addMockAnnouncement} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
+import {getInternDb, addMockMeeting, addMockAnnouncement, isMeetingExpired} from '../../../Utils/MockInternDb';
 import {useNavigation} from '@react-navigation/native';
+import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import {useSelector} from 'react-redux';
 
 const {width} = Dimensions.get('window');
 
@@ -26,14 +29,26 @@ const TLDashboard = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
+  const {user} = useSelector(state => state.initial);
+  const { get, post } = useApi();
   const [db, setDb] = useState(null);
-  const [activeDept, setActiveDept] = useState('Tech');
+  const [activeDept, setActiveDept] = useState(user?.department || 'Tech');
+  
+  // Sync activeDept if user changes it in profile
+  useEffect(() => {
+    if (user?.department) {
+      setActiveDept(user.department);
+    }
+  }, [user?.department]);
+
+  const [leaveTab, setLeaveTab] = useState('Pending');
   const [deptDialogVisible, setDeptDialogVisible] = useState(false);
 
   // Selected intern details modal
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportModal, setReportModal] = useState(false);
+  const [internMetrics, setInternMetrics] = useState({ accuracy: 0, rank: 'None', tasksDone: 0, daysPresent: 0 });
 
   // Meet scheduler states
   const [meetModalVisible, setMeetModalVisible] = useState(false);
@@ -44,12 +59,49 @@ const TLDashboard = () => {
   const [meetTime, setMeetTime] = useState('4:30 PM');
   const [meetAudience, setMeetAudience] = useState('Dept'); // 'Dept' or 'All'
 
+  const showTlMeetDatePicker = () => {
+    let initDate = new Date();
+    DateTimePickerAndroid.open({
+      value: initDate,
+      mode: 'date',
+      onChange: (event, date) => {
+        if (event.type === 'set' && date) {
+          const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          setMeetDate(formatted);
+        }
+      },
+    });
+  };
+
+  const showTlMeetTimePicker = () => {
+    let initTime = new Date();
+    DateTimePickerAndroid.open({
+      value: initTime,
+      mode: 'time',
+      is24Hour: false,
+      onChange: (event, time) => {
+        if (event.type === 'set' && time) {
+          const formatted = time.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+          setMeetTime(formatted);
+        }
+      },
+    });
+  };
+
   // Announcement scheduler states
   const [annModalVisible, setAnnModalVisible] = useState(false);
   const [annTitle, setAnnTitle] = useState('');
   const [annBody, setAnnBody] = useState('');
   const [annType, setAnnType] = useState('Announcement'); // Announcement or Event
   const [annTimeText, setAnnTimeText] = useState('Just now');
+
+  // Training Module States
+  const [moduleModalVisible, setModuleModalVisible] = useState(false);
+  const [modTitle, setModTitle] = useState('');
+  const [modInstructor, setModInstructor] = useState('');
+  const [modDuration, setModDuration] = useState('');
+  const [modDesc, setModDesc] = useState('');
+  const [modVideo, setModVideo] = useState('');
 
   const deptList = [
     {label: 'Academics', value: 'Academics'},
@@ -77,8 +129,27 @@ const TLDashboard = () => {
   ];
 
   const loadData = async () => {
-    const data = await getInternDb();
-    setDb(data);
+    try {
+      const res = await get(`/interns/team?department=${activeDept}`, {skipSuccessFlash: true});
+      if (res && res.data) {
+        const liveData = {
+          interns: res.data.team || [],
+          leaves: res.data.leaves || [],
+          reports: res.data.reports || []
+        };
+        const mock = await getInternDb();
+        const activeMeetings = (mock.meetings || []).filter(m => !isMeetingExpired(m.date, m.time));
+        setDb({
+          ...liveData,
+          meetings: activeMeetings,
+          announcements: mock.announcements || [],
+          departmentTasks: mock.departmentTasks || {},
+          attendance: res.data.attendance || {}
+        });
+      }
+    } catch (e) {
+      console.log('Error fetching TL Dashboard Data', e);
+    }
   };
 
   useEffect(() => {
@@ -87,19 +158,66 @@ const TLDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (selectedIntern) {
+      const fetchMetrics = async () => {
+        // Fetch tasks from BACKEND DATABASE (not local storage!)
+        try {
+          const taskRes = await get(`/interns/tasks/${selectedIntern.id}`, { skipSuccessFlash: true, skipErrorFlash: true });
+          const loadedTasks = (taskRes && taskRes.data) ? taskRes.data : [];
+          const sid = String(selectedIntern.id);
+          const myDoneTasksList = loadedTasks.filter(t => t.completed && (
+            (t.assignedTo || []).map(String).includes(sid) || 
+            String(t.completedBy) === sid
+          ));
+          const myDoneTasks = myDoneTasksList.length;
+          
+          const myReports = (db?.reports || []).filter(r => r.internId === selectedIntern.id);
+          const calcAccuracy = myReports.length > 0 ? Math.min(99, 80 + myReports.length * 3) : (myDoneTasks > 0 ? 85 : 0);
+          
+          let rank = 'None';
+          if (calcAccuracy >= 90) rank = 'Diamond';
+          else if (calcAccuracy >= 80) rank = 'Gold';
+          else if (calcAccuracy >= 60) rank = 'Silver';
+          else if (calcAccuracy > 0) rank = 'Bronze';
+
+          setInternMetrics({
+            accuracy: calcAccuracy,
+            rank,
+            tasksDone: myDoneTasks,
+            daysPresent: Object.keys(db?.attendance?.[selectedIntern.id] || {}).length,
+            completedTasksList: myDoneTasksList
+          });
+        } catch (e) {
+          console.log('Error fetching intern tasks:', e);
+          setInternMetrics({ accuracy: 0, rank: 'None', tasksDone: 0, daysPresent: 0, completedTasksList: [] });
+        }
+      };
+      fetchMetrics();
+    }
+  }, [selectedIntern, db]);
+
   const handleLeaveAction = async (leaveId, status) => {
-    await updateMockLeaveStatus(leaveId, status);
-    Alert.alert('Success', `Leave request has been ${status.toLowerCase()}.`);
-    loadData();
+    try {
+      await post('/interns/team/leave', { leaveId, action: status });
+      Alert.alert('Success', `Leave request has been ${status.toLowerCase()}.`);
+      loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update leave request.');
+    }
   };
 
   const handleApprovalAction = async (internId, status) => {
-    await updateInternApproval(internId, status);
-    Alert.alert('Profile Updated', `Intern status set to ${status}.`);
-    if (selectedIntern && selectedIntern.id === internId) {
-      setSelectedIntern(prev => ({...prev, status, timeLeft: '0d 0h'}));
+    try {
+      await post('/interns/team/approve', { internId, action: status });
+      Alert.alert('Profile Updated', `Intern status set to ${status}.`);
+      if (selectedIntern && selectedIntern.id === internId) {
+        setSelectedIntern(prev => ({...prev, status, timeLeft: '0d 0h'}));
+      }
+      loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update intern profile.');
     }
-    loadData();
   };
 
   const handleCreateMeeting = async () => {
@@ -110,26 +228,39 @@ const TLDashboard = () => {
       return Alert.alert('Validation Error', 'Please enter a valid HTTP meeting URL (e.g. Google Meet).');
     }
 
-    const newMeeting = {
-      title: meetTitle.trim(),
-      type: meetType,
-      department: meetAudience === 'All' ? 'All' : activeDept,
-      date: meetDate.trim(),
-      time: meetTime.trim(),
-      link: meetLink.trim(),
-      createdBy: 'Team Lead',
-    };
-
-    const res = await addMockMeeting(newMeeting);
-    if (res) {
-      Alert.alert('Meeting Scheduled', `${meetType === 'Training' ? 'Training' : 'Discussion'} meeting "${meetTitle}" has been scheduled for ${meetAudience === 'All' ? 'all departments' : `department ${activeDept}`}.`);
-      setMeetTitle('');
-      setMeetModalVisible(false);
-      setMeetAudience('Dept');
-      loadData();
+    if (meetType === 'Training') {
+      try {
+        await post('/interns/trainings/live', {
+          department: meetAudience === 'All' ? 'All' : activeDept,
+          title: meetTitle.trim(),
+          topic: '', // Can add topic input later
+          scheduled_time: `${meetDate.trim()} ${meetTime.trim()}`,
+          meeting_link: meetLink.trim()
+        });
+        Alert.alert('Training Scheduled', `Live training session "${meetTitle}" has been scheduled for ${meetAudience === 'All' ? 'all departments' : `department ${activeDept}`}.`);
+      } catch (e) {
+        Alert.alert('Error', 'Failed to schedule live training session.');
+      }
     } else {
-      Alert.alert('Error', 'Unable to schedule meeting.');
+      const newMeeting = {
+        title: meetTitle.trim(),
+        type: meetType,
+        department: meetAudience === 'All' ? 'All' : activeDept,
+        date: meetDate.trim(),
+        time: meetTime.trim(),
+        link: meetLink.trim(),
+        createdBy: 'Team Lead',
+      };
+      const res = await addMockMeeting(newMeeting);
+      if (res) {
+        Alert.alert('Meeting Scheduled', `Discussion meeting "${meetTitle}" has been scheduled for ${meetAudience === 'All' ? 'all departments' : `department ${activeDept}`}.`);
+      }
     }
+
+    setMeetTitle('');
+    setMeetModalVisible(false);
+    setMeetAudience('Dept');
+    loadData();
   };
 
   const handleCreateAnnouncement = async () => {
@@ -137,35 +268,65 @@ const TLDashboard = () => {
       return Alert.alert('Validation Error', 'Please enter a title.');
     }
     if (!annBody.trim()) {
-      return Alert.alert('Validation Error', 'Please enter announcement details.');
+      return Alert.alert('Validation Error', 'Please enter message details.');
     }
 
-    const newAnn = {
-      title: annTitle.trim(),
-      body: annBody.trim(),
-      type: annType,
-      timeText: annTimeText.trim(),
-      icon: annType === 'Announcement' ? 'bullhorn-outline' : 'video-outline',
-      color: annType === 'Announcement' ? '#FF9800' : '#2196F3',
-    };
+    const autoTimeText = new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-    const res = await addMockAnnouncement(newAnn);
-    if (res) {
-      Alert.alert('Success', `Published ${annType.toLowerCase()} successfully.`);
+    try {
+      await post('/interns/announcements', {
+        department: activeDept,
+        title: annTitle.trim(),
+        body: annBody.trim(),
+        type: annType,
+        timeText: autoTimeText
+      });
+      Alert.alert('Success', `${annType} published successfully.`);
       setAnnTitle('');
       setAnnBody('');
       setAnnModalVisible(false);
       loadData();
-    } else {
-      Alert.alert('Error', 'Unable to publish announcement.');
+    } catch (e) {
+      Alert.alert('Notice', 'Announcement logged.');
+      setAnnModalVisible(false);
     }
   };
 
-  const filteredInterns = (db?.interns || []).filter(i => i.department === activeDept);
-  const filteredLeaves = (db?.leaves || []).filter(l => {
-    const intern = (db?.interns || []).find(i => i.id === l.internId);
-    return intern?.department === activeDept;
-  });
+  const handlePublishModule = async () => {
+    if (!modTitle.trim() || !modInstructor.trim() || !modDuration.trim() || !modVideo.trim()) {
+      return Alert.alert('Validation Error', 'Title, Instructor, Duration, and Video URL are required.');
+    }
+
+    try {
+      await post('/interns/trainings/modules', {
+        department: activeDept,
+        title: modTitle.trim(),
+        instructor: modInstructor.trim(),
+        duration: modDuration.trim(),
+        description: modDesc.trim(),
+        video_url: modVideo.trim()
+      });
+      Alert.alert('Module Published', `Training module "${modTitle}" is now live in the Learning Hub.`);
+      setModTitle('');
+      setModInstructor('');
+      setModDuration('');
+      setModDesc('');
+      setModVideo('');
+      setModuleModalVisible(false);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to publish training module.');
+    }
+  };
+
+  const filteredInterns = (db?.interns || []).filter(i => i.status !== 'Approved');
+  const filteredLeaves = (db?.leaves || []).filter(l => 
+    leaveTab === 'Pending' ? l.status === 'Pending' : (l.status === 'Approved' || l.status === 'Denied')
+  );
 
   return (
     <Screen NoHeader style={styles.container}>
@@ -193,32 +354,41 @@ const TLDashboard = () => {
           <Button mode="contained-tonal" compact labelStyle={{fontSize: 11}}>Change</Button>
         </TouchableOpacity>
 
-        <View style={styles.actionsRow}>
+        <View style={{flexDirection: 'column', gap: 10, marginTop: 15, marginBottom: 20}}>
           <Button
             mode="contained"
-            icon="video-plus"
+            icon="video"
             onPress={() => setMeetModalVisible(true)}
-            style={[styles.actionBtnItem, {marginRight: 6}]}>
+            style={{backgroundColor: '#00695C', borderRadius: 8, paddingVertical: 4}}
+            labelStyle={{fontSize: 15}}>
             Schedule Meet
           </Button>
           <Button
             mode="contained-tonal"
-            icon="bullhorn-plus"
+            icon="play-box-multiple"
+            onPress={() => setModuleModalVisible(true)}
+            style={{backgroundColor: '#E3F2FD', borderRadius: 8, paddingVertical: 4}}
+            labelStyle={{color: '#1565C0', fontSize: 15}}>
+            Post Training Module
+          </Button>
+          <Button
+            mode="contained-tonal"
+            icon="bullhorn-outline"
             onPress={() => setAnnModalVisible(true)}
-            style={styles.actionBtnItem}>
-            Post Announcement
+            style={{backgroundColor: '#BBDEFB', borderRadius: 8, paddingVertical: 4}}
+            labelStyle={{color: '#1565C0', fontSize: 15}}>
+            Publish Announcement
           </Button>
         </View>
 
         {/* Section 1: Interns List */}
-        <Text style={styles.sectionTitle}>Interns list ({activeDept})</Text>
+        <Text style={styles.sectionTitle}>Action Required: Pending Approvals ({activeDept})</Text>
         {filteredInterns.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Card.Content style={styles.emptyContent}>
-              <Icon name="account-search" size={40} color="#888" />
-              <Text style={styles.emptyText}>No active interns in this department.</Text>
-            </Card.Content>
-          </Card>
+          <View style={styles.emptyContent}>
+            <Icon name="check-decagram-outline" size={48} color="#4CAF50" />
+            <Text style={[styles.emptyText, {color: '#4CAF50', fontWeight: 'bold'}]}>All caught up!</Text>
+            <Text style={styles.emptyText}>No pending onboarding tasks for this department.</Text>
+          </View>
         ) : (
           filteredInterns.map(intern => (
             <Card key={intern.id} style={styles.internCard} onPress={() => setSelectedIntern(intern)}>
@@ -249,12 +419,23 @@ const TLDashboard = () => {
         )}
 
         {/* Section 2: Pending Leaves */}
-        <Text style={[styles.sectionTitle, {marginTop: 24}]}>Leave Requests ({activeDept})</Text>
+        <Text style={[styles.sectionTitle, {marginTop: 24, marginBottom: 12}]}>Leave Requests ({activeDept})</Text>
+        <SegmentedButtons
+          value={leaveTab}
+          onValueChange={setLeaveTab}
+          buttons={[
+            { value: 'Pending', label: 'Pending' },
+            { value: 'History', label: 'History' },
+          ]}
+          style={{marginBottom: 16, marginHorizontal: 20}}
+        />
         {filteredLeaves.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Card.Content style={styles.emptyContent}>
-              <Icon name="calendar-blank" size={40} color="#888" />
-              <Text style={styles.emptyText}>No leave applications filed.</Text>
+              <Icon name={leaveTab === 'Pending' ? "calendar-check" : "calendar-blank"} size={40} color="#888" />
+              <Text style={styles.emptyText}>
+                {leaveTab === 'Pending' ? "No pending leave requests." : "No leave history found."}
+              </Text>
             </Card.Content>
           </Card>
         ) : (
@@ -275,7 +456,7 @@ const TLDashboard = () => {
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.leaveDates}>📅 {leave.dates} | {leave.type}</Text>
+                  <Text style={styles.leaveDates}>📅 {leave.start} to {leave.end}</Text>
                   <Text style={styles.leaveReason}>Reason: "{leave.reason}"</Text>
 
                   {leave.status === 'Pending' && (
@@ -412,6 +593,70 @@ const TLDashboard = () => {
                     ))
                   )}
 
+                  {/* Performance & Skills Summary */}
+                  <Text style={styles.subTitle}>Intern Performance Analytics</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 12 }}>
+                    <Card style={{ flex: 1, marginRight: 8, backgroundColor: '#F3E5F5' }}>
+                      <Card.Content style={{ alignItems: 'center', padding: 12 }}>
+                        <Icon name="bullseye-arrow" size={28} color="#7B1FA2" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#7B1FA2', marginTop: 4 }}>
+                          {selectedIntern.status === 'Approved' ? `${internMetrics.accuracy}%` : '0%'}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#555', marginTop: 2 }}>Task Accuracy</Text>
+                      </Card.Content>
+                    </Card>
+                    <Card style={{ flex: 1, backgroundColor: '#E8EAF6' }}>
+                      <Card.Content style={{ alignItems: 'center', padding: 12 }}>
+                        <Icon name="medal-outline" size={28} color="#303F9F" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#303F9F', marginTop: 4 }}>
+                          {selectedIntern.status === 'Approved' ? internMetrics.rank : 'None'}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#555', marginTop: 2 }}>Rank Tier</Text>
+                      </Card.Content>
+                    </Card>
+                  </View>
+
+                  {/* Attendance & Tasks Summary */}
+                  <Text style={styles.subTitle}>Daily Tracking</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 }}>
+                    <Card style={{ flex: 1, marginRight: 8, backgroundColor: '#E3F2FD' }}>
+                      <Card.Content style={{ alignItems: 'center', padding: 12 }}>
+                        <Icon name="calendar-check" size={28} color="#1565C0" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1565C0', marginTop: 4 }}>
+                          {internMetrics.daysPresent}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#555', marginTop: 2 }}>Days Present</Text>
+                      </Card.Content>
+                    </Card>
+                    <Card style={{ flex: 1, backgroundColor: '#E8F5E9' }}>
+                      <Card.Content style={{ alignItems: 'center', padding: 12 }}>
+                        <Icon name="checkbox-marked-circle-outline" size={28} color="#2E7D32" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#2E7D32', marginTop: 4 }}>
+                          {internMetrics.tasksDone}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#555', marginTop: 2 }}>Tasks Completed</Text>
+                      </Card.Content>
+                    </Card>
+                  </View>
+
+                  {/* Active Tasks List */}
+                  <Text style={styles.subTitle}>Recent Task Activity</Text>
+                  {(db?.departmentTasks?.[activeDept] || []).filter(t => t.completedBy === selectedIntern.id || t.assignedTo?.includes(selectedIntern.id)).length === 0 ? (
+                     <Text style={styles.emptyText}>No active or completed tasks assigned to this intern.</Text>
+                  ) : (
+                     (db?.departmentTasks?.[activeDept] || []).filter(t => t.completedBy === selectedIntern.id || t.assignedTo?.includes(selectedIntern.id)).slice(0, 3).map(task => (
+                       <Card key={task.id} style={{ marginBottom: 8, marginHorizontal: 4, elevation: 1 }}>
+                         <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
+                           <Icon name={task.completed ? "check-circle" : "progress-clock"} size={24} color={task.completed ? "#2E7D32" : "#F57C00"} />
+                           <View style={{ flex: 1, marginLeft: 12 }}>
+                             <Text style={{ fontSize: 14, fontWeight: '600', color: '#333' }}>{task.title}</Text>
+                             <Text style={{ fontSize: 12, color: '#666' }}>{task.completed ? 'Completed' : 'In Progress'}</Text>
+                           </View>
+                         </Card.Content>
+                       </Card>
+                     ))
+                  )}
+
                   {/* Chat Button */}
                   <Button
                     mode="contained-tonal"
@@ -539,26 +784,31 @@ const TLDashboard = () => {
               />
 
               <View style={styles.rowInputs}>
-                <View style={{flex: 1, marginRight: 8}}>
+                <TouchableOpacity 
+                  activeOpacity={0.7} 
+                  onPress={showTlMeetDatePicker} 
+                  style={{flex: 1, marginRight: 8}}>
                   <Text style={styles.formLabel}>Date</Text>
-                  <TextInput
-                    value={meetDate}
-                    onChangeText={setMeetDate}
-                    placeholder="E.g., July 28"
-                    style={styles.formInput}
-                    placeholderTextColor="#999"
-                  />
-                </View>
-                <View style={{flex: 1}}>
+                  <View style={[styles.formInput, {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12}]}>
+                    <Text style={{color: meetDate ? colors.onSurface : '#999', fontSize: 13}}>
+                      {meetDate || 'YYYY-MM-DD'}
+                    </Text>
+                    <Icon name="calendar-month" size={20} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  activeOpacity={0.7} 
+                  onPress={showTlMeetTimePicker} 
+                  style={{flex: 1}}>
                   <Text style={styles.formLabel}>Time</Text>
-                  <TextInput
-                    value={meetTime}
-                    onChangeText={setMeetTime}
-                    placeholder="E.g., 4:30 PM"
-                    style={styles.formInput}
-                    placeholderTextColor="#999"
-                  />
-                </View>
+                  <View style={[styles.formInput, {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12}]}>
+                    <Text style={{color: meetTime ? colors.onSurface : '#999', fontSize: 13}}>
+                      {meetTime || 'e.g. 4:30 PM'}
+                    </Text>
+                    <Icon name="clock-outline" size={20} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
               </View>
             </Dialog.Content>
             <Dialog.Actions>
@@ -604,15 +854,6 @@ const TLDashboard = () => {
                 style={[styles.formInput, {height: 60, textAlignVertical: 'top'}]}
                 placeholderTextColor="#999"
               />
-
-              <Text style={styles.formLabel}>Time Info Text</Text>
-              <TextInput
-                value={annTimeText}
-                onChangeText={setAnnTimeText}
-                placeholder="E.g., Posted 2 hours ago or Friday, 3:00 PM"
-                style={styles.formInput}
-                placeholderTextColor="#999"
-              />
             </Dialog.Content>
             <Dialog.Actions>
               <Button onPress={() => setAnnModalVisible(false)}>Cancel</Button>
@@ -620,6 +861,70 @@ const TLDashboard = () => {
             </Dialog.Actions>
           </Dialog>
         </Portal>
+
+        {/* Upload Training Module Dialog */}
+        <Portal>
+          <Dialog visible={moduleModalVisible} onDismiss={() => setModuleModalVisible(false)} style={styles.dialog}>
+            <Dialog.Title>Publish Training Module</Dialog.Title>
+            <Dialog.Content>
+              <Text style={styles.formLabel}>Module Title</Text>
+              <TextInput
+                value={modTitle}
+                onChangeText={setModTitle}
+                placeholder="E.g., Advanced React Native"
+                style={styles.formInput}
+                placeholderTextColor="#999"
+              />
+              <View style={styles.rowInputs}>
+                <View style={{flex: 1, marginRight: 8}}>
+                  <Text style={styles.formLabel}>Instructor</Text>
+                  <TextInput
+                    value={modInstructor}
+                    onChangeText={setModInstructor}
+                    placeholder="E.g., John Doe"
+                    style={styles.formInput}
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={{flex: 1}}>
+                  <Text style={styles.formLabel}>Duration</Text>
+                  <TextInput
+                    value={modDuration}
+                    onChangeText={setModDuration}
+                    placeholder="E.g., 45 mins"
+                    style={styles.formInput}
+                    placeholderTextColor="#999"
+                  />
+                </View>
+              </View>
+              
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput
+                multiline
+                numberOfLines={2}
+                value={modDesc}
+                onChangeText={setModDesc}
+                placeholder="Briefly describe what this module covers..."
+                style={[styles.formInput, {height: 50, textAlignVertical: 'top'}]}
+                placeholderTextColor="#999"
+              />
+
+              <Text style={styles.formLabel}>Video Link (YouTube/MP4)</Text>
+              <TextInput
+                value={modVideo}
+                onChangeText={setModVideo}
+                placeholder="https://youtube.com/watch?v=..."
+                style={styles.formInput}
+                placeholderTextColor="#999"
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setModuleModalVisible(false)}>Cancel</Button>
+              <Button onPress={handlePublishModule}>Publish</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
     </Screen>
   );
 };

@@ -8,12 +8,14 @@ const useApi = () => {
     const skipErrorFlash = params?.skipErrorFlash;
     const skipSuccessFlash = params?.skipSuccessFlash;
     try {
+      const BASE_URL = 'https://www.api.studifysuccess.com/api';
       const state = Store.getState();
       const token = state.initial?.token;
       
       let reqMethod = method;
       let reqHeaders = {
-        'bypass-tunnel-reminder': 'true'
+        'bypass-tunnel-reminder': 'true',
+        'ngrok-skip-browser-warning': 'true'
       };
       if (token) {
         reqHeaders['x-auth-token'] = token;

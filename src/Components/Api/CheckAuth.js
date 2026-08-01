@@ -10,8 +10,6 @@ import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// const BASE_URL = 'https://studifysuccess-chat-room.loca.lt/api/';
-// const BASE_URL = 'http://10.0.2.2:3000/api/';
 const BASE_URL = 'https://www.api.studifysuccess.com/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
@@ -31,6 +29,8 @@ export default function CheckAuth() {
     useSelector(state => state.initial);
   axios.defaults.headers.common['x-auth-token'] = token;
   axios.defaults.headers.common['Content-Type'] = 'application/json';
+  axios.defaults.headers.common['Bypass-Tunnel-Reminder'] = 'true';
+  axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
   axios.defaults.baseURL = BASE_URL;
   console.log('auth rerender token', axios.defaults.baseURL);
   
@@ -69,12 +69,12 @@ export default function CheckAuth() {
     if (!token) return;
     try {
       const res = await useApi().get('/user');
-      // AsyncStorage role is ALWAYS the source of truth — never let backend override it
       const email = (res.data?.email || user?.email || '').trim().toLowerCase();
       let savedRole = null;
       if (email) {
         savedRole = await AsyncStorage.getItem(`@studify_role_${email}`);
       }
+      
       // Fallback: also check current Redux user role flags
       const isInternFallback = user?.is_intern === true;
       const isTlFallback = user?.is_tl === true;

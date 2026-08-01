@@ -5,7 +5,7 @@ export const fetchChatGroups = createAsyncThunk(
   'mqtt/fetchChatGroups',
   async (params, {rejectWithValue}) => {
     try {
-      const res = await useApi().get('/chat/groups', {params});
+      const res = await useApi().get('/chat/groups', params);
       // console.log('Fetched chat groups:', res);
       const groups = res?.data;
       if (!Array.isArray(groups))

@@ -1,8 +1,51 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DB_KEY = '@studify_mock_intern_db';
-const DB_VERSION = 'v4'; // bump this to force-reset on new APK install
+const DB_VERSION = 'v6'; // bump this to force-reset on new APK install
 const DB_VERSION_KEY = '@studify_mock_intern_db_version';
+
+export const isMeetingExpired = (dateStr, timeStr) => {
+  if (!dateStr) return false;
+  if (dateStr.toLowerCase() === 'daily') return false; // Daily standups don't expire
+
+  const now = new Date();
+  let meetDate = null;
+
+  if (dateStr.includes('-')) {
+    // Format YYYY-MM-DD
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      meetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+  } else {
+    // Format "July 28" or "August 14"
+    const currentYear = now.getFullYear();
+    meetDate = new Date(`${dateStr}, ${currentYear}`);
+  }
+
+  if (!meetDate || isNaN(meetDate.getTime())) return false;
+
+  // Add time if available
+  if (timeStr) {
+    const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      const ampm = timeMatch[3];
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+      }
+      meetDate.setHours(hours, minutes, 59, 999);
+    } else {
+      meetDate.setHours(23, 59, 59, 999);
+    }
+  } else {
+    meetDate.setHours(23, 59, 59, 999);
+  }
+
+  return meetDate < now;
+};
 
 const initialDb = {
   interns: [
@@ -48,50 +91,9 @@ const initialDb = {
   ],
   reports: [],
   leaves: [],
-  meetings: [
-    {
-      id: 'm1',
-      title: 'Weekly Q&A and Code Grooming',
-      type: 'Training',
-      department: 'Tech',
-      date: 'July 28',
-      time: '4:30 PM',
-      link: 'https://meet.google.com/abc-defg-hij',
-      createdBy: 'Team Lead',
-    },
-    {
-      id: 'm2',
-      title: 'CI/CD Pipeline Configurations',
-      type: 'Training',
-      department: 'Tech',
-      date: 'July 30',
-      time: '2:00 PM',
-      link: 'https://meet.google.com/xyz-pdqr-lmn',
-      createdBy: 'Team Lead',
-    },
-    {
-      id: 'm3',
-      title: 'Daily Standup & Sync',
-      type: 'Discussion',
-      department: 'Tech',
-      date: 'Daily',
-      time: '10:00 AM',
-      link: 'https://meet.google.com/abc-defg-hij',
-      createdBy: 'Team Lead',
-    },
-  ],
+  meetings: [],
   attendance: {},
-  announcements: [
-    {
-      id: 'a1',
-      title: 'Welcome to StudifySuccess Internship!',
-      body: 'Upload your offer letter in your Profile to unlock all features including chat, attendance, and reports.',
-      type: 'Announcement',
-      timeText: 'Just now',
-      icon: 'bullhorn-outline',
-      color: '#FF9800',
-    },
-  ],
+  announcements: [],
   feedbacks: [],
 };
 
@@ -109,6 +111,14 @@ export const getInternDb = async () => {
       const parsed = JSON.parse(data);
       let updated = false;
       if (!parsed.meetings) { parsed.meetings = initialDb.meetings; updated = true; }
+
+      // Clean expired and dummy meetings automatically
+      const cleanMeetings = (parsed.meetings || []).filter(m => m.id !== 'm3' && m.title !== 'Daily Standup & Sync' && !isMeetingExpired(m.date, m.time));
+      if (cleanMeetings.length !== (parsed.meetings || []).length) {
+        parsed.meetings = cleanMeetings;
+        updated = true;
+      }
+
       if (!parsed.announcements) { parsed.announcements = initialDb.announcements; updated = true; }
       if (!parsed.attendance) { parsed.attendance = {}; updated = true; }
       if (!parsed.reports) { parsed.reports = []; updated = true; }

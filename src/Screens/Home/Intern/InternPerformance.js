@@ -11,7 +11,7 @@ import {useTheme, Card, ProgressBar, Avatar, Button} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
-import {getInternDb, getInternTasks, getInternInterviews} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
 
 const {width} = Dimensions.get('window');
 
@@ -32,128 +32,41 @@ const InternPerformance = () => {
   const [presentDays, setPresentDays] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [internStatus, setInternStatus] = useState('Pending');
+  const { get } = useApi();
 
   useEffect(() => {
     const fetchPerformance = async () => {
       try {
-        const db = await getInternDb();
-        const activeId = user?.user_id || 'alice_123';
-        
-        const myRecord = db.interns.find(i => i.id === activeId);
-        setInternStatus(myRecord?.status || 'Pending');
-
-        const myReports = db.reports.filter(r => r.internId === activeId);
-        const loadedTasks = await getInternTasks(activeId);
-        const loadedInterviews = await getInternInterviews(activeId);
-
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-        const completedDays = {Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0};
-        
-        // Count actual completed tasks per day or EOD reports
-        myReports.forEach(r => {
-          const date = new Date(r.date);
-          const dayIndex = date.getDay();
-          if (dayIndex >= 1 && dayIndex <= 5) {
-            const dayName = days[dayIndex - 1];
-            completedDays[dayName] = (completedDays[dayName] || 0) + 1;
+        // Fetch real status from API
+        try {
+          const profileRes = await get('/interns/profile', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (profileRes && profileRes.data) {
+            setInternStatus(profileRes.data.status || 'Pending');
           }
-        });
-
-        const myDoneTasks = loadedTasks.filter(t => t.completed && (t.assignedTo?.includes(activeId) || t.completedBy === activeId)).length;
-        const totalMyTasks = loadedTasks.length;
-        const calcCompletionRate = totalMyTasks > 0 ? Math.round((myDoneTasks / totalMyTasks) * 100) : (myReports.length > 0 ? 100 : 0);
-        const calcAccuracy = myReports.length > 0 ? Math.min(99, 80 + myReports.length * 3) : (myDoneTasks > 0 ? 85 : 0);
-        const calcReview = myReports.length > 0 ? Math.min(5.0, (4.0 + myReports.length * 0.1)).toFixed(1) : (myDoneTasks > 0 ? '4.5' : '0.0');
-
-        const weeklyTasks = days.map(d => completedDays[d]);
-
-        const eodCount = myReports.filter(r => r.type === 'Daily EOD').length;
-        setPresentDays(eodCount);
-
-        setMetrics({
-          completionRate: calcCompletionRate,
-          accuracyScore: calcAccuracy,
-          reviewScore: calcReview,
-          weeklyTasks,
-        });
-
-        // Compute skills levels dynamically using already loaded tasks and interviews
-
-        const getTaskScore = (taskIds) => {
-          const subTasks = loadedTasks.filter(t => taskIds.includes(t.id));
-          if (subTasks.length === 0) return 0;
-          const completed = subTasks.filter(t => t.completed).length;
-          return completed / subTasks.length;
-        };
-
-        const getInterviewScore = (domain) => {
-          const domainInterviews = loadedInterviews.filter(i => i.domain === domain);
-          if (domainInterviews.length === 0) return null;
-          const maxScore = Math.max(...domainInterviews.map(i => i.score));
-          return maxScore / 100;
-        };
-
-        const calculateSkillLevel = (taskIds, domain, defaultBaseline) => {
-          const taskScore = getTaskScore(taskIds);
-          const interviewScore = getInterviewScore(domain);
-          if (interviewScore !== null) {
-            return 0.4 * taskScore + 0.6 * interviewScore;
-          }
-          return defaultBaseline + (1 - defaultBaseline) * taskScore;
-        };
-
-        setSkills([
-          {
-            name: 'React Native Layouts',
-            level: calculateSkillLevel(['1', '4', '9', '15'], 'React Native Layouts', 0.5),
-            source: getInterviewScore('React Native Layouts') !== null ? 'interview' : 'task'
-          },
-          {
-            name: 'Redux State Management',
-            level: calculateSkillLevel(['2', '6', '11', '20'], 'Redux State Management', 0.45),
-            source: getInterviewScore('Redux State Management') !== null ? 'interview' : 'task'
-          },
-          {
-            name: 'Git Collaboration',
-            level: calculateSkillLevel(['10', '12', '13', '17'], 'Git Collaboration', 0.55),
-            source: getInterviewScore('Git Collaboration') !== null ? 'interview' : 'task'
-          },
-          {
-            name: 'API Testing & Fetching',
-            level: calculateSkillLevel(['3', '5', '7', '8', '18', '19'], 'API Testing & Fetching', 0.5),
-            source: getInterviewScore('API Testing & Fetching') !== null ? 'interview' : 'task'
-          }
-        ]);
-
-        if (db && db.interns) {
-          const leaderboardData = await Promise.all(db.interns.map(async (intern) => {
-            const internTasks = await getInternTasks(intern.id);
-            const total = internTasks.length;
-            const completed = internTasks.filter(t => t.completed && (t.assignedTo?.includes(intern.id) || t.completedBy === intern.id)).length;
-            const initials = intern.name ? intern.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'IN';
-            return {
-              id: intern.id,
-              name: intern.id === activeId ? `You (${intern.name || 'Me'})` : (intern.name || intern.id),
-              completed,
-              total,
-              points: `${completed} task${completed !== 1 ? 's' : ''} done`,
-              avatar: initials,
-            };
-          }));
-          
-          leaderboardData.sort((a, b) => b.completed - a.completed);
-          
-          const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#90A4AE'];
-          const finalLeaderboard = leaderboardData.map((item, index) => ({
-            ...item,
-            rank: index + 1,
-            color: medalColors[index] || '#90A4AE'
-          }));
-          
-          setLeaderboard(finalLeaderboard);
+        } catch (profileErr) {
+          console.log('Could not fetch profile from API in InternPerformance', profileErr);
         }
+
+        // Fetch Performance Data
+        try {
+          const perfRes = await get('/interns/performance', {skipSuccessFlash: true, skipErrorFlash: true});
+          if (perfRes && perfRes.data) {
+            setMetrics(perfRes.data.metrics);
+            setLeaderboard(perfRes.data.leaderboard);
+            setSkills(perfRes.data.skills);
+            
+            // Set presentDays from the total tasks/eods count of the active user for now
+            const myRank = perfRes.data.leaderboard.find(l => l.id === (user?.user_id || 'alice_123'));
+            if (myRank) {
+              setPresentDays(myRank.completed);
+            }
+          }
+        } catch (perfErr) {
+          console.log('Error fetching performance data', perfErr);
+        }
+
       } catch (e) {
-        console.error('Error loading performance details:', e);
+        console.error('Error fetching dashboard stats:', e);
       }
     };
 

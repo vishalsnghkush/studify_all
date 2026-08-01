@@ -3,6 +3,7 @@ import React from 'react';
 import TLDashboard from '../Screens/Home/TL/TLDashboard';
 import InternCommunication from '../Screens/Home/Intern/InternCommunication';
 import InternProfile from '../Screens/Home/Intern/InternProfile';
+import TLMyTeam from '../Screens/Home/TL/TLMyTeam';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -33,6 +34,22 @@ export default function TLBottomNavigation() {
           tabBarIcon: ({focused}) => (
             <Micon
               name={focused ? 'shield-home' : 'shield-home-outline'}
+              size={24}
+              color={
+                focused ? theme.colors.primary : theme.colors.onSurfaceVariant
+              }
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="TLMyTeam"
+        component={TLMyTeam}
+        options={{
+          title: 'My Team',
+          tabBarIcon: ({focused}) => (
+            <Micon
+              name={focused ? 'account-group' : 'account-group-outline'}
               size={24}
               color={
                 focused ? theme.colors.primary : theme.colors.onSurfaceVariant

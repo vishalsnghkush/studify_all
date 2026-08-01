@@ -23,7 +23,7 @@ import {Screen} from '../../../Components/Screen';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
-import {getInternDb, getInternTasks, saveInternTasks} from '../../../Utils/MockInternDb';
+import useApi from '../../../Components/Api/Api';
 
 const STARTER_TASKS = [
   {
@@ -101,7 +101,7 @@ export default function InternTasks() {
   const activeId = user?.user_id || 'alice_123';
 
   const [tasks, setTasks] = useState([]);
-  const [db, setDb] = useState(null);
+  const { get, post } = useApi();
   const [filter, setFilter] = useState('All'); // All | Mine | Help | Done
   const [addMode, setAddMode] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -111,14 +111,24 @@ export default function InternTasks() {
 
   const loadTasks = useCallback(async () => {
     try {
-      const dbData = await getInternDb();
-      setDb(dbData);
-      const loaded = await getInternTasks(activeId);
-      setTasks(loaded);
+      const res = await get('/interns/tasks', { skipSuccessFlash: true, skipErrorFlash: true });
+      if (res && res.data) {
+        // Map database schema to frontend schema if needed (DB: assigned_to, help_needed)
+        const mapped = res.data.map(t => ({
+          ...t,
+          assignedTo: typeof t.assigned_to === 'string' ? JSON.parse(t.assigned_to) : (t.assigned_to || []),
+          helpNeeded: t.help_needed === 1,
+          completed: t.completed === 1,
+          completedBy: t.completed_by,
+          createdBy: t.created_by,
+          createdByName: t.created_by_name
+        }));
+        setTasks(mapped);
+      }
     } catch (e) {
       console.error('Error loading tasks:', e);
     }
-  }, [activeId]);
+  }, []);
 
   useEffect(() => {
     loadTasks();
@@ -134,7 +144,11 @@ export default function InternTasks() {
 
   const saveTasks = async (updated) => {
     setTasks(updated);
-    await saveInternTasks(activeId, updated);
+    try {
+      await post('/interns/tasks/sync', { tasks: updated }, { skipSuccessFlash: true, skipErrorFlash: true });
+    } catch (err) {
+      console.log('Failed to sync tasks', err);
+    }
   };
 
   const handleAddTask = async () => {
@@ -207,9 +221,15 @@ export default function InternTasks() {
     if (!task.assignedTo.includes(activeId)) {
       return Alert.alert('Access Denied', 'Only interns currently working on this task can mark it complete.');
     }
+    const userFullName = `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'You';
     const updated = tasks.map(t =>
       t.id === taskId
-        ? {...t, completed: !t.completed, completedBy: !t.completed ? activeId : null}
+        ? {
+            ...t,
+            completed: !t.completed,
+            completedBy: !t.completed ? activeId : null,
+            completedByName: !t.completed ? userFullName : null,
+          }
         : t,
     );
     await saveTasks(updated);
@@ -245,6 +265,37 @@ export default function InternTasks() {
     );
   };
 
+  const [userMap, setUserMap] = useState({
+    '1': 'Anku',
+    '2': 'Rahul',
+    '107': 'Sanjana',
+    '1599': 'Vishal Kushwaha',
+    '1804': 'Chinsha',
+    '1906': 'Aditi Malviya',
+    '1910': 'Pikachu',
+    '1916': 'Vishal Kushwaha (TL)',
+    'alice_123': 'Alice Watson',
+    'bob_456': 'Bob Jenkins',
+    'charlie_789': 'Charlie Smith'
+  });
+
+  useEffect(() => {
+    const fetchTeamMap = async () => {
+      try {
+        const res = await get(`/interns/team?department=${user?.department || 'Tech'}`, { skipSuccessFlash: true, skipErrorFlash: true });
+        if (res && res.data && Array.isArray(res.data.team)) {
+          const map = {};
+          res.data.team.forEach(u => {
+            if (u.id && u.name) map[String(u.id)] = u.name;
+            if (u.user_id && u.name) map[String(u.user_id)] = u.name;
+          });
+          setUserMap(prev => ({ ...prev, ...map }));
+        }
+      } catch (e) {}
+    };
+    fetchTeamMap();
+  }, [user?.department]);
+
   const filteredTasks = tasks.filter(t => {
     if (filter === 'Mine') return t.assignedTo.includes(activeId);
     if (filter === 'Help') return t.helpNeeded && !t.completed;
@@ -255,9 +306,29 @@ export default function InternTasks() {
   const myOngoing = tasks.filter(t => !t.completed && t.assignedTo.includes(activeId)).length;
   const totalDone = tasks.filter(t => t.completed).length;
 
-  const getName = (id) => {
-    if (id === activeId) return 'You';
-    return db?.interns?.find(i => i.id === id)?.name || id;
+  const getName = (id, taskItem = null) => {
+    if (!id) return 'Unassigned';
+    
+    // Check if taskItem has a stored valid name that isn't a raw ID
+    if (taskItem && taskItem.completedByName && taskItem.completedByName !== 'null' && taskItem.completedByName !== String(id)) {
+      return taskItem.completedByName;
+    }
+
+    const strId = String(id);
+
+    // 1. Check userMap (Anku, Rahul, Sanjana, Chinsha, Aditi, etc.)
+    if (userMap[strId]) {
+      return userMap[strId];
+    }
+
+    // 2. Check if ID matches logged-in user
+    if (strId === String(user?.user_id) || strId === String(activeId) || id === user?.email) {
+      const selfName = `${user?.fname || ''} ${user?.lname || ''}`.trim();
+      return selfName || 'You';
+    }
+
+    // 3. Fallback to clean User ID format (NEVER fall back to logged-in user's name!)
+    return `User #${id}`;
   };
 
   const renderTask = ({item}) => {
@@ -327,9 +398,9 @@ export default function InternTasks() {
             <Text style={[styles.assigneeText, {color: colors.onSurfaceVariant}]}>
               {'  '}
               {item.completed
-                ? `✅ Completed by ${getName(item.completedBy)}`
+                ? `✅ Completed by ${getName(item.completedBy, item)}`
                 : isTaken
-                ? `🏃 ${item.assignedTo.map(getName).join(', ')}`
+                ? `🏃 ${item.assignedTo.map(id => getName(id)).join(', ')}`
                 : '💤 Unassigned — grab this task!'}
             </Text>
           </View>

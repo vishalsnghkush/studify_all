@@ -1,7 +1,6 @@
 import {createMaterialBottomTabNavigator} from 'react-native-paper/react-navigation';
 import React from 'react';
 import InternHome from '../Screens/Home/Intern/InternHome';
-import InternAttendance from '../Screens/Home/Intern/InternAttendance';
 import InternTasks from '../Screens/Home/Intern/InternTasks';
 import InternCommunication from '../Screens/Home/Intern/InternCommunication';
 import InternPerformance from '../Screens/Home/Intern/InternPerformance';
@@ -42,20 +41,7 @@ export default function InternBottomNavigation() {
           ),
         }}
       />
-      <Tab.Screen
-        name="InternAttendance"
-        component={InternAttendance}
-        options={{
-          title: 'Attendance',
-          tabBarIcon: ({focused}) => (
-            <Micon
-              name={focused ? 'calendar-check' : 'calendar-check-outline'}
-              size={24}
-              color={focused ? theme.colors.primary : theme.colors.onSurfaceVariant}
-            />
-          ),
-        }}
-      />
+
       <Tab.Screen
         name="InternTasks"
         component={InternTasks}

@@ -148,13 +148,6 @@ const Sign_in = ({navigation}) => {
       // The role tab the user explicitly selected ALWAYS wins at login time.
       // Only fall back to AsyncStorage if user left the default 'student' tab AND has a saved role.
       let finalRole = selectedRole;
-      if (selectedRole === 'student' && cleanEmail) {
-        // Check if they had a saved role that's not student — respect that
-        const savedRole = await AsyncStorage.getItem(`@studify_role_${cleanEmail}`);
-        if (savedRole === 'intern' || savedRole === 'tl') {
-          finalRole = savedRole;
-        }
-      }
       
       // Always save the definitive role
       if (cleanEmail) {

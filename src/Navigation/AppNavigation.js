@@ -3,6 +3,7 @@ import DrawerNavigation from './DrawerNavigation';
 import InternDrawerNavigation from './InternDrawerNavigation';
 import TLDrawerNavigation from './TLDrawerNavigation';
 import React, {lazy} from 'react';
+import {View, Text} from 'react-native';
 import {useSelector} from 'react-redux';
 import InternAiHub from '../Screens/Home/Intern/InternAiHub';
 import InternLearningHub from '../Screens/Home/Intern/InternLearningHub';
