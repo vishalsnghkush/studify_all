@@ -102,7 +102,7 @@ export default function InternTasks() {
 
   const [tasks, setTasks] = useState([]);
   const { get, post } = useApi();
-  const [filter, setFilter] = useState('All'); // All | Mine | Help | Done
+  const [filter, setFilter] = useState('Active'); // Active | Mine | Help | Done | All
   const [addMode, setAddMode] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -297,7 +297,8 @@ export default function InternTasks() {
   }, [user?.department]);
 
   const filteredTasks = tasks.filter(t => {
-    if (filter === 'Mine') return t.assignedTo.includes(activeId);
+    if (filter === 'Active') return !t.completed;
+    if (filter === 'Mine') return !t.completed && t.assignedTo.includes(activeId);
     if (filter === 'Help') return t.helpNeeded && !t.completed;
     if (filter === 'Done') return t.completed;
     return true;
@@ -512,14 +513,14 @@ export default function InternTasks() {
 
       {/* Filter chips */}
       <View style={styles.filterRow}>
-        {['All', 'Mine', 'Help', 'Done'].map(f => (
+        {['Active', 'Mine', 'Help', 'Done', 'All'].map(f => (
           <Chip
             key={f}
             selected={filter === f}
             onPress={() => setFilter(f)}
             style={[styles.filterChip, filter === f && {backgroundColor: colors.primaryContainer}]}
             textStyle={[styles.filterChipText, {color: filter === f ? colors.onPrimaryContainer : colors.onSurface}]}>
-            {f === 'Help' ? '🚨 Help' : f === 'Done' ? '✅ Done' : f}
+            {f === 'Active' ? '⚡ Active' : f === 'Help' ? '🚨 Help' : f === 'Done' ? '✅ Done' : f}
           </Chip>
         ))}
       </View>

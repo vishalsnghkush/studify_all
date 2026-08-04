@@ -45,6 +45,8 @@ class GlobalErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     console.error('GlobalErrorBoundary caught:', error, info);
+    const { Alert } = require('react-native');
+    Alert.alert('Crash Log', String(error) + '\n\n' + String(info?.componentStack?.substring(0, 500)));
   }
   render() {
     if (this.state.hasError) {

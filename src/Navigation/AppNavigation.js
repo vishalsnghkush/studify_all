@@ -53,8 +53,8 @@ import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
 import Keywords from '../Screens/Home/Notes/Keywords';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
-const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
-const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
+import Groups from '../Screens/Home/Chat/Groups';
+import Chat from '../Screens/Home/Chat/Chat';
 
 const Stack = createStackNavigator();
 
