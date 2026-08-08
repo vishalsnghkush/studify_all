@@ -15,7 +15,9 @@ const useApi = () => {
       let reqMethod = method;
       let reqHeaders = {
         'bypass-tunnel-reminder': 'true',
-        'ngrok-skip-browser-warning': 'true'
+        'ngrok-skip-browser-warning': 'true',
+        'zrok-skip-browser-warning': 'true',
+        'User-Agent': 'StudifyApp/1.0',
       };
       if (token) {
         reqHeaders['x-auth-token'] = token;
@@ -48,13 +50,28 @@ const useApi = () => {
       }
       return response.data;
     } catch (error) {
+      if (error.response?.status === 503 || error.response?.status === 502) {
+        console.warn('Local tunnel 503/502 detected, attempting fallback request...');
+        try {
+          const fallbackRes = await axios({
+            method: reqMethod,
+            url: `https://www.api.studifysuccess.com/api${endpoint}`,
+            data: reqData,
+            params: params,
+            headers: reqHeaders,
+          });
+          return fallbackRes.data;
+        } catch (fallbackErr) {
+          console.warn('Fallback request also failed.');
+        }
+      }
       if (!skipErrorFlash) {
         if (error.response?.data?.message) {
           FlashMessage({
             message: error.response.data.message,
             type: 'danger',
           });
-        } else {
+        } else if (error.response?.status !== 503 && error.response?.status !== 502) {
           FlashMessage({
             message: error.message || 'Something went wrong',
             type: 'danger',

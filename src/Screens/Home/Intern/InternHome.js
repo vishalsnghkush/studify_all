@@ -15,11 +15,23 @@ import {useTheme, Card, Avatar, Portal, Dialog, IconButton, Button} from 'react-
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {getInternDb, syncInternProfile} from '../../../Utils/MockInternDb';
+import {getInternDb, syncInternProfile, saveInternTasks} from '../../../Utils/MockInternDb';
 import useApi from '../../../Components/Api/Api';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
+
+const INTERN_BADGE_ICONS = {
+  'first_task': { icon: 'checkbox-marked-circle', color: '#4CAF50', title: 'First Task ✅' },
+  'week_streak': { icon: 'fire', color: '#FF7043', title: '7-Day Streak 🔥' },
+  'top_learner': { icon: 'school', color: '#1E88E5', title: 'Top Learner 📚' },
+  'team_player': { icon: 'account-group', color: '#AB47BC', title: 'Team Player 🤝' },
+  'early_bird': { icon: 'weather-sunrise', color: '#FFA726', title: 'Early Bird ☀️' },
+  'report_hero': { icon: 'file-document', color: '#26C6DA', title: 'Report Hero 📋' },
+  'xp_100': { icon: 'star', color: '#FFD600', title: 'XP Milestone ⭐' },
+  'consistent': { icon: 'medal', color: '#8D6E63', title: 'Consistent 🏅' },
+};
 
 const InternHome = () => {
   const {colors} = useTheme();
@@ -45,6 +57,14 @@ const InternHome = () => {
   const [leaveModal, setLeaveModal] = useState(false);
   const [leaveForm, setLeaveForm] = useState({startDate: '', endDate: '', type: 'Casual', reason: ''});
   const [calendarDate, setCalendarDate] = useState(new Date());
+
+  const [weeklyGoals, setWeeklyGoals] = useState([]);
+  const [goalInput, setGoalInput] = useState('');
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+
+  const WEEKLY_GOALS_KEY = '@studify_intern_weekly_goals';
+
+  const earnedBadges = useSelector(state => (state.gamification?.badges || []));
 
   const changeMonth = (offset) => {
     setCalendarDate(prev => {
@@ -186,6 +206,7 @@ const InternHome = () => {
     };
 
     fetchStats();
+    loadWeeklyGoals();
     const unsubscribe = navigation.addListener('focus', fetchStats);
     return unsubscribe;
   }, [navigation, user]);
@@ -464,10 +485,55 @@ const InternHome = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const loadWeeklyGoals = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(WEEKLY_GOALS_KEY);
+      if (stored) setWeeklyGoals(JSON.parse(stored));
+    } catch (e) {}
+  };
+
+  const saveWeeklyGoals = async (goals) => {
+    try {
+      await AsyncStorage.setItem(WEEKLY_GOALS_KEY, JSON.stringify(goals));
+    } catch (e) {}
+  };
+
+  const handleAddGoal = async () => {
+    if (!goalInput.trim()) return;
+    const newGoal = {
+      id: Date.now().toString(),
+      text: goalInput.trim(),
+      done: false,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newGoal, ...weeklyGoals];
+    setWeeklyGoals(updated);
+    await saveWeeklyGoals(updated);
+    setGoalInput('');
+  };
+
+  const handleToggleGoal = async (goalId) => {
+    const updated = weeklyGoals.map(g => g.id === goalId ? {...g, done: !g.done} : g);
+    setWeeklyGoals(updated);
+    await saveWeeklyGoals(updated);
+  };
+
+  const handleDeleteGoal = async (goalId) => {
+    const updated = weeklyGoals.filter(g => g.id !== goalId);
+    setWeeklyGoals(updated);
+    await saveWeeklyGoals(updated);
+  };
+
+  const handleClearCompletedGoals = async () => {
+    const updated = weeklyGoals.filter(g => !g.done);
+    setWeeklyGoals(updated);
+    await saveWeeklyGoals(updated);
+  };
+
   const markAttendance = async (type) => {
     setMarkingAttendance(true);
     try {
-      const res = await post('/interns/attendance/mark', { type }, {skipSuccessFlash: false});
+      const res = await post('/interns/attendance/mark', {type}, {skipSuccessFlash: false});
       if (res && res.data) {
         setAttendanceToday(res.data);
       }
@@ -689,6 +755,87 @@ const InternHome = () => {
             </Card>
           </View>
 
+          {/* Daily Score & Learning Hours Row */}
+          <View style={[styles.statsRow, {marginTop: 8}]}>
+            <Card style={[styles.statCard, {backgroundColor: '#FFF3E0'}]}>
+              <Card.Content style={styles.statContent}>
+                <Icon name="fire" size={24} color="#F57C00" />
+                <View style={styles.statInfo}>
+                  {(() => {
+                    const attPts = attendanceToday?.status === 'Full' ? 50 : (attendanceToday?.morning_marked_at || attendanceToday?.evening_marked_at ? 25 : 0);
+                    const taskPts = tasks.length > 0 ? Math.round((tasksDone / tasks.length) * 50) : 35;
+                    const dailyScore = attPts + taskPts;
+                    return <Text style={[styles.statValue, {color: '#E65100'}]}>{dailyScore} / 100</Text>;
+                  })()}
+                  <Text style={styles.statLabel}>Daily Score</Text>
+                </View>
+              </Card.Content>
+            </Card>
+            <Card style={[styles.statCard, {backgroundColor: '#E1F5FE'}]}>
+              <Card.Content style={styles.statContent}>
+                <Icon name="clock-outline" size={24} color="#0288D1" />
+                <View style={styles.statInfo}>
+                  {(() => {
+                    const taskHrs = tasksDone * 1.5;
+                    const attHrs = attendanceToday?.status === 'Full' ? 8 : (attendanceToday?.morning_marked_at || attendanceToday?.evening_marked_at ? 4 : 0);
+                    const reportHrs = daysCompleted * 6;
+                    const totalHrs = taskHrs + attHrs + reportHrs;
+                    const formattedHrs = totalHrs === 0 ? '0' : (totalHrs % 1 === 0 ? String(totalHrs) : totalHrs.toFixed(1));
+                    return <Text style={[styles.statValue, {color: '#01579B'}]}>{formattedHrs} hrs</Text>;
+                  })()}
+                  <Text style={styles.statLabel}>Learning Hours</Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+
+          {/* Weekly Goals Section */}
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8}}>
+            <Text style={styles.sectionTitle}>Weekly Goals 🎯</Text>
+            <Button mode="text" compact onPress={() => setGoalModalVisible(true)} labelStyle={{fontSize: 13, fontWeight: 'bold'}}>
+              + Add Goal
+            </Button>
+          </View>
+          <Card style={{marginBottom: 16, elevation: 2, borderRadius: 12}}>
+            <Card.Content>
+              {weeklyGoals.length === 0 ? (
+                <View style={{alignItems: 'center', paddingVertical: 20}}>
+                  <Icon name="target" size={36} color="#ccc" />
+                  <Text style={{color: '#999', fontSize: 13, marginTop: 8, textAlign: 'center'}}>
+                    No goals set for this week yet.{'\n'}Tap "+ Add Goal" to get started!
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {weeklyGoals.map(goal => (
+                    <TouchableOpacity
+                      key={goal.id}
+                      onPress={() => handleToggleGoal(goal.id)}
+                      style={{flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0'}}>
+                      <Icon
+                        name={goal.done ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                        size={22}
+                        color={goal.done ? '#4CAF50' : '#888'}
+                        style={{marginRight: 12}}
+                      />
+                      <Text style={{flex: 1, fontSize: 14, color: goal.done ? '#aaa' : '#333', textDecorationLine: goal.done ? 'line-through' : 'none'}}>
+                        {goal.text}
+                      </Text>
+                      <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                        <Icon name="close-circle-outline" size={18} color="#ccc" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+                  {weeklyGoals.some(g => g.done) && (
+                    <Button mode="text" compact textColor="#999" onPress={handleClearCompletedGoals} style={{marginTop: 8, alignSelf: 'flex-end'}}>
+                      Clear Completed
+                    </Button>
+                  )}
+                </>
+              )}
+            </Card.Content>
+          </Card>
+
           {/* Daily Check-in Card */}
           <Card style={{ marginVertical: 12, borderRadius: 16, elevation: 3, backgroundColor: '#fff' }}>
             <Card.Content style={{ paddingVertical: 16 }}>
@@ -880,25 +1027,6 @@ const InternHome = () => {
               />
             </TouchableOpacity>
 
-            {/* Brain Gym */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('BrainGym')}
-              style={[styles.personalBanner, {backgroundColor: '#fff3e0', borderColor: '#ffe0b2'}]}>
-              <View style={styles.personalTextContainer}>
-                <Text style={[styles.personalSubtitle, {color: '#e65100'}]}>Mind exercises & games</Text>
-                <Text style={styles.personalTitle}>Brain Gym</Text>
-                <View style={[styles.personalBtn, {backgroundColor: '#e65100'}]}>
-                  <Text style={styles.personalBtnText}>Play Games</Text>
-                  <Icon name="chevron-right" size={13} color="#ffffff" style={{marginLeft: 2}} />
-                </View>
-              </View>
-              <Image
-                source={require('../../../Assets/Images/activities.jpg')}
-                style={styles.personalImage}
-              />
-            </TouchableOpacity>
-
           </View>
 
           {/* Announcements / Upcoming Events */}
@@ -918,7 +1046,29 @@ const InternHome = () => {
                       <View style={styles.annTextContainer}>
                         <Text style={styles.annSubject}>{ann.title}</Text>
                         <Text style={styles.annBody}>{ann.body}</Text>
-                        <Text style={styles.annTime}>{ann.time_text || ann.timeText}</Text>
+                        <Text style={styles.annTime}>
+                          {(() => {
+                            const rawTime = ann.created_at || ann.created_on || ann.date || (ann.time_text !== 'Just now' ? ann.time_text : null) || (ann.timeText !== 'Just now' ? ann.timeText : null);
+                            if (!rawTime) return 'Just now';
+                            let d = new Date(rawTime);
+                            if (isNaN(d.getTime())) return ann.time_text || ann.timeText || 'Just now';
+                            const diffMs = Date.now() - d.getTime();
+                            if (diffMs < 0) return 'Just now';
+                            const diffMins = Math.floor(diffMs / 60000);
+                            if (diffMins < 1) return 'Just now';
+                            if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+                            const diffHours = Math.floor(diffMins / 60);
+                            if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
+                            const diffDays = Math.floor(diffHours / 24);
+                            if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            let hrs = d.getHours();
+                            const mins = d.getMinutes().toString().padStart(2, '0');
+                            const ampm = hrs >= 12 ? 'PM' : 'AM';
+                            hrs = hrs % 12 || 12;
+                            return `${months[d.getMonth()]} ${d.getDate()}, ${hrs}:${mins} ${ampm}`;
+                          })()}
+                        </Text>
                       </View>
                     </View>
                   </View>
@@ -930,6 +1080,29 @@ const InternHome = () => {
       )}
 
       {/* Tasks are now in the dedicated Tasks tab (InternTasks screen) */}
+        <Portal>
+          <Dialog visible={goalModalVisible} onDismiss={() => { setGoalModalVisible(false); setGoalInput(''); }} style={{backgroundColor: colors.elevation.level3, borderRadius: 16}}>
+            <Dialog.Title style={{fontSize: 18, fontWeight: 'bold', textAlign: 'center'}}>Add Weekly Goal</Dialog.Title>
+            <Dialog.Content>
+              <Text style={{fontSize: 13, color: colors.onSurfaceVariant, marginBottom: 12}}>
+                Set a clear, achievable goal for this week. You can mark it complete when done.
+              </Text>
+              <TextInput
+                placeholder="e.g. Complete Module 2 video training"
+                value={goalInput}
+                onChangeText={setGoalInput}
+                style={{backgroundColor: colors.background, padding: 12, borderRadius: 8, color: colors.onSurface, borderWidth: 1, borderColor: colors.outlineVariant, minHeight: 60, textAlignVertical: 'top'}}
+                placeholderTextColor={colors.outline}
+                multiline
+                numberOfLines={2}
+              />
+            </Dialog.Content>
+            <Dialog.Actions style={{paddingHorizontal: 16, paddingBottom: 16}}>
+              <Button onPress={() => { setGoalModalVisible(false); setGoalInput(''); }} textColor={colors.outline}>Cancel</Button>
+              <Button mode="contained" onPress={async () => { await handleAddGoal(); setGoalModalVisible(false); }} style={{borderRadius: 8}}>Add Goal</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
         <Portal>
           <Dialog visible={leaveModal} onDismiss={() => setLeaveModal(false)} style={{ backgroundColor: colors.elevation.level3, borderRadius: 16 }}>
             <Dialog.Title style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>Request Leave</Dialog.Title>

@@ -8,6 +8,7 @@ import {useSelector} from 'react-redux';
 import InternAiHub from '../Screens/Home/Intern/InternAiHub';
 import InternLearningHub from '../Screens/Home/Intern/InternLearningHub';
 import InternReports from '../Screens/Home/Intern/InternReports';
+import FounderDashboard from '../Screens/Home/Founder/FounderDashboard';
 import {
   Profile,
   EditProfile,
@@ -251,6 +252,11 @@ const AppNavigation = () => {
       <Stack.Screen
         name="GamificationDashboard"
         component={GamificationDashboard}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="FounderDashboard"
+        component={FounderDashboard}
         options={{headerShown: false}}
       />
       <Stack.Screen

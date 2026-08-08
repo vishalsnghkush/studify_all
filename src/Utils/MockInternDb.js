@@ -1,8 +1,96 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DB_KEY = '@studify_mock_intern_db';
-const DB_VERSION = 'v6'; // bump this to force-reset on new APK install
+const DB_VERSION = 'v7'; // bump this to force-reset on new APK install
 const DB_VERSION_KEY = '@studify_mock_intern_db_version';
+
+/**
+ * Converts any date value (string, Date, timestamp) to a YYYY-MM-DD ISO string.
+ * Returns '' if the input is invalid or missing.
+ */
+export const extractDateISO = (val) => {
+  if (!val) return '';
+  try {
+    if (val instanceof Date) {
+      return val.toISOString().split('T')[0];
+    }
+    if (typeof val === 'string') {
+      // Already in YYYY-MM-DD format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val.trim())) return val.trim();
+      // ISO string with time component
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    }
+    if (typeof val === 'number') {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    }
+  } catch (e) {}
+  return '';
+};
+
+/**
+ * Given an attendanceMap (keyed by intern ID string → { [dateISO]: record })
+ * and an intern object, returns today's attendance record or null.
+ *
+ * Handles both numeric and string ID variants.
+ */
+export const getTodayAttendanceRecord = (attendanceMap, intern) => {
+  if (!attendanceMap || !intern) return null;
+  const todayISO = extractDateISO(new Date());
+  if (!todayISO) return null;
+
+  // Try all possible ID variants the API may use
+  const ids = [
+    intern.id,
+    intern.user_id,
+    intern.internId,
+  ].filter(Boolean).map(String);
+
+  for (const id of ids) {
+    const internAtt = attendanceMap[id];
+    if (!internAtt || typeof internAtt !== 'object') continue;
+
+    // Direct key lookup — exact today date
+    if (internAtt[todayISO]) return internAtt[todayISO];
+
+    // Sometimes the map values are records themselves (not nested by date)
+    // i.e. attendanceMap[id] IS the record object (legacy format)
+    if (internAtt.status || internAtt.morning_marked_at || internAtt.evening_marked_at) {
+      const recDate = extractDateISO(
+        internAtt.date || internAtt.created_at || internAtt.marked_at,
+      );
+      if (recDate === todayISO) return internAtt;
+    }
+
+    // Search through all date keys for today
+    for (const dateKey of Object.keys(internAtt)) {
+      if (extractDateISO(dateKey) === todayISO) return internAtt[dateKey];
+    }
+  }
+  return null;
+};
+
+/**
+ * Returns true if the attendance record indicates the intern has checked in today
+ * (either morning, evening, or any present-like status).
+ */
+export const isAttendanceCheckedIn = (record) => {
+  if (!record) return false;
+  if (record === 1 || record === true) return true;
+  if (typeof record !== 'object') return false;
+  // Full / Half / Present / Morning / Evening → checked in
+  if (
+    record.status === 'Full' ||
+    record.status === 'Half' ||
+    record.status === 'Present' ||
+    record.status === 'Morning' ||
+    record.status === 'Evening'
+  ) return true;
+  // Has a morning or evening timestamp
+  if (record.morning_marked_at || record.evening_marked_at) return true;
+  return false;
+};
 
 export const isMeetingExpired = (dateStr, timeStr) => {
   if (!dateStr) return false;
@@ -57,8 +145,8 @@ const initialDb = {
       duration: '3 Months',
       progress: 0.5,
       joined: '2026-07-01',
-      status: 'Pending',
-      timeLeft: 'Awaiting Review',
+      status: 'Approved',
+      timeLeft: 'Active',
       avatar: 'AW',
       offerLetterName: null,
     },
@@ -70,8 +158,8 @@ const initialDb = {
       duration: '3 Months',
       progress: 0.75,
       joined: '2026-07-01',
-      status: 'Pending',
-      timeLeft: 'Awaiting Review',
+      status: 'Approved',
+      timeLeft: 'Active',
       avatar: 'BJ',
       offerLetterName: null,
     },
@@ -81,11 +169,50 @@ const initialDb = {
       email: 'charlie.smith@studifysuccess.com',
       department: 'HR',
       duration: '6 Months',
-      progress: 0.2,
+      progress: 0.8,
       joined: '2026-07-10',
-      status: 'Pending',
-      timeLeft: 'Awaiting Review',
+      status: 'Approved',
+      timeLeft: 'Active',
       avatar: 'CS',
+      offerLetterName: null,
+    },
+    {
+      id: 'david_101',
+      name: 'David Miller',
+      email: 'david.m@studifysuccess.com',
+      department: 'Design',
+      duration: '3 Months',
+      progress: 0.6,
+      joined: '2026-07-15',
+      status: 'Approved',
+      timeLeft: 'Active',
+      avatar: 'DM',
+      offerLetterName: null,
+    },
+    {
+      id: 'eva_202',
+      name: 'Eva Davis',
+      email: 'eva.davis@studifysuccess.com',
+      department: 'Marketing',
+      duration: '3 Months',
+      progress: 0.7,
+      joined: '2026-07-12',
+      status: 'Approved',
+      timeLeft: 'Active',
+      avatar: 'ED',
+      offerLetterName: null,
+    },
+    {
+      id: 'frank_303',
+      name: 'Frank Ocean',
+      email: 'frank.o@studifysuccess.com',
+      department: 'Content',
+      duration: '6 Months',
+      progress: 0.85,
+      joined: '2026-07-05',
+      status: 'Approved',
+      timeLeft: 'Active',
+      avatar: 'FO',
       offerLetterName: null,
     },
   ],
@@ -302,6 +429,15 @@ export const saveInternInterview = async (internId, domain, score) => {
   db.interviews[internId] = [newInterview, ...db.interviews[internId]];
   await saveInternDb(db);
   return newInterview;
+};
+
+export const addMockModule = async (mod) => {
+  const db = await getInternDb();
+  if (!db.modules) db.modules = [];
+  const newMod = {id: Date.now().toString(), ...mod};
+  db.modules = [newMod, ...db.modules];
+  await saveInternDb(db);
+  return newMod;
 };
 
 export const addMockFeedback = async (feedback) => {

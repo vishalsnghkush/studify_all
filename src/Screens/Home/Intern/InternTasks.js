@@ -17,6 +17,8 @@ import {
   Divider,
   Chip,
   FAB,
+  Portal,
+  Modal,
 } from 'react-native-paper';
 import {Text} from '../../../Components/Input';
 import {Screen} from '../../../Components/Screen';
@@ -111,19 +113,57 @@ export default function InternTasks() {
 
   const loadTasks = useCallback(async () => {
     try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const localStr = await AsyncStorage.getItem('@studify_department_tasks');
+      const localTasks = localStr ? JSON.parse(localStr) : [];
+
       const res = await get('/interns/tasks', { skipSuccessFlash: true, skipErrorFlash: true });
-      if (res && res.data) {
-        // Map database schema to frontend schema if needed (DB: assigned_to, help_needed)
-        const mapped = res.data.map(t => ({
+      let serverTasks = [];
+      if (res && res.data && Array.isArray(res.data)) {
+        serverTasks = res.data.map(t => ({
           ...t,
-          assignedTo: typeof t.assigned_to === 'string' ? JSON.parse(t.assigned_to) : (t.assigned_to || []),
-          helpNeeded: t.help_needed === 1,
-          completed: t.completed === 1,
-          completedBy: t.completed_by,
-          createdBy: t.created_by,
-          createdByName: t.created_by_name
+          id: String(t.id),
+          title: t.title,
+          description: t.description,
+          priority: t.priority,
+          dueDate: t.due_date || t.dueDate || 'Today',
+          assignedTo: typeof t.assigned_to === 'string' ? JSON.parse(t.assigned_to) : (t.assignedTo || t.assigned_to || []),
+          helpNeeded: t.help_needed === 1 || t.helpNeeded === true,
+          completed: t.completed === 1 || t.completed === true,
+          completedBy: t.completed_by || t.completedBy,
+          completedByName: t.completed_by_name || t.completedByName,
+          createdBy: t.created_by || t.createdBy,
+          createdByName: t.created_by_name || t.createdByName,
+          submissionProof: t.submission_proof || t.submissionProof,
+          submissionType: t.submission_type || t.submissionType,
+          proofNotes: t.proof_notes || t.proofNotes,
+          submissionStatus: t.submission_status || t.submissionStatus,
         }));
-        setTasks(mapped);
+      }
+
+      const mergedMap = new Map();
+      serverTasks.forEach(t => mergedMap.set(String(t.id), t));
+      localTasks.forEach(t => {
+        const existing = mergedMap.get(String(t.id));
+        if (existing) {
+          mergedMap.set(String(t.id), {
+            ...existing,
+            ...t,
+            completed: t.completed ?? existing.completed,
+            submissionProof: t.submissionProof || t.submission_proof || existing.submissionProof || existing.submission_proof,
+            submissionStatus: t.submissionStatus || t.submission_status || existing.submissionStatus || existing.submission_status,
+            submissionType: t.submissionType || t.submission_type || existing.submissionType || existing.submission_type,
+            proofNotes: t.proofNotes || t.proof_notes || existing.proofNotes || existing.proof_notes,
+            completedByName: t.completedByName || t.completed_by_name || existing.completedByName || existing.completed_by_name,
+          });
+        } else {
+          mergedMap.set(String(t.id), t);
+        }
+      });
+      const mergedList = Array.from(mergedMap.values());
+
+      if (mergedList.length > 0) {
+        setTasks(mergedList);
       }
     } catch (e) {
       console.error('Error loading tasks:', e);
@@ -144,6 +184,10 @@ export default function InternTasks() {
 
   const saveTasks = async (updated) => {
     setTasks(updated);
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('@studify_department_tasks', JSON.stringify(updated));
+    } catch (e) {}
     try {
       await post('/interns/tasks/sync', { tasks: updated }, { skipSuccessFlash: true, skipErrorFlash: true });
     } catch (err) {
@@ -215,24 +259,76 @@ export default function InternTasks() {
     await saveTasks(updated);
   };
 
-  const handleComplete = async (taskId) => {
+  const [submitModalVisible, setSubmitModalVisible] = useState(false);
+  const [selectedSubmitTaskId, setSelectedSubmitTaskId] = useState(null);
+  const [proofUrl, setProofUrl] = useState('');
+  const [proofType, setProofType] = useState('Link'); // 'Link', 'PDF', 'Image', 'Video'
+  const [proofNotes, setProofNotes] = useState('');
+
+  const handleOpenSubmitModal = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     if (!task.assignedTo.includes(activeId)) {
-      return Alert.alert('Access Denied', 'Only interns currently working on this task can mark it complete.');
+      return Alert.alert('Access Denied', 'Only interns working on this task can submit work proof.');
+    }
+    setSelectedSubmitTaskId(taskId);
+    setProofUrl(task.submissionProof || '');
+    setProofType(task.submissionType || 'Link');
+    setProofNotes(task.proofNotes || '');
+    setSubmitModalVisible(true);
+  };
+
+  const handleConfirmSubmitWork = async () => {
+    if (!selectedSubmitTaskId) return;
+    if (!proofUrl.trim()) {
+      return Alert.alert('Required', 'Please enter a URL link or document attachment link.');
     }
     const userFullName = `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'You';
     const updated = tasks.map(t =>
-      t.id === taskId
+      t.id === selectedSubmitTaskId
         ? {
             ...t,
-            completed: !t.completed,
-            completedBy: !t.completed ? activeId : null,
-            completedByName: !t.completed ? userFullName : null,
+            completed: true,
+            completedBy: activeId,
+            completedByName: userFullName,
+            submissionProof: proofUrl.trim(),
+            submissionType: proofType,
+            proofNotes: proofNotes.trim(),
+            submissionStatus: 'Submitted',
+            submittedAt: new Date().toISOString(),
           }
         : t,
     );
     await saveTasks(updated);
+    setSubmitModalVisible(false);
+    setSelectedSubmitTaskId(null);
+    setProofUrl('');
+    setProofNotes('');
+    Alert.alert('Work Submitted', 'Your task proof has been submitted for TL review!');
+  };
+
+  const handleComplete = async (taskId) => {
+    handleOpenSubmitModal(taskId);
+  };
+
+  const handleMarkIncomplete = async (taskId) => {
+    const updated = tasks.map(t =>
+      t.id === taskId
+        ? {
+            ...t,
+            completed: false,
+            completedBy: null,
+            completedByName: null,
+            submissionProof: null,
+            submissionType: null,
+            proofNotes: null,
+            submissionStatus: 'In Progress',
+            submittedAt: null,
+          }
+        : t,
+    );
+    await saveTasks(updated);
+    Alert.alert('Task Reopened', 'Task marked incomplete and returned to your active work list!');
   };
 
   const handleDelete = async (taskId) => {
@@ -459,7 +555,7 @@ export default function InternTasks() {
             {item.completed && isWorking && (
               <Button
                 mode="outlined"
-                onPress={() => handleComplete(item.id)}
+                onPress={() => handleMarkIncomplete(item.id)}
                 style={styles.actionBtn}
                 labelStyle={styles.actionBtnLabel}
                 icon="undo">
@@ -609,10 +705,72 @@ export default function InternTasks() {
           icon="plus"
           label="Add Task"
           style={[styles.fab, {backgroundColor: colors.primary}]}
-          color="#fff"
           onPress={() => setAddMode(true)}
         />
       )}
+
+      {/* Work Proof Submission Modal */}
+      <Portal>
+        <Modal
+          visible={submitModalVisible}
+          onDismiss={() => setSubmitModalVisible(false)}
+          contentContainerStyle={{
+            backgroundColor: '#fff',
+            padding: 20,
+            margin: 20,
+            borderRadius: 16,
+            elevation: 5,
+          }}>
+          <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1565C0', marginBottom: 12}}>
+            📤 Submit Work Proof
+          </Text>
+          <Text style={{fontSize: 12, color: '#666', marginBottom: 12}}>
+            Upload your completed work link, PDF, image, or video for Team Leader review.
+          </Text>
+
+          <Text style={{fontSize: 12, fontWeight: 'bold', marginBottom: 6}}>Attachment Type:</Text>
+          <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12}}>
+            {['Link', 'PDF', 'Image', 'Video'].map(type => (
+              <Chip
+                key={type}
+                selected={proofType === type}
+                onPress={() => setProofType(type)}
+                style={{backgroundColor: proofType === type ? '#E3F2FD' : '#F5F5F5'}}>
+                {type === 'Link' ? '🔗 Link' : type === 'PDF' ? '📄 PDF' : type === 'Image' ? '🖼️ Image' : '🎥 Video'}
+              </Chip>
+            ))}
+          </View>
+
+          <TextInput
+            label="Proof URL / Google Drive / Document Link"
+            value={proofUrl}
+            onChangeText={setProofUrl}
+            mode="outlined"
+            placeholder="https://drive.google.com/... or link to work"
+            style={{marginBottom: 12}}
+          />
+
+          <TextInput
+            label="Work Summary / Notes for TL (Optional)"
+            value={proofNotes}
+            onChangeText={setProofNotes}
+            mode="outlined"
+            multiline
+            numberOfLines={3}
+            placeholder="Briefly describe what you completed..."
+            style={{marginBottom: 16}}
+          />
+
+          <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: 10}}>
+            <Button mode="outlined" onPress={() => setSubmitModalVisible(false)}>
+              Cancel
+            </Button>
+            <Button mode="contained" buttonColor="#2E7D32" onPress={handleConfirmSubmitWork}>
+              Submit for Review
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
     </Screen>
   );
 }

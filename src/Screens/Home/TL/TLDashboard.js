@@ -57,6 +57,8 @@ const safeText = val => {
   return String(val);
 };
 
+const PAST_MEETINGS_KEY = '@studify_tl_past_meetings';
+
 const TLDashboard = () => {
   const {colors} = useTheme();
   const insets = useSafeAreaInsets();
@@ -80,6 +82,17 @@ const TLDashboard = () => {
       dispatch(fetchChatGroups({department: activeDept, is_tl: user?.is_tl ? 'true' : 'false'}));
     }
   }, [activeDept]);
+
+  useEffect(() => {
+    const loadPastMeetings = async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const stored = await AsyncStorage.getItem(PAST_MEETINGS_KEY);
+        if (stored) setPastMeetings(JSON.parse(stored));
+      } catch (e) {}
+    };
+    loadPastMeetings();
+  }, []);
 
   // Main Category Workspace Tabs
   const [activeCategory, setActiveCategory] = useState('Overview'); // 'Overview', 'Tasks', 'Meetings', 'Trainings', 'Comm', 'Rewards', 'Attendance', 'Leaves'
@@ -112,6 +125,8 @@ const TLDashboard = () => {
   const [taskTab, setTaskTab] = useState('Active'); // 'Active' | 'Completed'
 
   // Meet Scheduler States (Module 4)
+  const [meetingTab, setMeetingTab] = useState('Upcoming');
+  const [pastMeetings, setPastMeetings] = useState([]);
   const [meetModalVisible, setMeetModalVisible] = useState(false);
   const [meetTitle, setMeetTitle] = useState('');
   const [meetType, setMeetType] = useState('Discussion');
@@ -227,6 +242,19 @@ const TLDashboard = () => {
     });
   };
 
+  const showTaskDueDatePicker = () => {
+    DateTimePickerAndroid.open({
+      value: new Date(),
+      mode: 'date',
+      onChange: (event, date) => {
+        if (event.type === 'set' && date) {
+          const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          setTaskDueDate(formatted);
+        }
+      },
+    });
+  };
+
   const showTlMeetTimePicker = () => {
     let initTime = new Date();
     DateTimePickerAndroid.open({
@@ -256,12 +284,21 @@ const TLDashboard = () => {
       });
       if (res && res.data) {
         const liveData = {
-          interns: res.data.team || [],
+          interns: Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []),
           leaves: res.data.leaves || [],
           reports: res.data.reports || [],
         };
-        const mock = await getInternDb();
-        const rawMeetings = [...(res.data.meetings || []), ...(mock.meetings || [])];
+        let localMeetings = [];
+        let localModules = [];
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const mStr = await AsyncStorage.getItem('@studify_meetings');
+          if (mStr) localMeetings = JSON.parse(mStr);
+          const modStr = await AsyncStorage.getItem('@studify_modules');
+          if (modStr) localModules = JSON.parse(modStr);
+        } catch (e) {}
+
+        const rawMeetings = [...localMeetings, ...(res.data.meetings || []), ...(mock.meetings || [])];
         const uniqueMeetings = [];
         const seenKeys = new Set();
         for (const m of rawMeetings) {
@@ -274,8 +311,65 @@ const TLDashboard = () => {
         const activeMeetings = uniqueMeetings.filter(
           m => !isMeetingExpired(m.date || m.scheduled_time, m.time),
         );
-        const loadedTasks = (taskRes && taskRes.data) ? taskRes.data : [];
-        const loadedModules = (res.data.modules || res.data.trainings || mock.modules || []);
+        // Collect expired meetings and persist them to AsyncStorage
+        const expiredMeetings = uniqueMeetings.filter(m => isMeetingExpired(m.date || m.scheduled_time, m.time));
+        if (expiredMeetings.length > 0) {
+          try {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const stored = await AsyncStorage.getItem(PAST_MEETINGS_KEY);
+            const prev = stored ? JSON.parse(stored) : [];
+            const allKeys = new Set(prev.map(m => m.id || `${m.title}_${m.date}`));
+            const newOnes = expiredMeetings.filter(m => !allKeys.has(m.id || `${m.title}_${m.date}`));
+            if (newOnes.length > 0) {
+              const merged = [...newOnes, ...prev].slice(0, 50);
+              await AsyncStorage.setItem(PAST_MEETINGS_KEY, JSON.stringify(merged));
+            }
+            setPastMeetings([...newOnes, ...prev]);
+          } catch (e) {}
+        }
+        let rawServerTasks = (taskRes && taskRes.data && Array.isArray(taskRes.data)) ? taskRes.data : [];
+        let serverTasks = rawServerTasks.map(t => ({
+          ...t,
+          id: String(t.id),
+          title: t.title || 'Department Task',
+          priority: t.priority || 'Medium',
+          dueDate: t.due_date || t.dueDate || 'Today',
+          completed: t.completed === 1 || t.completed === '1' || t.completed === true || t.completed === 'true',
+          submissionProof: t.submission_proof || t.submissionProof || null,
+          submissionType: t.submission_type || t.submissionType || null,
+          proofNotes: t.proof_notes || t.proofNotes || null,
+          submissionStatus: t.submission_status || t.submissionStatus || null,
+          completedByName: t.completed_by_name || t.completedByName || null,
+        }));
+        let loadedTasks = serverTasks;
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const localStr = await AsyncStorage.getItem('@studify_department_tasks');
+          const localTasks = localStr ? JSON.parse(localStr) : [];
+          const taskMap = new Map();
+          // Server tasks first
+          serverTasks.forEach(t => taskMap.set(String(t.id), t));
+          // Overlay local tasks second so local submissions/updates take precedence
+          localTasks.forEach(t => {
+            const existing = taskMap.get(String(t.id));
+            if (existing) {
+              taskMap.set(String(t.id), {
+                ...existing,
+                ...t,
+                completed: t.completed ?? existing.completed,
+                submissionProof: t.submissionProof || t.submission_proof || existing.submissionProof || existing.submission_proof,
+                submissionStatus: t.submissionStatus || t.submission_status || existing.submissionStatus || existing.submission_status,
+                submissionType: t.submissionType || t.submission_type || existing.submissionType || existing.submission_type,
+                proofNotes: t.proofNotes || t.proof_notes || existing.proofNotes || existing.proof_notes,
+                completedByName: t.completedByName || t.completed_by_name || existing.completedByName || existing.completed_by_name,
+              });
+            } else {
+              taskMap.set(String(t.id), t);
+            }
+          });
+          loadedTasks = Array.from(taskMap.values());
+        } catch (e) {}
+        const loadedModules = [...localModules, ...(res.data.modules || res.data.trainings || mock.modules || [])];
         
         let attendanceMap = {};
 
@@ -294,7 +388,7 @@ const TLDashboard = () => {
           });
         } else if (Array.isArray(res.data.attendance)) {
           res.data.attendance.forEach(record => {
-            const ids = [record.intern_id, record.user_id, record.internId, record.userId, record.id].filter(Boolean);
+            const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
             const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
             ids.forEach(id => {
               const strId = String(id);
@@ -312,7 +406,7 @@ const TLDashboard = () => {
             const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
             attData.forEach(record => {
               if (!record || typeof record !== 'object') return;
-              const ids = [record.intern_id, record.user_id, record.internId, record.userId, record.id].filter(Boolean);
+              const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
               const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
               ids.forEach(id => {
                 const strId = String(id);
@@ -363,12 +457,13 @@ const TLDashboard = () => {
           });
         }
 
+        const serverInterns = Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []);
+
         setDb({
           ...liveData,
+          interns: serverInterns,
           meetings: activeMeetings,
           modules: loadedModules,
-          announcements: mock.announcements || [],
-          departmentTasks: mock.departmentTasks || {},
           tasks: loadedTasks,
           attendance: attendanceMap,
           feedbacks: res.data.feedbacks || [],
@@ -386,29 +481,45 @@ const TLDashboard = () => {
   }, [activeDept]);
 
   // Calculations for Module 1 (Top Metric Cards) & Analytics
+  // Only include interns whose status is explicitly 'Approved'
   const approvedInterns = useMemo(() => {
-    const rawList = db?.interns || [];
-    return rawList.map(i => {
-      const fullName = (i.name || `${i.fname || ''} ${i.lname || ''}`.trim() || 'Intern').trim();
-      const avatarStr = i.avatar || (fullName.length >= 2 ? fullName.substring(0, 2).toUpperCase() : 'IN');
-      return {
-        ...i,
-        id: i.id || i.user_id || `int_${Math.random()}`,
-        name: fullName,
-        email: i.email || 'intern@studifysuccess.com',
-        avatar: avatarStr,
-        department: i.department || activeDept,
-        status: i.status || 'Approved',
-        joined: i.joined_date || i.joined || '2026-07-01',
-      };
-    });
+    const rawList = (db?.interns && db.interns.length > 0) ? db.interns : [];
+    const currDept = (activeDept || '').trim().toLowerCase();
+
+    const filtered = rawList
+      .filter(i => {
+        const dept = (i.department || '').trim().toLowerCase();
+        // Strictly exclude users without a real department from the server
+        if (!dept) return false;
+        const matchesDept = !currDept || currDept === 'all' || dept === currDept;
+        const matchesStatus = !i.status || i.status === 'Approved' || i.status === 'active' || i.status === 'Pending';
+        return matchesDept && matchesStatus;
+      })
+      .map(i => {
+        const fullName = (i.name || `${i.fname || ''} ${i.lname || ''}`.trim() || 'Intern').trim();
+        const avatarStr = i.avatar || (fullName.length >= 2 ? fullName.substring(0, 2).toUpperCase() : 'IN');
+        // Preserve numeric id as string for attendance map lookup
+        const internId = String(i.id || i.user_id || `int_${Math.random()}`);
+        return {
+          ...i,
+          id: internId,
+          user_id: internId,
+          name: fullName,
+          email: i.email || 'intern@studifysuccess.com',
+          avatar: avatarStr,
+          department: i.department,
+          status: 'Approved',
+          joined: i.joined_date || i.joined || '2026-07-01',
+        };
+      });
+    return filtered || [];
   }, [db?.interns, activeDept]);
 
   const todayStr = useMemo(() => extractDateISO(new Date()), []);
 
   const activeTodayCount = useMemo(() => {
     let count = 0;
-    approvedInterns.forEach(i => {
+    (approvedInterns || []).forEach(i => {
       const todayAtt = getTodayAttendanceRecord(db?.attendance, i);
       if (isAttendanceCheckedIn(todayAtt)) {
         count++;
@@ -418,25 +529,26 @@ const TLDashboard = () => {
   }, [approvedInterns, db?.attendance]);
 
   const absentCount = useMemo(() => {
-    return Math.max(0, approvedInterns.length - activeTodayCount);
-  }, [approvedInterns.length, activeTodayCount]);
+    return Math.max(0, (approvedInterns || []).length - activeTodayCount);
+  }, [approvedInterns, activeTodayCount]);
 
   const activeDeptTasks = useMemo(() => {
     const backendTasks = (db?.tasks || []).map(t => ({
+      ...t,
       id: t.id || `task_${Math.random()}`,
       title: t.title || 'Department Task',
       priority: t.priority || 'Medium',
-      dueDate: t.dueDate || 'Today',
+      dueDate: t.dueDate || t.due_date || 'Today',
       completed: t.completed === 1 || t.completed === true,
+      submissionProof: t.submissionProof || t.submission_proof || null,
+      submissionType: t.submissionType || t.submission_type || null,
+      proofNotes: t.proofNotes || t.proof_notes || null,
+      submissionStatus: t.submissionStatus || t.submission_status || null,
+      completedByName: t.completedByName || t.completed_by_name || null,
     }));
     const deptTasksMock = db?.departmentTasks?.[activeDept] || [];
     const combined = [...backendTasks, ...deptTasksMock];
-    if (combined.length > 0) return combined;
-    return [
-      { id: 'dt1', title: `Submit ${activeDept} Weekly EOD Report`, priority: 'High', dueDate: 'Today', completed: false },
-      { id: 'dt2', title: `Complete ${activeDept} Module 1 Training Video`, priority: 'Medium', dueDate: 'Tomorrow', completed: false },
-      { id: 'dt3', title: `Daily Attendance & Activity Check-in`, priority: 'High', dueDate: 'Daily', completed: false },
-    ];
+    return combined;
   }, [db?.tasks, db?.departmentTasks, activeDept]);
 
   const pendingTasksCount = useMemo(() => {
@@ -444,82 +556,73 @@ const TLDashboard = () => {
   }, [activeDeptTasks]);
 
   const avgPerformance = useMemo(() => {
-    if (approvedInterns.length === 0) return '88%';
+    const list = approvedInterns || [];
+    if (list.length === 0) return '—';
     let totalScore = 0;
-    approvedInterns.forEach(i => {
+    list.forEach(i => {
       const reportsCount = (db?.reports || []).filter(
-        r => r.internId === i.id || r.intern_id == i.id,
+        r => String(r.internId) === String(i.id) || String(r.intern_id) === String(i.id),
       ).length;
-      totalScore += Math.min(99, 82 + reportsCount * 2);
+      const attDays = Object.keys(db?.attendance?.[String(i.id)] || {}).length;
+      totalScore += Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
     });
-    return `${Math.round(totalScore / approvedInterns.length)}%`;
-  }, [approvedInterns, db?.reports]);
+    return `${Math.round(totalScore / list.length)}%`;
+  }, [approvedInterns, db?.reports, db?.attendance]);
 
   const topPerformer = useMemo(() => {
-    if (approvedInterns.length === 0) return {name: 'Vishal Kushwaha', score: 96};
-    let best = approvedInterns[0];
+    const list = approvedInterns || [];
+    if (list.length === 0) return {name: '—', score: 0};
+    let best = list[0];
     let maxScore = 0;
-    approvedInterns.forEach(i => {
+    list.forEach(i => {
       const reportsCount = (db?.reports || []).filter(
-        r => r.internId === i.id || r.intern_id == i.id,
+        r => String(r.internId) === String(i.id) || String(r.intern_id) === String(i.id),
       ).length;
-      const score = 80 + reportsCount * 4;
+      // Attendance bonus: count days present
+      const attDays = Object.keys(db?.attendance?.[String(i.id)] || {}).length;
+      const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       if (score > maxScore) {
         maxScore = score;
         best = i;
       }
     });
-    return {name: best?.name || 'Vishal Kushwaha', score: Math.min(98, maxScore || 96)};
-  }, [approvedInterns, db?.reports]);
+    return {name: best?.name || '—', score: maxScore};
+  }, [approvedInterns, db?.reports, db?.attendance]);
 
   const top3Performers = useMemo(() => {
-    let list = approvedInterns.map(intern => {
+    const list = approvedInterns.map(intern => {
       const reportsCount = (db?.reports || []).filter(
-        r => r.internId === intern.id || r.intern_id == intern.id,
+        r => String(r.internId) === String(intern.id) || String(r.intern_id) === String(intern.id),
       ).length;
-      const score = Math.min(99, 82 + reportsCount * 4);
+      const attDays = Object.keys(db?.attendance?.[String(intern.id)] || {}).length;
+      const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       return {
         id: intern.id,
-        name: intern.name || 'Intern Candidate',
-        email: intern.email || 'intern@studifysuccess.com',
+        name: intern.name || 'Intern',
+        email: intern.email || '',
         avatar: intern.avatar || 'IN',
         department: intern.department || activeDept,
         score,
       };
     });
     list.sort((a, b) => b.score - a.score);
-
-    const defaults = [
-      { id: 'def1', name: 'Vishal Kushwaha', score: 96, avatar: 'VK', department: activeDept },
-      { id: 'def2', name: 'Aditi Malviya', score: 88, avatar: 'AM', department: activeDept },
-      { id: 'def3', name: 'Rajesh Kumar', score: 82, avatar: 'RK', department: activeDept },
-    ];
-
-    if (list.length === 0) return defaults;
-    if (list.length === 1) return [list[0], defaults[1], defaults[2]];
-    if (list.length === 2) return [list[0], list[1], defaults[2]];
     return list.slice(0, 3);
-  }, [approvedInterns, db?.reports, activeDept]);
+  }, [approvedInterns, db?.reports, db?.attendance, activeDept]);
 
   const topDepartments = useMemo(() => {
-    // We aggregate all interns by department, then average their scores.
+    // We aggregate all approved interns by department, then average their scores.
     const deptScores = {};
     const interns = db?.interns || [];
-    if (interns.length === 0) {
-      return [
-        { name: 'Technology', avgScore: 92, active: 14 },
-        { name: 'Marketing', avgScore: 85, active: 8 },
-        { name: 'HR', avgScore: 78, active: 4 },
-      ];
-    }
+    if (interns.filter(i => i.status === 'Approved').length === 0) return [];
 
     interns.forEach(intern => {
       if (intern.status !== 'Approved') return;
       const dept = intern.department || 'General';
       const reportsCount = (db?.reports || []).filter(
-        r => r.internId === intern.id || r.intern_id == intern.id,
+        r => String(r.internId) === String(intern.id) || String(r.intern_id) === String(intern.id),
       ).length;
-      const score = Math.min(99, 82 + reportsCount * 4);
+      const attDays = Object.keys(db?.attendance?.[String(intern.id)] || {}).length;
+      const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       if (!deptScores[dept]) {
         deptScores[dept] = { name: dept, totalScore: 0, count: 0, active: 0 };
       }
@@ -535,7 +638,7 @@ const TLDashboard = () => {
     }));
     list.sort((a, b) => b.avgScore - a.avgScore);
     return list;
-  }, [db?.interns, db?.reports]);
+  }, [db?.interns, db?.reports, db?.attendance]);
 
   const filteredEodReports = useMemo(() => {
     const rawReports = db?.reports || [];
@@ -608,10 +711,38 @@ const TLDashboard = () => {
         dueDate: taskDueDate,
         assignedTo: assignees,
         completed: false,
-        createdBy: user?.user_id,
-        createdByName: `${user?.fname || 'TL'} ${user?.lname || ''}`,
+        createdBy: user?.user_id || user?.id,
+        createdByName: `${user?.fname || 'TL'} ${user?.lname || ''}`.trim(),
       };
-      await post('/interns/tasks/sync', {tasks: [newTask]});
+
+      // 1. Immediately persist task to local AsyncStorage so it is never lost
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const localStr = await AsyncStorage.getItem('@studify_department_tasks');
+        const localTasks = localStr ? JSON.parse(localStr) : [];
+        const taskMap = new Map();
+        taskMap.set(String(newTask.id), newTask);
+        localTasks.forEach(t => taskMap.set(String(t.id), t));
+        await AsyncStorage.setItem('@studify_department_tasks', JSON.stringify(Array.from(taskMap.values())));
+      } catch (e) {}
+
+      // 2. Immediately update in-memory state for instant UI reflection
+      setDb(prev => {
+        const prevTasks = prev?.tasks || [];
+        const taskMap = new Map();
+        taskMap.set(String(newTask.id), newTask);
+        prevTasks.forEach(t => taskMap.set(String(t.id), t));
+        return {
+          ...prev,
+          tasks: Array.from(taskMap.values()),
+        };
+      });
+
+      // 3. Sync with backend API
+      try {
+        await post('/interns/tasks/sync', {tasks: [newTask]}, {skipSuccessFlash: true, skipErrorFlash: true});
+      } catch (e) {}
+
       Alert.alert(
         'Task Created',
         `Task "${taskTitle}" assigned to ${
@@ -627,6 +758,40 @@ const TLDashboard = () => {
     }
   };
 
+  const handleApproveTaskSubmission = async (taskId) => {
+    try {
+      await post('/interns/tasks/review', { taskId, status: 'Approved' });
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const localStr = await AsyncStorage.getItem('@studify_department_tasks');
+        const localTasks = localStr ? JSON.parse(localStr) : [];
+        const updated = localTasks.map(t => String(t.id) === String(taskId) ? { ...t, completed: true, submissionStatus: 'Approved' } : t);
+        await AsyncStorage.setItem('@studify_department_tasks', JSON.stringify(updated));
+      } catch (e) {}
+      Alert.alert('Success', 'Task submission approved!');
+      loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to approve task submission.');
+    }
+  };
+
+  const handleRejectTaskSubmission = async (taskId) => {
+    try {
+      await post('/interns/tasks/review', { taskId, status: 'In Progress' });
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const localStr = await AsyncStorage.getItem('@studify_department_tasks');
+        const localTasks = localStr ? JSON.parse(localStr) : [];
+        const updated = localTasks.map(t => String(t.id) === String(taskId) ? { ...t, completed: false, submissionStatus: 'In Progress', submissionProof: null } : t);
+        await AsyncStorage.setItem('@studify_department_tasks', JSON.stringify(updated));
+      } catch (e) {}
+      Alert.alert('Revision Requested', 'Task sent back to intern for revision.');
+      loadData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to request task revision.');
+    }
+  };
+
   // Meeting Handler (Module 4)
   const handleScheduleMeet = async () => {
     if (!meetTitle.trim()) {
@@ -634,13 +799,42 @@ const TLDashboard = () => {
       return;
     }
     try {
-      await post('/interns/trainings/live', {
+      const newMeet = {
+        id: `meet_${Date.now()}`,
         department: meetAudience === 'All' ? 'All' : activeDept,
         title: meetTitle,
         topic: meetType,
+        date: meetDate || 'Today',
+        time: meetTime || '10:00 AM',
         scheduled_time: `${meetDate} at ${meetTime}`,
-        meeting_link: meetLink,
-      });
+        meeting_link: meetLink || 'https://meet.jit.si/studify_team',
+        created_at: new Date().toISOString(),
+      };
+      
+      // Update local state immediately
+      setDb(prev => ({
+        ...prev,
+        meetings: [newMeet, ...(prev?.meetings || [])],
+      }));
+
+      // Persist to AsyncStorage
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const stored = await AsyncStorage.getItem('@studify_meetings');
+        const prev = stored ? JSON.parse(stored) : [];
+        await AsyncStorage.setItem('@studify_meetings', JSON.stringify([newMeet, ...prev]));
+      } catch (e) {}
+
+      try {
+        await post('/interns/trainings/live', {
+          department: meetAudience === 'All' ? 'All' : activeDept,
+          title: meetTitle,
+          topic: meetType,
+          scheduled_time: `${meetDate} at ${meetTime}`,
+          meeting_link: meetLink,
+        });
+      } catch (e) {}
+
       Alert.alert('Meeting Scheduled', `Meeting "${meetTitle}" is live!`);
       setMeetModalVisible(false);
       setMeetTitle('');
@@ -667,6 +861,7 @@ const TLDashboard = () => {
     }
     try {
       const newMod = {
+        id: `mod_${Date.now()}`,
         department: activeDept,
         title: modTitle,
         instructor: modInstructor || `${user?.fname || 'TL'} ${user?.lname || ''}`.trim(),
@@ -675,10 +870,26 @@ const TLDashboard = () => {
         video_url: modVideo,
         completion_rate: 0,
       };
+
+      // Update local state immediately
+      setDb(prev => ({
+        ...prev,
+        modules: [newMod, ...(prev?.modules || [])],
+      }));
+
+      // Persist to AsyncStorage
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const stored = await AsyncStorage.getItem('@studify_modules');
+        const prev = stored ? JSON.parse(stored) : [];
+        await AsyncStorage.setItem('@studify_modules', JSON.stringify([newMod, ...prev]));
+      } catch (e) {}
+
       await addMockModule(newMod);
       try {
         await post('/interns/trainings/modules', newMod);
       } catch (err) {}
+
       Alert.alert('Module Published', `Module "${modTitle}" is now live!`);
       setModuleModalVisible(false);
       setModTitle('');
@@ -701,7 +912,8 @@ const TLDashboard = () => {
         title: annTitle,
         body: annBody,
         type: annType,
-        timeText: 'Just now',
+        created_at: new Date().toISOString(),
+        timeText: new Date().toISOString(),
       });
       Alert.alert('Published', `${annType} posted successfully.`);
       setAnnModalVisible(false);
@@ -712,7 +924,6 @@ const TLDashboard = () => {
       Alert.alert('Error', 'Failed to post notice.');
     }
   };
-
   // Rewards & Recognition Handler (Module 8)
   const handleSendAppreciation = async () => {
     if (!awardTitle.trim() || !awardNote.trim()) {
@@ -795,16 +1006,23 @@ const TLDashboard = () => {
             {key: 'Rewards', icon: 'trophy'},
             {key: 'Attendance', icon: 'calendar-clock'},
             {key: 'Leaves', icon: 'calendar-account'},
+            {key: 'Founder', icon: 'crown'},
           ].map(cat => (
             <Chip
               key={cat.key}
               icon={cat.icon}
               selected={activeCategory === cat.key}
-              onPress={() => setActiveCategory(cat.key)}
+              onPress={() => {
+                if (cat.key === 'Founder') {
+                  navigation.navigate('FounderDashboard');
+                } else {
+                  setActiveCategory(cat.key);
+                }
+              }}
               style={styles.categoryChip}
               selectedColor="#fff"
               showSelectedOverlay>
-              {cat.key}
+              {cat.key === 'Founder' ? '👑 Founder Hub' : cat.key}
             </Chip>
           ))}
         </ScrollView>
@@ -932,19 +1150,22 @@ const TLDashboard = () => {
               showsHorizontalScrollIndicator={false}
               style={{marginVertical: 10}}>
               {[
-                'Submit Weekly EOD Report',
-                'Complete Module 1 Video',
-                'Bug Audit & Clean Code',
-                'Design Review',
-              ].map(tpl => (
+                { title: `Submit ${activeDept} Weekly EOD Report`, desc: `Compile all tasks completed this week in the ${activeDept} department and submit your EOD report as a PDF or summary.`, priority: 'High', dueDate: 'Today' },
+                { title: `Complete ${activeDept} Module 1 Training`, desc: 'Watch the assigned training video and complete the post-module quiz or assignment.', priority: 'Medium', dueDate: 'Tomorrow' },
+                { title: 'Bug Audit & Code Cleanup', desc: 'Review the active issue backlog, identify critical bugs, and submit a clean-code audit report.', priority: 'High', dueDate: 'Today' },
+                { title: 'Design System Review', desc: 'Review component guidelines, accessibility standards, and report feedback to the TL.', priority: 'Low', dueDate: 'This Week' },
+              ].map(tmpl => (
                 <Chip
-                  key={tpl}
+                  key={tmpl.title}
                   style={{marginRight: 8}}
                   onPress={() => {
-                    setTaskTitle(tpl);
+                    setTaskTitle(tmpl.title);
+                    setTaskDesc(tmpl.desc);
+                    setTaskPriority(tmpl.priority);
+                    setTaskDueDate(tmpl.dueDate);
                     setTaskModalVisible(true);
                   }}>
-                  + {tpl}
+                  + {tmpl.title}
                 </Chip>
               ))}
             </ScrollView>
@@ -962,8 +1183,23 @@ const TLDashboard = () => {
                   borderWidth: 1,
                   borderColor: taskTab === 'Active' ? '#1565C0' : '#E0E0E0',
                 }}>
-                <Text style={{fontWeight: 'bold', fontSize: 13, color: taskTab === 'Active' ? '#fff' : '#555'}}>
-                  ⚡ Active Tasks ({activeDeptTasks.filter(t => !t.completed).length})
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Active' ? '#fff' : '#555'}}>
+                  ⚡ Active ({activeDeptTasks.filter(t => !t.completed && !t.submissionProof && t.submissionStatus !== 'Submitted').length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setTaskTab('Review')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: taskTab === 'Review' ? '#E65100' : '#F0F2F5',
+                  borderWidth: 1,
+                  borderColor: taskTab === 'Review' ? '#E65100' : '#E0E0E0',
+                }}>
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Review' ? '#fff' : '#555'}}>
+                  ⏳ Review ({activeDeptTasks.filter(t => (Boolean(t.submissionProof) || t.submissionStatus === 'Submitted' || (t.completed && t.submissionStatus !== 'Approved')) && t.submissionStatus !== 'Approved').length})
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -977,27 +1213,35 @@ const TLDashboard = () => {
                   borderWidth: 1,
                   borderColor: taskTab === 'Completed' ? '#2E7D32' : '#E0E0E0',
                 }}>
-                <Text style={{fontWeight: 'bold', fontSize: 13, color: taskTab === 'Completed' ? '#fff' : '#555'}}>
-                  ✅ Completed ({activeDeptTasks.filter(t => t.completed).length})
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Completed' ? '#fff' : '#555'}}>
+                  ✅ Done ({activeDeptTasks.filter(t => t.submissionStatus === 'Approved' || (t.completed && !t.submissionProof && t.submissionStatus !== 'Submitted')).length})
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Department Tasks List filtered by tab */}
             {(() => {
-              const filteredList = activeDeptTasks.filter(t => taskTab === 'Active' ? !t.completed : t.completed);
+              const filteredList = activeDeptTasks.filter(t => {
+                const isSubmitted = Boolean(t.submissionProof) || t.submissionStatus === 'Submitted' || (t.completed && t.submissionStatus !== 'Approved');
+                const isApproved = t.submissionStatus === 'Approved';
+                if (taskTab === 'Active') return !t.completed && !isSubmitted && !isApproved;
+                if (taskTab === 'Review') return isSubmitted && !isApproved;
+                return isApproved || (t.completed && !isSubmitted);
+              });
               if (filteredList.length === 0) {
                 return (
                   <Card style={styles.emptyCard}>
                     <Card.Content style={styles.emptyContent}>
                       <Icon
-                        name={taskTab === 'Active' ? 'checkbox-marked-circle-outline' : 'history'}
+                        name={taskTab === 'Active' ? 'checkbox-marked-circle-outline' : taskTab === 'Review' ? 'clock-alert-outline' : 'history'}
                         size={36}
                         color="#888"
                       />
                       <Text style={styles.emptyText}>
                         {taskTab === 'Active'
                           ? '🎉 No pending tasks! All active tasks are completed.'
+                          : taskTab === 'Review'
+                          ? '🎉 No submitted tasks awaiting review!'
                           : 'No completed tasks recorded yet.'}
                       </Text>
                     </Card.Content>
@@ -1060,26 +1304,71 @@ const TLDashboard = () => {
 
                       {/* Row 3: Progress Bar */}
                       <ProgressBar
-                        progress={task.completed ? 1 : 0.4}
-                        color={task.completed ? '#2E7D32' : '#1565C0'}
+                        progress={task.completed ? 1 : (task.submissionProof ? 0.8 : 0.4)}
+                        color={task.completed ? '#2E7D32' : (task.submissionProof ? '#F57C00' : '#1565C0')}
                         style={{marginVertical: 8, height: 6, borderRadius: 3}}
                       />
 
-                      {/* Row 4: Status Indicator */}
+                      {/* Row 4: Submitted Work Proof Box (for TL Review) */}
+                      {Boolean(task.submissionProof) && (
+                        <View style={{marginTop: 10, padding: 10, backgroundColor: '#FFF8E1', borderRadius: 8, borderWidth: 1, borderColor: '#FFE082'}}>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: '#E65100', marginBottom: 4}}>
+                            📤 Work Proof Submitted ({task.submissionType || 'Attachment'})
+                          </Text>
+                          {Boolean(task.completedByName) && (
+                            <Text style={{fontSize: 11, color: '#555', marginBottom: 4}}>
+                              Submitted by: <Text style={{fontWeight: 'bold', color: '#111'}}>{task.completedByName}</Text>
+                            </Text>
+                          )}
+                          {Boolean(task.proofNotes) && (
+                            <Text style={{fontSize: 12, color: '#333', fontStyle: 'italic', marginBottom: 8}}>
+                              "{task.proofNotes}"
+                            </Text>
+                          )}
+                          <TouchableOpacity
+                            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#FFB300', marginBottom: 10}}
+                            onPress={() => {
+                              if (task.submissionProof) {
+                                Linking.openURL(task.submissionProof).catch(() => Alert.alert('Link', task.submissionProof));
+                              }
+                            }}>
+                            <Icon name="open-in-new" size={16} color="#E65100" style={{marginRight: 6}} />
+                            <Text style={{fontSize: 12, color: '#E65100', fontWeight: 'bold', flex: 1}} numberOfLines={1}>
+                              {task.submissionProof}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {/* Action Buttons for TL */}
+                          <View style={{flexDirection: 'row', gap: 8, marginTop: 4}}>
+                            <TouchableOpacity
+                              style={{flex: 1, backgroundColor: '#2E7D32', paddingVertical: 8, borderRadius: 6, alignItems: 'center'}}
+                              onPress={() => handleApproveTaskSubmission(task.id)}>
+                              <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>✅ Approve Work</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{flex: 1, backgroundColor: '#D32F2F', paddingVertical: 8, borderRadius: 6, alignItems: 'center'}}
+                              onPress={() => handleRejectTaskSubmission(task.id)}>
+                              <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>🔄 Request Revision</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Row 5: Status Indicator */}
                       <View
                         style={{
                           flexDirection: 'row',
                           justifyContent: 'space-between',
                           alignItems: 'center',
+                          marginTop: 8,
                         }}>
                         <Text style={{fontSize: 12, color: '#555'}}>
-                          Status:{' '}
                           <Text
                             style={{
                               fontWeight: 'bold',
-                              color: task.completed ? '#2E7D32' : '#1565C0',
+                              color: task.submissionStatus === 'Approved' ? '#2E7D32' : task.submissionStatus === 'Submitted' ? '#F57C00' : task.completed ? '#2E7D32' : '#1565C0',
                             }}>
-                            {task.completed ? 'Completed' : 'In Progress / Assigned'}
+                            {task.submissionStatus === 'Approved' ? '✅ Approved' : task.submissionStatus === 'Submitted' || task.submissionProof ? '⏳ Awaiting Review' : task.completed ? 'Completed' : 'In Progress'}
                           </Text>
                         </Text>
                         <View
@@ -1138,7 +1427,29 @@ const TLDashboard = () => {
               </View>
             </View>
 
-            {(() => {
+            {/* Upcoming / Past Meetings Tab Switcher */}
+            <View style={{flexDirection: 'row', gap: 10, marginBottom: 12}}>
+              {['Upcoming', 'Past Meetings'].map(tab => (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => setMeetingTab(tab)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    backgroundColor: meetingTab === tab ? '#2E7D32' : '#F0F2F5',
+                    borderWidth: 1,
+                    borderColor: meetingTab === tab ? '#2E7D32' : '#E0E0E0',
+                  }}>
+                  <Text style={{fontWeight: 'bold', fontSize: 13, color: meetingTab === tab ? '#fff' : '#555'}}>
+                    {tab === 'Upcoming' ? '📅 Upcoming' : '🕐 Past Meetings'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {meetingTab === 'Upcoming' ? (() => {
               const activeMeetingsList = (db?.meetings || []).filter(
                 m => !isMeetingExpired(m.date || m.scheduled_time, m.time),
               );
@@ -1178,7 +1489,29 @@ const TLDashboard = () => {
                   </Card.Content>
                 </Card>
               ));
-            })()}
+            })() : (
+              pastMeetings.length === 0 ? (
+                <Card style={styles.emptyCard}>
+                  <Card.Content style={styles.emptyContent}>
+                    <Icon name="history" size={36} color="#888" />
+                    <Text style={styles.emptyText}>No past meetings recorded yet.</Text>
+                  </Card.Content>
+                </Card>
+              ) : (
+                pastMeetings.map((meet, idx) => (
+                  <Card key={meet.id || idx} style={[styles.cardMargin, {backgroundColor: '#F5F5F5', borderLeftWidth: 3, borderLeftColor: '#9E9E9E'}]}>
+                    <Card.Content>
+                      <View style={styles.rowBetween}>
+                        <Text style={[styles.cardTitle, {color: '#555'}]}>{meet.title}</Text>
+                        <Chip icon="clock-outline" style={{backgroundColor: '#E0E0E0'}}>{meet.time || '—'}</Chip>
+                      </View>
+                      <Text style={[styles.cardSub, {color: '#777'}]}>Date: {meet.date || meet.scheduled_time || '—'}</Text>
+                      <Text style={{fontSize: 11, color: '#9E9E9E', marginTop: 2}}>🕐 Completed</Text>
+                    </Card.Content>
+                  </Card>
+                ))
+              )
+            )}
           </View>
         )}
 
@@ -1409,7 +1742,7 @@ const TLDashboard = () => {
               </Card>
             ) : (
               filteredLeaves.map(leave => {
-                const intern = db?.interns?.find(i => i.id === leave.internId);
+                const intern = db?.interns?.find(i => String(i.id) === String(leave.internId) || String(i.user_id) === String(leave.internId));
                 return (
                   <Card key={leave.id} style={styles.cardMargin}>
                     <Card.Content>
@@ -1479,6 +1812,32 @@ const TLDashboard = () => {
           <Card style={styles.modalCard}>
             <Card.Content>
               <Text style={styles.modalHeading}>Create & Assign Task</Text>
+
+              <Text style={{fontSize: 11, fontWeight: 'bold', color: '#666', marginBottom: 4}}>
+                ⚡ Quick Templates:
+              </Text>
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 10}}>
+                {[
+                  { title: `Submit ${activeDept} Weekly EOD Report`, desc: `Compile all tasks completed this week in the ${activeDept} department and submit your EOD report as a PDF or summary.`, priority: 'High', dueDate: 'Today' },
+                  { title: `Complete ${activeDept} Module 1 Training`, desc: 'Watch the assigned training video and complete the post-module quiz or assignment.', priority: 'Medium', dueDate: 'Tomorrow' },
+                  { title: 'Bug Audit & Code Cleanup', desc: 'Review the active issue backlog, identify critical bugs, and submit a clean-code audit report.', priority: 'High', dueDate: 'Today' },
+                  { title: 'Design System Review', desc: 'Review component guidelines, accessibility standards, and report feedback to the TL.', priority: 'Low', dueDate: 'This Week' },
+                ].map(tmpl => (
+                  <Chip
+                    key={tmpl.title}
+                    compact
+                    onPress={() => {
+                      setTaskTitle(tmpl.title);
+                      setTaskDesc(tmpl.desc);
+                      setTaskPriority(tmpl.priority);
+                      setTaskDueDate(tmpl.dueDate);
+                    }}
+                    style={{backgroundColor: '#E0F2F1'}}>
+                    {tmpl.title.split(' ')[0]} {tmpl.title.split(' ')[1]}
+                  </Chip>
+                ))}
+              </View>
+
               <TextInput
                 placeholder="Task Title"
                 value={taskTitle}
@@ -1506,6 +1865,34 @@ const TLDashboard = () => {
                   </Chip>
                 ))}
               </View>
+
+              <Text style={{fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5}}>
+                Due Date:
+              </Text>
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8}}>
+                {['Today', 'Tomorrow', 'This Week', 'Custom'].map(d => (
+                  <Chip
+                    key={d}
+                    selected={taskDueDate === d}
+                    onPress={() => setTaskDueDate(d)}
+                    style={{marginRight: 4}}>
+                    {d}
+                  </Chip>
+                ))}
+              </View>
+              {taskDueDate === 'Custom' && (
+                <Button
+                  mode="outlined"
+                  compact
+                  icon="calendar"
+                  onPress={showTaskDueDatePicker}
+                  style={{marginBottom: 8, alignSelf: 'flex-start'}}>
+                  Pick Date
+                </Button>
+              )}
+              {taskDueDate && taskDueDate !== 'Today' && taskDueDate !== 'Tomorrow' && taskDueDate !== 'This Week' && taskDueDate !== 'Custom' && (
+                <Text style={{fontSize: 11, color: '#1565C0', marginBottom: 6}}>📅 {taskDueDate}</Text>
+              )}
 
               <Text style={{fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5}}>
                 Assign To:

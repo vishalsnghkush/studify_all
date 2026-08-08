@@ -21,13 +21,21 @@ const TLMyTeam = () => {
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
   
-  const [db, setDb] = useState(null);
+  const [db, setDb] = useState(() => {
+    try {
+      const mock = require('../../../Utils/MockInternDb').DEFAULT_INTERN_DB;
+      return { interns: mock.interns || [], reports: mock.reports || [], attendance: mock.attendance || {} };
+    } catch (e) {
+      return { interns: [], reports: [], attendance: {} };
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const activeDept = user?.department || 'Tech';
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [reportModal, setReportModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [internMetrics, setInternMetrics] = useState({ accuracy: 0, rank: 'None', tasksDone: 0 });
+  const [internLearningProgress, setInternLearningProgress] = useState(0);
 
   const { get, post } = useApi();
 
@@ -51,7 +59,7 @@ const TLMyTeam = () => {
           });
         } else if (Array.isArray(res.data.attendance)) {
           res.data.attendance.forEach(record => {
-            const ids = [record.intern_id, record.user_id, record.internId, record.userId, record.id].filter(Boolean);
+            const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
             const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
             ids.forEach(id => {
               const strId = String(id);
@@ -68,7 +76,7 @@ const TLMyTeam = () => {
             const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
             attData.forEach(record => {
               if (!record || typeof record !== 'object') return;
-              const ids = [record.intern_id, record.user_id, record.internId, record.userId, record.id].filter(Boolean);
+              const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
               const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
               ids.forEach(id => {
                 const strId = String(id);
@@ -78,35 +86,48 @@ const TLMyTeam = () => {
             });
           }
         } catch (attErr) {}
-
-        // Source 3: Fetch attendance for each team member individually if missing today
-        const teamInterns = res.data.team || [];
-        for (const intern of teamInterns) {
-          const internId = String(intern.id || intern.user_id);
-          const todayISO = extractDateISO(new Date());
-          if (attendanceMap[internId] && attendanceMap[internId][todayISO]) continue;
-          try {
-            const indivRes = await get(`/interns/attendance?user_id=${intern.id || intern.user_id}`, {skipSuccessFlash: true, skipErrorFlash: true});
-            if (indivRes && indivRes.data) {
-              const records = Array.isArray(indivRes.data) ? indivRes.data : [indivRes.data];
-              records.forEach(record => {
-                if (!record || typeof record !== 'object') return;
-                const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
-                if (!attendanceMap[internId]) attendanceMap[internId] = {};
-                attendanceMap[internId][dateKey] = record;
-              });
-            }
-          } catch (e) {}
-        }
-
+        const rawTeam = Array.isArray(res.data?.team) 
+          ? res.data.team 
+          : (Array.isArray(res.data) ? res.data : []);
+          
+        // Only include users that have a real department from the server
+        const teamList = rawTeam
+          .filter(i => i.department && i.department.trim().length > 0)
+          .map(i => {
+          const fullName = (i.name || `${i.fname || ''} ${i.lname || ''}`.trim() || 'Intern').trim();
+          const avatarStr = i.avatar || (fullName.length >= 2 ? fullName.substring(0, 2).toUpperCase() : 'IN');
+          return {
+            ...i,
+            id: String(i.id || i.user_id || `int_${Math.random()}`),
+            name: fullName,
+            avatar: avatarStr,
+            status: i.status || 'Approved',
+            department: i.department,
+          };
+        });
         setDb({
-          interns: res.data.team || [],
-          reports: res.data.reports || [],
+          interns: teamList,
+          reports: res.data?.reports || [],
           attendance: attendanceMap
+        });
+      } else {
+        const mock = await getInternDb();
+        setDb({
+          interns: (mock.interns || []).map(i => ({ ...i, id: String(i.id) })),
+          reports: mock.reports || [],
+          attendance: mock.attendance || {}
         });
       }
     } catch (e) {
       console.log('Error loading TL team data', e);
+      try {
+        const mock = await getInternDb();
+        setDb({
+          interns: (mock.interns || []).map(i => ({ ...i, id: String(i.id) })),
+          reports: mock.reports || [],
+          attendance: mock.attendance || {}
+        });
+      } catch (mockErr) {}
     }
   };
 
@@ -116,18 +137,38 @@ const TLMyTeam = () => {
     return () => clearInterval(interval);
   }, [activeDept]);
 
-  // Filter only Approved interns in this department
+  // Filter interns in this department strictly
   const myTeam = useMemo(() => {
     const interns = db?.interns || [];
-    return interns.filter(i => i.department === activeDept && i.status === 'Approved');
-  }, [db, activeDept]);
+    if (interns.length === 0) return [];
+
+    return interns.filter(i => {
+      const dept = (i.department || '').trim().toLowerCase();
+      const currDept = (activeDept || '').trim().toLowerCase();
+      
+      if (!dept) return false; // Strictly exclude non-department users
+      if (!currDept || currDept === 'all') return true;
+      return dept.includes(currDept) || currDept.includes(dept);
+    });
+  }, [db?.interns, activeDept]);
 
   // Apply search query
   const displayedTeam = useMemo(() => {
-    if (!searchQuery.trim()) return myTeam;
-    return myTeam.filter(i => 
-      i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (i.email && i.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    const list = (myTeam || []).map(i => {
+      const fullName = (i.name || `${i.fname || ''} ${i.lname || ''}`.trim() || 'Intern').trim();
+      const avatarStr = i.avatar || (fullName.length >= 2 ? fullName.substring(0, 2).toUpperCase() : 'IN');
+      return {
+        ...i,
+        id: String(i.id || i.user_id || `int_${Math.random()}`),
+        name: fullName,
+        avatar: avatarStr,
+      };
+    });
+    if (!searchQuery.trim()) return list;
+    const query = searchQuery.toLowerCase();
+    return list.filter(i => 
+      (i.name && i.name.toLowerCase().includes(query)) || 
+      (i.email && i.email.toLowerCase().includes(query))
     );
   }, [myTeam, searchQuery]);
 
@@ -164,6 +205,30 @@ const TLMyTeam = () => {
         } catch (e) {
           console.log('Error fetching intern tasks:', e);
           setInternMetrics({ accuracy: 0, rank: 'None', tasksDone: 0, completedTasksList: [] });
+        }
+
+        // Fetch learning progress
+        try {
+          const lpRes = await get(`/interns/learning/progress?user_id=${selectedIntern.id}`, { skipSuccessFlash: true, skipErrorFlash: true });
+          if (lpRes && lpRes.data && typeof lpRes.data.progress === 'number') {
+            setInternLearningProgress(lpRes.data.progress);
+          } else {
+            const modulesCount = db?.modules?.length || 0;
+            if (modulesCount > 0) {
+              const reportsCount = (db?.reports || []).filter(r => r.internId === selectedIntern.id).length;
+              setInternLearningProgress(Math.min(1.0, reportsCount / Math.max(1, modulesCount)));
+            } else {
+              setInternLearningProgress(0);
+            }
+          }
+        } catch (lpErr) {
+          const modulesCount = db?.modules?.length || 0;
+          if (modulesCount > 0) {
+            const reportsCount = (db?.reports || []).filter(r => r.internId === selectedIntern.id).length;
+            setInternLearningProgress(Math.min(1.0, reportsCount / Math.max(1, modulesCount)));
+          } else {
+            setInternLearningProgress(0);
+          }
         }
       };
       fetchMetrics();
@@ -311,13 +376,22 @@ const TLMyTeam = () => {
                   <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1565C0', marginBottom: 10 }}>5-Factor Performance Engine 🧮</Text>
                   
                   {/* 5-Factor Progress Bars */}
-                  {[
-                    { label: 'Attendance (20%)', progress: 0.95, color: '#4CAF50' },
-                    { label: 'Task Completion (40%)', progress: 0.88, color: '#00ACC1' },
-                    { label: 'Learning Modules (20%)', progress: 0.70, color: '#1E88E5' },
-                    { label: 'Communication (10%)', progress: 0.85, color: '#8E24AA' },
-                    { label: 'Initiative (10%)', progress: 0.60, color: '#F4511E' },
-                  ].map((factor, idx) => (
+                  {/* 5-Factor Progress Bars */}
+                  {(() => {
+                    const taskRatio = internMetrics.tasksDone > 0 ? Math.min(1.0, internMetrics.tasksDone / 5) : 0;
+                    const internAttMap = db?.attendance?.[String(selectedIntern.id)] || {};
+                    const attendDays = Object.values(internAttMap).filter(r => r != null && typeof r === 'object').length;
+                    const attendRatio = Math.min(1.0, attendDays / 22);
+                    const eodCount = (db?.reports || []).filter(r => r.internId === selectedIntern.id).length;
+                    const commRatio = eodCount > 0 ? Math.min(1.0, eodCount * 0.15) : 0;
+                    return [
+                      { label: 'Attendance (20%)', progress: attendRatio, color: '#4CAF50' },
+                      { label: 'Task Completion (40%)', progress: taskRatio, color: '#00ACC1' },
+                      { label: 'Learning Modules (20%)', progress: internLearningProgress, color: '#1E88E5' },
+                      { label: 'Communication (10%)', progress: commRatio, color: '#8E24AA' },
+                      { label: 'Initiative (10%)', progress: Math.min(1.0, taskRatio * 0.6 + (eodCount > 0 ? 0.3 : 0) + (commRatio > 0.3 ? 0.1 : 0)), color: '#F4511E' },
+                    ];
+                  })().map((factor, idx) => (
                     <View key={idx} style={{ marginBottom: 8 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                         <Text style={{ fontSize: 12, color: '#555', fontWeight: '600' }}>{factor.label}</Text>
@@ -327,24 +401,64 @@ const TLMyTeam = () => {
                     </View>
                   ))}
 
+                  {/* Award Performance Stars Button */}
+                  <Button
+                    mode="contained"
+                    buttonColor="#FFB300"
+                    textColor="#000"
+                    icon="star"
+                    style={{marginTop: 10, borderRadius: 8}}
+                    onPress={() => {
+                      Alert.prompt('Award Performance Stars', `Award 1 to 5 stars for ${selectedIntern.name}:`, [
+                        {text: 'Cancel', style: 'cancel'},
+                        {
+                          text: 'Award ⭐',
+                          onPress: (stars) => Alert.alert('Stars Awarded!', `Awarded ${stars || '5'} ⭐ to ${selectedIntern.name}!`),
+                        },
+                      ]);
+                    }}>
+                    ⭐ Award Stars to Intern
+                  </Button>
+
                   {/* Pure RN Line Graph (Productivity Trend) */}
                   <View style={{ marginTop: 20 }}>
                     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 15 }}>Weekly Productivity Trend 📈</Text>
                     <View style={{ height: 100, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 10 }}>
-                      {[65, 80, 75, 92, 88, 98, 85].map((val, idx) => (
+                      {(() => {
+                        const internAttMap = db?.attendance?.[String(selectedIntern.id)] || {};
+                        const taskBonus = Math.min(15, internMetrics.tasksDone * 3);
+                        const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                        const today = new Date();
+                        return Array.from({ length: 7 }, (_, i) => {
+                          const d = new Date(today);
+                          d.setDate(today.getDate() - (6 - i));
+                          const iso = d.toISOString().slice(0, 10);
+                          const dayLabel = DAY_ABBR[d.getDay()];
+                          const rec = internAttMap[iso];
+                          let score = 0;
+                          if (rec) {
+                            if (rec.status === 'Full' || rec.status === 'Present') score = 100;
+                            else if (rec.status === 'Half') score = 50;
+                            else if (rec.morning_marked_at && rec.evening_marked_at) score = 100;
+                            else if (rec.morning_marked_at || rec.status === 'Morning') score = 60;
+                          }
+                          if (score > 0) score = Math.min(100, score + taskBonus);
+                          return { val: score, dayLabel };
+                        });
+                      })().map(({ val, dayLabel }, idx) => (
                         <View key={idx} style={{ alignItems: 'center' }}>
                           <View style={{ 
-                            height: val * 0.8, 
+                            height: Math.max(4, val * 0.8), 
                             width: 24, 
-                            backgroundColor: '#26C6DA', 
+                            backgroundColor: val > 0 ? '#26C6DA' : '#E0E0E0', 
                             borderTopLeftRadius: 4, 
                             borderTopRightRadius: 4,
                             justifyContent: 'flex-start',
                             paddingTop: 4
                           }}>
-                            <Text style={{ fontSize: 9, color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>{val}</Text>
+                            {val > 0 && <Text style={{ fontSize: 9, color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>{val}</Text>}
                           </View>
-                          <Text style={{ fontSize: 10, color: '#777', marginTop: 4 }}>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][idx]}</Text>
+                          <Text style={{ fontSize: 10, color: '#777', marginTop: 4 }}>{dayLabel}</Text>
                         </View>
                       ))}
                     </View>

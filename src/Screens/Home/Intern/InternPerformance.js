@@ -203,6 +203,32 @@ const InternPerformance = () => {
           </Card.Content>
         </Card>
 
+        {/* Badges & Achievements Section */}
+        <Text style={styles.sectionTitle}>Badges & Achievements 🏆</Text>
+        <Card style={{marginBottom: 16, backgroundColor: '#fff', borderRadius: 12}}>
+          <Card.Content style={{paddingVertical: 12}}>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between'}}>
+              {[
+                { id: 'b1', title: 'Task Solver', desc: 'Completed 5+ assigned tasks', icon: 'checkbox-marked-circle-outline', color: '#10b981', earned: (metrics.completionRate || 0) >= 40 },
+                { id: 'b2', title: 'Streak Bronze', desc: '3-day active check-in streak', icon: 'fire', color: '#d97706', earned: (metrics.accuracy || 0) >= 60 },
+                { id: 'b3', title: 'Book Worm', desc: 'Read training module docs', icon: 'book-open-page-variant-outline', color: '#ec4899', earned: true },
+                { id: 'b4', title: 'Elite Intern', desc: 'Achieved 85%+ task accuracy', icon: 'crown-outline', color: '#fbbf24', earned: (metrics.accuracy || 0) >= 85 },
+                { id: 'b5', title: 'Streak Gold', desc: '30-day streak milestone', icon: 'seal-variant', color: '#94a3b8', earned: (metrics.accuracy || 0) >= 95 },
+                { id: 'b6', title: 'Top Performer', desc: 'Ranked #1 in department', icon: 'trophy-award', color: '#8b5cf6', earned: (metrics.accuracy || 0) >= 90 },
+              ].map(badge => (
+                <View key={badge.id} style={{width: '48%', marginBottom: 12, padding: 8, backgroundColor: badge.earned ? '#F0FDF4' : '#F9FAFB', borderRadius: 8, borderWidth: 1, borderColor: badge.earned ? '#BBF7D0' : '#E5E7EB', alignItems: 'center'}}>
+                  <Icon name={badge.earned ? badge.icon : 'lock-outline'} size={28} color={badge.earned ? badge.color : '#9CA3AF'} />
+                  <Text style={{fontSize: 12, fontWeight: 'bold', color: badge.earned ? '#111827' : '#6B7280', marginTop: 4, textAlign: 'center'}}>{badge.title}</Text>
+                  <Text style={{fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 2}}>{badge.desc}</Text>
+                  <View style={{marginTop: 6, backgroundColor: badge.earned ? '#10B981' : '#D1D5DB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10}}>
+                    <Text style={{fontSize: 9, color: '#fff', fontWeight: 'bold'}}>{badge.earned ? '✓ Earned' : 'Locked'}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card.Content>
+        </Card>
+
         {/* 4. Leaderboard */}
         <Text style={styles.sectionTitle}>Intern Leaderboard</Text>
         <Card style={styles.leaderboardCard}>
