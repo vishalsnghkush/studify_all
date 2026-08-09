@@ -11,19 +11,17 @@ const DB_VERSION_KEY = '@studify_mock_intern_db_version';
 export const extractDateISO = (val) => {
   if (!val) return '';
   try {
-    if (val instanceof Date) {
-      return val.toISOString().split('T')[0];
-    }
     if (typeof val === 'string') {
-      // Already in YYYY-MM-DD format
-      if (/^\d{4}-\d{2}-\d{2}$/.test(val.trim())) return val.trim();
-      // ISO string with time component
-      const d = new Date(val);
-      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      const trimmed = val.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      if (trimmed.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.substring(0, 10);
     }
-    if (typeof val === 'number') {
-      const d = new Date(val);
-      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    const d = (val instanceof Date) ? val : new Date(val);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
   } catch (e) {}
   return '';
@@ -40,11 +38,19 @@ export const getTodayAttendanceRecord = (attendanceMap, intern) => {
   const todayISO = extractDateISO(new Date());
   if (!todayISO) return null;
 
+  // Also check yesterday (UTC shift workaround - backend may index today's record under yesterday's UTC date)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayISO = extractDateISO(yesterday);
+
   // Try all possible ID variants the API may use
   const ids = [
     intern.id,
     intern.user_id,
     intern.internId,
+    intern.email,
+    intern.fname,
+    intern.name,
   ].filter(Boolean).map(String);
 
   for (const id of ids) {
@@ -54,13 +60,24 @@ export const getTodayAttendanceRecord = (attendanceMap, intern) => {
     // Direct key lookup — exact today date
     if (internAtt[todayISO]) return internAtt[todayISO];
 
+    // UTC shift workaround — check yesterday's key
+    if (yesterdayISO && internAtt[yesterdayISO]) {
+      const rec = internAtt[yesterdayISO];
+      // Verify the record's actual timestamp is from today (not genuinely yesterday)
+      if (rec.morning_marked_at || rec.evening_marked_at) {
+        const markedDate = extractDateISO(rec.morning_marked_at || rec.evening_marked_at);
+        if (markedDate === todayISO || markedDate === yesterdayISO) return rec;
+      } else {
+        return rec;
+      }
+    }
+
     // Sometimes the map values are records themselves (not nested by date)
-    // i.e. attendanceMap[id] IS the record object (legacy format)
     if (internAtt.status || internAtt.morning_marked_at || internAtt.evening_marked_at) {
       const recDate = extractDateISO(
         internAtt.date || internAtt.created_at || internAtt.marked_at,
       );
-      if (recDate === todayISO) return internAtt;
+      if (recDate === todayISO || recDate === yesterdayISO) return internAtt;
     }
 
     // Search through all date keys for today

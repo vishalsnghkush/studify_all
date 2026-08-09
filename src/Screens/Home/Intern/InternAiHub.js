@@ -8,6 +8,7 @@ import {
   TextInput,
   Clipboard,
   Alert,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Text} from '../../../Components/Input';
@@ -19,6 +20,10 @@ import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import {saveInternInterview, getInternDb} from '../../../Utils/MockInternDb';
 import useApi from '../../../Components/Api/Api';
+import RazorpayCheckout from 'react-native-razorpay';
+
+const PRICE = 99;
+const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
 
@@ -26,11 +31,14 @@ const InternAiHub = () => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
-  const { get } = useApi();
+  const { get, post } = useApi();
   const insets = useSafeAreaInsets();
   const [activeTool, setActiveTool] = useState(null);
   const [loading, setLoading] = useState(false);
   const [resultText, setResultText] = useState('');
+  const [aiHubUnlocked, setAiHubUnlocked] = useState(false);
+  const [showAiPaywall, setShowAiPaywall] = useState(false);
+  const [aiPaying, setAiPaying] = useState(false);
 
   // States for individual tools
   const [taskText, setTaskText] = useState('');
@@ -52,12 +60,66 @@ const InternAiHub = () => {
       } catch (profileErr) {
         console.log('Failed loading status in InternAiHub', profileErr);
       }
-      
+
+      // Check if AI Hub is purchased
+      try {
+        const purchaseRes = await get('/payment/my-purchases', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (purchaseRes && purchaseRes.data && purchaseRes.data.unlockedKeys) {
+          setAiHubUnlocked(purchaseRes.data.unlockedKeys.includes('ai_productivity_hub'));
+        }
+      } catch (e) {}
+
       const saved = await AsyncStorage.getItem(`@studify_resume_name_${activeId}`);
       setResumeName(saved || '');
     };
     loadOnboardingStatusAndResume();
   }, [activeTool, user]);
+
+  const openAiHubRazorPay = () => {
+    if (!RazorpayCheckout || !RazorpayCheckout.open) {
+      Alert.alert('RazorPay Error', 'RazorPay SDK module is not linked or initialized correctly in the app build.');
+      return;
+    }
+    setAiPaying(true);
+    try {
+      const options = {
+        name: 'StudifySuccess',
+        description: 'AI Productivity Hub',
+        image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: PRICE * 100,
+        prefill: {
+          email: (user && user.email) || '',
+          contact: (user && user.phone && user.phone.length === 10) ? user.phone : '',
+        },
+        theme: {color: '#6366F1'},
+      };
+
+      RazorpayCheckout.open(options)
+      .then(async (e) => {
+        try {
+          await post('/payment/unlock-item', {
+            item_key: 'ai_productivity_hub',
+            title: 'AI Productivity Hub',
+            amount: PRICE,
+            payment_id: e.razorpay_payment_id,
+          });
+          setAiHubUnlocked(true);
+          setShowAiPaywall(false);
+        } catch (err) {
+          Alert.alert('Unlock Error', err.message || 'Payment succeeded but failed to unlock content in database.');
+        }
+      })
+      .catch((error) => {
+        Alert.alert('Payment Cancelled/Failed', error.description || error.message || 'The checkout sheet closed.');
+      })
+      .finally(() => setAiPaying(false));
+    } catch (err) {
+      Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
+      setAiPaying(false);
+    }
+  };
   const [doubtText, setDoubtText] = useState('');
   const [emailTopic, setEmailTopic] = useState('');
   const [emailTone, setEmailTone] = useState('formal');
@@ -414,6 +476,33 @@ const InternAiHub = () => {
         <Button mode="contained" onPress={() => navigation.navigate('InternProfile')}>
           Go to Profile
         </Button>
+      </Screen>
+    );
+  }
+
+  // Show paywall if AI Hub not purchased
+  if (!aiHubUnlocked) {
+    return (
+      <Screen NoHeader style={styles.container}>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24}}>
+          <View style={{width: 80, height: 80, borderRadius: 40, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 20}}>
+            <Icon name="robot" size={40} color="#6366F1" />
+          </View>
+          <Text style={{fontSize: 22, fontWeight: 'bold', color: '#1a1d1d', marginBottom: 8, textAlign: 'center'}}>AI Productivity Hub</Text>
+          <Text style={{fontSize: 13, color: '#546e7a', textAlign: 'center', lineHeight: 20, marginBottom: 24}}>Supercharge your internship tasks with 8 powerful AI tools — Task Explainer, Code Reviewer, Resume Analyzer, Mock Interview & more.</Text>
+          <View style={{flexDirection: 'row', alignItems: 'baseline', marginBottom: 24}}>
+            <Text style={{fontSize: 40, fontWeight: 'bold', color: '#1a1d1d'}}>₹99</Text>
+            <Text style={{fontSize: 14, color: '#546e7a'}}>  One-time</Text>
+          </View>
+          <TouchableOpacity
+            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#6366F1', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, elevation: 3, marginBottom: 16, opacity: aiPaying ? 0.6 : 1}}
+            onPress={openAiHubRazorPay}
+            disabled={aiPaying}>
+            <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
+            <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{aiPaying ? 'Processing...' : 'Pay ₹99 & Unlock All Tools'}</Text>
+          </TouchableOpacity>
+          <Text style={{fontSize: 11, color: '#90a4ae', textAlign: 'center'}}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+        </View>
       </Screen>
     );
   }

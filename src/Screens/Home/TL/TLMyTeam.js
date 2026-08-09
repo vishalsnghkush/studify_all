@@ -76,7 +76,7 @@ const TLMyTeam = () => {
             const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
             attData.forEach(record => {
               if (!record || typeof record !== 'object') return;
-              const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
+              const ids = [record.intern_id, record.user_id, record.internId, record.userId, record.email, record.fname, record.name].filter(Boolean);
               const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
               ids.forEach(id => {
                 const strId = String(id);
@@ -86,6 +86,24 @@ const TLMyTeam = () => {
             });
           }
         } catch (attErr) {}
+
+        // Source 3: Local AsyncStorage fallback
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const attStr = await AsyncStorage.getItem('@studify_attendance');
+          if (attStr) {
+            const localAtt = JSON.parse(attStr);
+            Object.entries(localAtt).forEach(([idKey, dates]) => {
+              const strId = String(idKey);
+              if (!attendanceMap[strId]) attendanceMap[strId] = {};
+              if (dates && typeof dates === 'object') {
+                Object.entries(dates).forEach(([dKey, rec]) => {
+                  if (!attendanceMap[strId][dKey]) attendanceMap[strId][dKey] = rec;
+                });
+              }
+            });
+          }
+        } catch (e) {}
         const rawTeam = Array.isArray(res.data?.team) 
           ? res.data.team 
           : (Array.isArray(res.data) ? res.data : []);

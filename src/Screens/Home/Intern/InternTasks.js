@@ -187,6 +187,12 @@ export default function InternTasks() {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       await AsyncStorage.setItem('@studify_department_tasks', JSON.stringify(updated));
+      const dbStr = await AsyncStorage.getItem('@studify_intern_db');
+      let dbObj = dbStr ? JSON.parse(dbStr) : {};
+      if (!dbObj.departmentTasks) dbObj.departmentTasks = {};
+      const dept = user?.department || 'Tech';
+      dbObj.departmentTasks[dept] = updated;
+      await AsyncStorage.setItem('@studify_intern_db', JSON.stringify(dbObj));
     } catch (e) {}
     try {
       await post('/interns/tasks/sync', { tasks: updated }, { skipSuccessFlash: true, skipErrorFlash: true });
@@ -300,6 +306,15 @@ export default function InternTasks() {
         : t,
     );
     await saveTasks(updated);
+    try {
+      await post('/interns/tasks/submit', {
+        taskId: selectedSubmitTaskId,
+        proofUrl: proofUrl.trim(),
+        proofType,
+        notes: proofNotes.trim(),
+        completedByName: userFullName,
+      }, { skipSuccessFlash: true, skipErrorFlash: true });
+    } catch (e) {}
     setSubmitModalVisible(false);
     setSelectedSubmitTaskId(null);
     setProofUrl('');

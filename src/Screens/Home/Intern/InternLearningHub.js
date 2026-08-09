@@ -7,6 +7,7 @@ import {
   Linking,
   Dimensions,
   Alert,
+  Modal,
 } from 'react-native';
 import {Text} from '../../../Components/Input';
 import {Screen} from '../../../Components/Screen';
@@ -14,8 +15,11 @@ import {useTheme, Card, Button, Dialog, Portal} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
-
+import RazorpayCheckout from 'react-native-razorpay';
 import useApi from '../../../Components/Api/Api';
+
+const PRICE = 99;
+const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
 
@@ -23,14 +27,16 @@ const InternLearningHub = () => {
   const {colors} = useTheme();
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
-  const { get } = useApi();
+  const { get, post } = useApi();
 
-  const [activeView, setActiveView] = useState('main'); // 'main', 'recorded', 'live', 'docs'
-  
+  const [activeView, setActiveView] = useState('main');
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [activeVideo, setActiveVideo] = useState(null);
   const [liveSessions, setLiveSessions] = useState([]);
   const [recordedModules, setRecordedModules] = useState([]);
+  const [trainingUnlocked, setTrainingUnlocked] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     const fetchTrainings = async () => {
@@ -40,6 +46,12 @@ const InternLearningHub = () => {
 
         const modRes = await get('/interns/trainings/modules', {skipSuccessFlash: true, skipErrorFlash: true});
         if (modRes && modRes.data) setRecordedModules(modRes.data);
+
+        // Check if training modules are unlocked
+        const purchaseRes = await get('/payment/my-purchases', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (purchaseRes && purchaseRes.data && purchaseRes.data.unlockedKeys) {
+          setTrainingUnlocked(purchaseRes.data.unlockedKeys.includes('training_modules'));
+        }
       } catch (e) {
         console.error('Error fetching training data:', e);
       }
@@ -49,6 +61,61 @@ const InternLearningHub = () => {
     const unsubscribe = navigation.addListener('focus', fetchTrainings);
     return unsubscribe;
   }, [navigation]);
+
+  const openTrainingModulesPaywall = () => {
+    if (trainingUnlocked) {
+      setActiveView('recorded');
+      return;
+    }
+    setShowPaywall(true);
+  };
+
+  const openRazorPay = () => {
+    if (!RazorpayCheckout || !RazorpayCheckout.open) {
+      Alert.alert('RazorPay Error', 'RazorPay SDK module is not linked or initialized correctly in the app build.');
+      return;
+    }
+    setPaying(true);
+    try {
+      const options = {
+        name: 'StudifySuccess',
+        description: 'Training Modules',
+        image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: PRICE * 100,
+        prefill: {
+          email: (user && user.email) || '',
+          contact: (user && user.phone && user.phone.length === 10) ? user.phone : '',
+        },
+        theme: {color: '#3F51B5'},
+      };
+
+      RazorpayCheckout.open(options)
+      .then(async (e) => {
+        try {
+          await post('/payment/unlock-item', {
+            item_key: 'training_modules',
+            title: 'Training Modules',
+            amount: PRICE,
+            payment_id: e.razorpay_payment_id,
+          });
+          setTrainingUnlocked(true);
+          setShowPaywall(false);
+          setActiveView('recorded');
+        } catch (err) {
+          Alert.alert('Unlock Error', err.message || 'Payment succeeded but failed to unlock content in database.');
+        }
+      })
+      .catch((error) => {
+        Alert.alert('Payment Cancelled/Failed', error.description || error.message || 'The checkout sheet closed.');
+      })
+      .finally(() => setPaying(false));
+    } catch (err) {
+      Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
+      setPaying(false);
+    }
+  };
 
   useEffect(() => {
     let title = 'Learning & Training';
@@ -78,19 +145,19 @@ const InternLearningHub = () => {
     <>
       <Text style={styles.sectionTitle}>Learning Hub</Text>
       
-      {/* Card 1: Recorded Training Videos */}
-      <TouchableOpacity activeOpacity={0.8} onPress={() => setActiveView('recorded')}>
+      {/* Card 1: Recorded Training Videos LOCKED */}
+      <TouchableOpacity activeOpacity={0.8} onPress={openTrainingModulesPaywall}>
         <Card style={[styles.navCard, {backgroundColor: '#F0F4FF'}]}>
           <View style={styles.navCardContent}>
             <View style={{flex: 1, paddingRight: 16}}>
               <Text style={{fontSize: 13, color: '#3949AB', fontWeight: 'bold', marginBottom: 4}}>RECORDED TRAINING VIDEOS</Text>
               <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1A237E', marginBottom: 8}}>Training Modules</Text>
-              <View style={[styles.navButton, {backgroundColor: '#3F51B5'}]}>
-                <Text style={styles.navButtonText}>Watch Videos ›</Text>
+              <View style={[styles.navButton, {backgroundColor: trainingUnlocked ? '#3F51B5' : '#e91e63'}]}>
+                <Text style={styles.navButtonText}>{trainingUnlocked ? 'Watch Videos >' : '🔒 Unlock ₹99'}</Text>
               </View>
             </View>
             <View style={[styles.navIconCont, {backgroundColor: '#E8EAF6'}]}>
-              <Icon name="video-outline" size={28} color="#3F51B5" />
+              <Icon name={trainingUnlocked ? 'video-outline' : 'lock'} size={28} color="#3F51B5" />
             </View>
           </View>
         </Card>
@@ -104,7 +171,7 @@ const InternLearningHub = () => {
               <Text style={{fontSize: 13, color: '#00695C', fontWeight: 'bold', marginBottom: 4}}>LIVE SESSION LINKS</Text>
               <Text style={{fontSize: 18, fontWeight: 'bold', color: '#004D40', marginBottom: 8}}>Live Sessions</Text>
               <View style={[styles.navButton, {backgroundColor: '#00897B'}]}>
-                <Text style={styles.navButtonText}>View Sessions ›</Text>
+                <Text style={styles.navButtonText}>View Sessions ></Text>
               </View>
             </View>
             <View style={[styles.navIconCont, {backgroundColor: '#B2DFDB'}]}>
@@ -122,7 +189,7 @@ const InternLearningHub = () => {
               <Text style={{fontSize: 13, color: '#E65100', fontWeight: 'bold', marginBottom: 4}}>DOCUMENTATION & NOTES</Text>
               <Text style={{fontSize: 18, fontWeight: 'bold', color: '#BF360C', marginBottom: 8}}>Access Docs</Text>
               <View style={[styles.navButton, {backgroundColor: '#F57C00'}]}>
-                <Text style={styles.navButtonText}>View Docs ›</Text>
+                <Text style={styles.navButtonText}>View Docs ></Text>
               </View>
             </View>
             <View style={[styles.navIconCont, {backgroundColor: '#FFE0B2'}]}>
@@ -303,6 +370,38 @@ const InternLearningHub = () => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      {/* Paywall Modal — Training Modules */}
+      <Modal
+        visible={showPaywall}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaywall(false)}>
+        <View style={styles.paywallOverlay}>
+          <View style={styles.paywallCard}>
+            <TouchableOpacity style={styles.paywallClose} onPress={() => setShowPaywall(false)}>
+              <Icon name="close" size={22} color="#555" />
+            </TouchableOpacity>
+            <View style={styles.paywallLockCircle}>
+              <Icon name="lock" size={36} color="#3F51B5" />
+            </View>
+            <Text style={[styles.paywallTitle, {color: '#3F51B5'}]}>Premium Content</Text>
+            <Text style={styles.paywallItemName}>Training Modules</Text>
+            <Text style={styles.paywallDesc}>Unlock lifetime access to all recorded training videos with a one-time payment.</Text>
+            <View style={styles.paywallPriceRow}>
+              <Text style={styles.paywallPrice}>₹99</Text>
+              <Text style={styles.paywallPriceLabel}>  One-time</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.paywallBtn, {backgroundColor: '#3F51B5'}, paying && {opacity: 0.6}]}
+              onPress={openRazorPay}
+              disabled={paying}>
+              <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
+              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.paywallSecure}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };

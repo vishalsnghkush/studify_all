@@ -66,20 +66,20 @@ const TLDashboard = () => {
 
   const {user} = useSelector(state => state.initial);
   const {groups} = useSelector(state => state.chat);
-  const {get, post} = useApi();
+  const {get, post, remove} = useApi();
   const [db, setDb] = useState(null);
-  const [activeDept, setActiveDept] = useState(user?.department || 'Tech');
+  const [activeDept, setActiveDept] = useState((user && user.department) ? user.department : 'Tech');
 
   // Sync activeDept if user profile changes & fetch chat groups
   useEffect(() => {
-    if (user?.department) {
+    if (user && user.department) {
       setActiveDept(user.department);
     }
-  }, [user?.department]);
+  }, [user]);
 
   useEffect(() => {
     if (activeDept) {
-      dispatch(fetchChatGroups({department: activeDept, is_tl: user?.is_tl ? 'true' : 'false'}));
+      dispatch(fetchChatGroups({department: activeDept, is_tl: (user && user.is_tl) ? 'true' : 'false'}));
     }
   }, [activeDept]);
 
@@ -275,119 +275,94 @@ const TLDashboard = () => {
 
   const loadData = async () => {
     try {
-      const res = await get(`/interns/team?department=${activeDept}`, {
-        skipSuccessFlash: true,
-      });
-      const taskRes = await get('/interns/tasks', {
-        skipSuccessFlash: true,
-        skipErrorFlash: true,
-      });
-      if (res && res.data) {
-        const liveData = {
-          interns: Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []),
-          leaves: res.data.leaves || [],
-          reports: res.data.reports || [],
-        };
-        let localMeetings = [];
-        let localModules = [];
-        try {
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-          const mStr = await AsyncStorage.getItem('@studify_meetings');
-          if (mStr) localMeetings = JSON.parse(mStr);
-          const modStr = await AsyncStorage.getItem('@studify_modules');
-          if (modStr) localModules = JSON.parse(modStr);
-        } catch (e) {}
+      // 1. Fetch team info safely
+      let res = null;
+      try {
+        res = await get(`/interns/team?department=${activeDept}`, {
+          skipSuccessFlash: true,
+          skipErrorFlash: true,
+        });
+      } catch (e) {}
 
-        const rawMeetings = [...localMeetings, ...(res.data.meetings || []), ...(mock.meetings || [])];
-        const uniqueMeetings = [];
-        const seenKeys = new Set();
-        for (const m of rawMeetings) {
-          const key = m.id || `${m.title}_${m.date}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            uniqueMeetings.push(m);
+      // 2. Fetch server tasks safely
+      let taskRes = null;
+      try {
+        taskRes = await get('/interns/tasks', {
+          skipSuccessFlash: true,
+          skipErrorFlash: true,
+        });
+      } catch (e) {}
+
+      const liveData = {
+        interns: (res && res.data && (Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []))) || [],
+        leaves: (res && res.data && res.data.leaves) || [],
+        reports: (res && res.data && res.data.reports) || [],
+      };
+
+      const serverMeetings = (res && res.data && Array.isArray(res.data.meetings)) ? res.data.meetings : [];
+      const uniqueMeetings = [];
+      const seenKeys = new Set();
+      for (const m of serverMeetings) {
+        const key = m.id || `${m.title}_${m.date}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueMeetings.push(m);
+        }
+      }
+      const activeMeetings = uniqueMeetings.filter(
+        m => !isMeetingExpired(m.date || m.scheduled_time, m.time),
+      );
+      const expiredMeetings = uniqueMeetings.filter(m => isMeetingExpired(m.date || m.scheduled_time, m.time));
+
+      // 3. Process & Merge Tasks (Server Database Primary)
+      let rawServerTasks = (taskRes && taskRes.data && Array.isArray(taskRes.data)) ? taskRes.data : [];
+      let serverTasks = rawServerTasks.map(t => ({
+        ...t,
+        id: String(t.id),
+        title: t.title || 'Department Task',
+        priority: t.priority || 'Medium',
+        dueDate: t.due_date || t.dueDate || 'Today',
+        completed: t.completed === 1 || t.completed === '1' || t.completed === true || t.completed === 'true',
+        submissionProof: t.submission_proof || t.submissionProof || null,
+        submissionType: t.submission_type || t.submissionType || null,
+        proofNotes: t.proof_notes || t.proofNotes || null,
+        submissionStatus: t.submission_status || t.submissionStatus || null,
+        completedByName: t.completed_by_name || t.completedByName || null,
+      }));
+
+      let loadedTasks = serverTasks;
+      const loadedModules = (res && res.data && (Array.isArray(res.data.modules) ? res.data.modules : (Array.isArray(res.data.trainings) ? res.data.trainings : []))) || [];
+      
+      let attendanceMap = {};
+      if (res && res.data && res.data.attendance && typeof res.data.attendance === 'object' && !Array.isArray(res.data.attendance)) {
+        Object.entries(res.data.attendance).forEach(([key, val]) => {
+          attendanceMap[String(key)] = typeof val === 'object' && !Array.isArray(val) ? val : {};
+          if (Array.isArray(val)) {
+            attendanceMap[String(key)] = {};
+            val.forEach(record => {
+              const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
+              attendanceMap[String(key)][dateKey] = record;
+            });
           }
-        }
-        const activeMeetings = uniqueMeetings.filter(
-          m => !isMeetingExpired(m.date || m.scheduled_time, m.time),
-        );
-        // Collect expired meetings and persist them to AsyncStorage
-        const expiredMeetings = uniqueMeetings.filter(m => isMeetingExpired(m.date || m.scheduled_time, m.time));
-        if (expiredMeetings.length > 0) {
-          try {
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            const stored = await AsyncStorage.getItem(PAST_MEETINGS_KEY);
-            const prev = stored ? JSON.parse(stored) : [];
-            const allKeys = new Set(prev.map(m => m.id || `${m.title}_${m.date}`));
-            const newOnes = expiredMeetings.filter(m => !allKeys.has(m.id || `${m.title}_${m.date}`));
-            if (newOnes.length > 0) {
-              const merged = [...newOnes, ...prev].slice(0, 50);
-              await AsyncStorage.setItem(PAST_MEETINGS_KEY, JSON.stringify(merged));
-            }
-            setPastMeetings([...newOnes, ...prev]);
-          } catch (e) {}
-        }
-        let rawServerTasks = (taskRes && taskRes.data && Array.isArray(taskRes.data)) ? taskRes.data : [];
-        let serverTasks = rawServerTasks.map(t => ({
-          ...t,
-          id: String(t.id),
-          title: t.title || 'Department Task',
-          priority: t.priority || 'Medium',
-          dueDate: t.due_date || t.dueDate || 'Today',
-          completed: t.completed === 1 || t.completed === '1' || t.completed === true || t.completed === 'true',
-          submissionProof: t.submission_proof || t.submissionProof || null,
-          submissionType: t.submission_type || t.submissionType || null,
-          proofNotes: t.proof_notes || t.proofNotes || null,
-          submissionStatus: t.submission_status || t.submissionStatus || null,
-          completedByName: t.completed_by_name || t.completedByName || null,
-        }));
-        let loadedTasks = serverTasks;
-        try {
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-          const localStr = await AsyncStorage.getItem('@studify_department_tasks');
-          const localTasks = localStr ? JSON.parse(localStr) : [];
-          const taskMap = new Map();
-          // Server tasks first
-          serverTasks.forEach(t => taskMap.set(String(t.id), t));
-          // Overlay local tasks second so local submissions/updates take precedence
-          localTasks.forEach(t => {
-            const existing = taskMap.get(String(t.id));
-            if (existing) {
-              taskMap.set(String(t.id), {
-                ...existing,
-                ...t,
-                completed: t.completed ?? existing.completed,
-                submissionProof: t.submissionProof || t.submission_proof || existing.submissionProof || existing.submission_proof,
-                submissionStatus: t.submissionStatus || t.submission_status || existing.submissionStatus || existing.submission_status,
-                submissionType: t.submissionType || t.submission_type || existing.submissionType || existing.submission_type,
-                proofNotes: t.proofNotes || t.proof_notes || existing.proofNotes || existing.proof_notes,
-                completedByName: t.completedByName || t.completed_by_name || existing.completedByName || existing.completed_by_name,
-              });
-            } else {
-              taskMap.set(String(t.id), t);
-            }
+        });
+      } else if (res && res.data && Array.isArray(res.data.attendance)) {
+        res.data.attendance.forEach(record => {
+          const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
+          const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
+          ids.forEach(id => {
+            const strId = String(id);
+            if (!attendanceMap[strId]) attendanceMap[strId] = {};
+            attendanceMap[strId][dateKey] = record;
           });
-          loadedTasks = Array.from(taskMap.values());
-        } catch (e) {}
-        const loadedModules = [...localModules, ...(res.data.modules || res.data.trainings || mock.modules || [])];
-        
-        let attendanceMap = {};
+        });
+      }
 
-        // Source 1: attendance from /interns/team response (object map keyed by intern ID)
-        if (res.data.attendance && typeof res.data.attendance === 'object' && !Array.isArray(res.data.attendance)) {
-          Object.entries(res.data.attendance).forEach(([key, val]) => {
-            attendanceMap[String(key)] = typeof val === 'object' && !Array.isArray(val) ? val : {};
-            // If val is an array of records for this intern
-            if (Array.isArray(val)) {
-              attendanceMap[String(key)] = {};
-              val.forEach(record => {
-                const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
-                attendanceMap[String(key)][dateKey] = record;
-              });
-            }
-          });
-        } else if (Array.isArray(res.data.attendance)) {
-          res.data.attendance.forEach(record => {
+      try {
+        const attRes = await get('/interns/attendance', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (attRes && attRes.data) {
+          const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
+          attData.forEach(record => {
+            if (!record || typeof record !== 'object') return;
             const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
             const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
             ids.forEach(id => {
@@ -397,78 +372,21 @@ const TLDashboard = () => {
             });
           });
         }
+      } catch (attErr) {}
 
-        // Source 2: Fetch TODAY's live attendance from /interns/attendance
-        // This is the same endpoint the intern app uses to show check-in status
-        try {
-          const attRes = await get('/interns/attendance', {skipSuccessFlash: true, skipErrorFlash: true});
-          if (attRes && attRes.data) {
-            const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
-            attData.forEach(record => {
-              if (!record || typeof record !== 'object') return;
-              const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
-              const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
-              ids.forEach(id => {
-                const strId = String(id);
-                if (!attendanceMap[strId]) attendanceMap[strId] = {};
-                attendanceMap[strId][dateKey] = record;
-              });
-            });
-          }
-        } catch (attErr) {
-          console.log('Could not fetch live attendance:', attErr);
-        }
+      // attendance fallback removed - data comes from API
 
-        // Source 3: Also try fetching attendance for each team member individually
-        const teamInterns = res.data.team || [];
-        for (const intern of teamInterns) {
-          const internId = String(intern.id || intern.user_id);
-          const todayISO = extractDateISO(new Date());
-          // If we already have today's record for this intern, skip
-          if (attendanceMap[internId] && attendanceMap[internId][todayISO]) continue;
-          try {
-            const indivRes = await get(`/interns/attendance?user_id=${intern.id || intern.user_id}`, {skipSuccessFlash: true, skipErrorFlash: true});
-            if (indivRes && indivRes.data) {
-              const records = Array.isArray(indivRes.data) ? indivRes.data : [indivRes.data];
-              records.forEach(record => {
-                if (!record || typeof record !== 'object') return;
-                const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
-                if (!attendanceMap[internId]) attendanceMap[internId] = {};
-                attendanceMap[internId][dateKey] = record;
-              });
-            }
-          } catch (e) {}
-        }
+      const serverInterns = (res && res.data && (Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []))) || [];
 
-        // Source 4: mock/local fallback
-        if (Object.keys(attendanceMap).length === 0 && mock.attendance) {
-          attendanceMap = mock.attendance;
-        } else if (mock.attendance) {
-          Object.entries(mock.attendance).forEach(([key, dates]) => {
-            if (!attendanceMap[key]) {
-              attendanceMap[key] = dates;
-            } else if (typeof dates === 'object') {
-              Object.entries(dates).forEach(([dateKey, record]) => {
-                if (!attendanceMap[key][dateKey]) {
-                  attendanceMap[key][dateKey] = record;
-                }
-              });
-            }
-          });
-        }
-
-        const serverInterns = Array.isArray(res.data.team) ? res.data.team : (Array.isArray(res.data) ? res.data : []);
-
-        setDb({
-          ...liveData,
-          interns: serverInterns,
-          meetings: activeMeetings,
-          modules: loadedModules,
-          tasks: loadedTasks,
-          attendance: attendanceMap,
-          feedbacks: res.data.feedbacks || [],
-        });
-      }
+      setDb({
+        ...liveData,
+        interns: serverInterns,
+        meetings: activeMeetings,
+        modules: loadedModules,
+        tasks: loadedTasks,
+        attendance: attendanceMap,
+        feedbacks: (res && res.data && res.data.feedbacks) || [],
+      });
     } catch (e) {
       console.log('Error fetching TL Dashboard Data', e);
     }
@@ -483,7 +401,7 @@ const TLDashboard = () => {
   // Calculations for Module 1 (Top Metric Cards) & Analytics
   // Only include interns whose status is explicitly 'Approved'
   const approvedInterns = useMemo(() => {
-    const rawList = (db?.interns && db.interns.length > 0) ? db.interns : [];
+    const rawList = (db && db.interns && db.interns.length > 0) ? db.interns : [];
     const currDept = (activeDept || '').trim().toLowerCase();
 
     const filtered = rawList
@@ -513,43 +431,43 @@ const TLDashboard = () => {
         };
       });
     return filtered || [];
-  }, [db?.interns, activeDept]);
+  }, [db, activeDept]);
 
   const todayStr = useMemo(() => extractDateISO(new Date()), []);
 
   const activeTodayCount = useMemo(() => {
     let count = 0;
     (approvedInterns || []).forEach(i => {
-      const todayAtt = getTodayAttendanceRecord(db?.attendance, i);
+      const todayAtt = getTodayAttendanceRecord(db && db.attendance, i);
       if (isAttendanceCheckedIn(todayAtt)) {
         count++;
       }
     });
     return count;
-  }, [approvedInterns, db?.attendance]);
+  }, [approvedInterns, db]);
 
   const absentCount = useMemo(() => {
     return Math.max(0, (approvedInterns || []).length - activeTodayCount);
   }, [approvedInterns, activeTodayCount]);
 
   const activeDeptTasks = useMemo(() => {
-    const backendTasks = (db?.tasks || []).map(t => ({
+    const backendTasks = ((db && db.tasks) ? db.tasks : []).map(t => ({
       ...t,
       id: t.id || `task_${Math.random()}`,
       title: t.title || 'Department Task',
       priority: t.priority || 'Medium',
       dueDate: t.dueDate || t.due_date || 'Today',
-      completed: t.completed === 1 || t.completed === true,
+      completed: t.completed === 1 || t.completed === '1' || t.completed === true || t.completed === 'true',
       submissionProof: t.submissionProof || t.submission_proof || null,
       submissionType: t.submissionType || t.submission_type || null,
       proofNotes: t.proofNotes || t.proof_notes || null,
       submissionStatus: t.submissionStatus || t.submission_status || null,
       completedByName: t.completedByName || t.completed_by_name || null,
     }));
-    const deptTasksMock = db?.departmentTasks?.[activeDept] || [];
+    const deptTasksMock = (db && db.departmentTasks && db.departmentTasks[activeDept]) ? db.departmentTasks[activeDept] : [];
     const combined = [...backendTasks, ...deptTasksMock];
     return combined;
-  }, [db?.tasks, db?.departmentTasks, activeDept]);
+  }, [db, activeDept]);
 
   const pendingTasksCount = useMemo(() => {
     return activeDeptTasks.filter(t => !t.completed).length;
@@ -560,14 +478,15 @@ const TLDashboard = () => {
     if (list.length === 0) return '—';
     let totalScore = 0;
     list.forEach(i => {
-      const reportsCount = (db?.reports || []).filter(
+      const reportsCount = ((db && db.reports) ? db.reports : []).filter(
         r => String(r.internId) === String(i.id) || String(r.intern_id) === String(i.id),
       ).length;
-      const attDays = Object.keys(db?.attendance?.[String(i.id)] || {}).length;
+      const attMap = (db && db.attendance && db.attendance[String(i.id)]) ? db.attendance[String(i.id)] : {};
+      const attDays = Object.keys(attMap).length;
       totalScore += Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
     });
     return `${Math.round(totalScore / list.length)}%`;
-  }, [approvedInterns, db?.reports, db?.attendance]);
+  }, [approvedInterns, db]);
 
   const topPerformer = useMemo(() => {
     const list = approvedInterns || [];
@@ -575,26 +494,27 @@ const TLDashboard = () => {
     let best = list[0];
     let maxScore = 0;
     list.forEach(i => {
-      const reportsCount = (db?.reports || []).filter(
+      const reportsCount = ((db && db.reports) ? db.reports : []).filter(
         r => String(r.internId) === String(i.id) || String(r.intern_id) === String(i.id),
       ).length;
-      // Attendance bonus: count days present
-      const attDays = Object.keys(db?.attendance?.[String(i.id)] || {}).length;
+      const attMap = (db && db.attendance && db.attendance[String(i.id)]) ? db.attendance[String(i.id)] : {};
+      const attDays = Object.keys(attMap).length;
       const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       if (score > maxScore) {
         maxScore = score;
         best = i;
       }
     });
-    return {name: best?.name || '—', score: maxScore};
-  }, [approvedInterns, db?.reports, db?.attendance]);
+    return {name: (best && best.name) ? best.name : '—', score: maxScore};
+  }, [approvedInterns, db]);
 
   const top3Performers = useMemo(() => {
     const list = approvedInterns.map(intern => {
-      const reportsCount = (db?.reports || []).filter(
+      const reportsCount = ((db && db.reports) ? db.reports : []).filter(
         r => String(r.internId) === String(intern.id) || String(r.intern_id) === String(intern.id),
       ).length;
-      const attDays = Object.keys(db?.attendance?.[String(intern.id)] || {}).length;
+      const attMap = (db && db.attendance && db.attendance[String(intern.id)]) ? db.attendance[String(intern.id)] : {};
+      const attDays = Object.keys(attMap).length;
       const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       return {
         id: intern.id,
@@ -607,28 +527,29 @@ const TLDashboard = () => {
     });
     list.sort((a, b) => b.score - a.score);
     return list.slice(0, 3);
-  }, [approvedInterns, db?.reports, db?.attendance, activeDept]);
+  }, [approvedInterns, db, activeDept]);
 
   const topDepartments = useMemo(() => {
     // We aggregate all approved interns by department, then average their scores.
     const deptScores = {};
-    const interns = db?.interns || [];
+    const interns = (db && db.interns) ? db.interns : [];
     if (interns.filter(i => i.status === 'Approved').length === 0) return [];
 
     interns.forEach(intern => {
       if (intern.status !== 'Approved') return;
       const dept = intern.department || 'General';
-      const reportsCount = (db?.reports || []).filter(
+      const reportsCount = ((db && db.reports) ? db.reports : []).filter(
         r => String(r.internId) === String(intern.id) || String(r.intern_id) === String(intern.id),
       ).length;
-      const attDays = Object.keys(db?.attendance?.[String(intern.id)] || {}).length;
+      const attMap = (db && db.attendance && db.attendance[String(intern.id)]) ? db.attendance[String(intern.id)] : {};
+      const attDays = Object.keys(attMap).length;
       const score = Math.min(99, 70 + reportsCount * 4 + Math.min(20, attDays));
       if (!deptScores[dept]) {
         deptScores[dept] = { name: dept, totalScore: 0, count: 0, active: 0 };
       }
       deptScores[dept].totalScore += score;
       deptScores[dept].count += 1;
-      deptScores[dept].active += 1; // Simplification for 'active today'
+      deptScores[dept].active += 1;
     });
 
     const list = Object.values(deptScores).map(d => ({
@@ -638,15 +559,15 @@ const TLDashboard = () => {
     }));
     list.sort((a, b) => b.avgScore - a.avgScore);
     return list;
-  }, [db?.interns, db?.reports, db?.attendance]);
+  }, [db]);
 
   const filteredEodReports = useMemo(() => {
-    const rawReports = db?.reports || [];
+    const rawReports = (db && db.reports) ? db.reports : [];
     if (selectedEodInternId === 'all') return rawReports;
     return rawReports.filter(
       r => r.internId === selectedEodInternId || r.intern_id === selectedEodInternId,
     );
-  }, [db?.reports, selectedEodInternId]);
+  }, [db, selectedEodInternId]);
 
   // Leave Handlers (Module 10)
   const handleApproveLeave = async leaveId => {
@@ -713,6 +634,7 @@ const TLDashboard = () => {
         completed: false,
         createdBy: user?.user_id || user?.id,
         createdByName: `${user?.fname || 'TL'} ${user?.lname || ''}`.trim(),
+        department: activeDept || user?.department || 'Tech',
       };
 
       // 1. Immediately persist task to local AsyncStorage so it is never lost
@@ -792,6 +714,62 @@ const TLDashboard = () => {
     }
   };
 
+  const handleDeleteMeeting = (meetingId) => {
+    Alert.alert(
+      'Delete Meeting',
+      'Are you sure you want to delete this meeting?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Immediately remove from UI
+            setDb(prev => prev ? {
+              ...prev,
+              meetings: (prev.meetings || []).filter(m => String(m.id) !== String(meetingId))
+            } : prev);
+            // Delete from server database
+            try {
+              await remove(`/interns/trainings/live/${meetingId}`);
+            } catch (e) {
+              console.log('Delete meeting error:', e);
+            }
+            loadData();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteModule = (moduleId) => {
+    Alert.alert(
+      'Delete Module',
+      'Are you sure you want to delete this training module?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Immediately remove from UI
+            setDb(prev => prev ? {
+              ...prev,
+              modules: (prev.modules || []).filter(m => String(m.id) !== String(moduleId))
+            } : prev);
+            // Delete from server database
+            try {
+              await remove(`/interns/trainings/modules/${moduleId}`);
+            } catch (e) {
+              console.log('Delete module error:', e);
+            }
+            loadData();
+          }
+        }
+      ]
+    );
+  };
+
   // Meeting Handler (Module 4)
   const handleScheduleMeet = async () => {
     if (!meetTitle.trim()) {
@@ -811,19 +789,11 @@ const TLDashboard = () => {
         created_at: new Date().toISOString(),
       };
       
-      // Update local state immediately
+      // Update local state immediately for instant UI feedback
       setDb(prev => ({
         ...prev,
         meetings: [newMeet, ...(prev?.meetings || [])],
       }));
-
-      // Persist to AsyncStorage
-      try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        const stored = await AsyncStorage.getItem('@studify_meetings');
-        const prev = stored ? JSON.parse(stored) : [];
-        await AsyncStorage.setItem('@studify_meetings', JSON.stringify([newMeet, ...prev]));
-      } catch (e) {}
 
       try {
         await post('/interns/trainings/live', {
@@ -1107,14 +1077,16 @@ const TLDashboard = () => {
                 mode="contained"
                 icon="plus"
                 onPress={() => setTaskModalVisible(true)}
-                style={{flex: 1, minWidth: 105, backgroundColor: '#007171'}}>
+                textColor="#004D40"
+                style={{flex: 1, minWidth: 105, backgroundColor: '#E0F2F1', borderWidth: 1, borderColor: '#B2DFDB'}}>
                 Assign Task
               </Button>
               <Button
                 mode="contained"
                 icon="video"
                 onPress={() => setMeetModalVisible(true)}
-                style={{flex: 1, minWidth: 105, backgroundColor: '#2E7D32'}}>
+                textColor="#1B5E20"
+                style={{flex: 1, minWidth: 105, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#C8E6C9'}}>
                 Schedule Meet
               </Button>
               <Button
@@ -1124,7 +1096,8 @@ const TLDashboard = () => {
                   setSelectedEodInternId('all');
                   setEodModalVisible(true);
                 }}
-                style={{flex: 1, minWidth: 105, backgroundColor: '#1565C0'}}>
+                textColor="#1A237E"
+                style={{flex: 1, minWidth: 105, backgroundColor: '#E8EAF6', borderWidth: 1, borderColor: '#C5CAE9'}}>
                 EOD Reports
               </Button>
             </View>
@@ -1179,11 +1152,12 @@ const TLDashboard = () => {
                   paddingVertical: 10,
                   borderRadius: 12,
                   alignItems: 'center',
-                  backgroundColor: taskTab === 'Active' ? '#1565C0' : '#F0F2F5',
+                  backgroundColor: taskTab === 'Active' ? '#E8EAF6' : '#ffffff',
                   borderWidth: 1,
-                  borderColor: taskTab === 'Active' ? '#1565C0' : '#E0E0E0',
+                  borderColor: taskTab === 'Active' ? '#3F51B5' : '#F3EBF0',
+                  elevation: 1,
                 }}>
-                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Active' ? '#fff' : '#555'}}>
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Active' ? '#3F51B5' : '#777777'}}>
                   ⚡ Active ({activeDeptTasks.filter(t => !t.completed && !t.submissionProof && t.submissionStatus !== 'Submitted').length})
                 </Text>
               </TouchableOpacity>
@@ -1194,11 +1168,12 @@ const TLDashboard = () => {
                   paddingVertical: 10,
                   borderRadius: 12,
                   alignItems: 'center',
-                  backgroundColor: taskTab === 'Review' ? '#E65100' : '#F0F2F5',
+                  backgroundColor: taskTab === 'Review' ? '#FFF3E0' : '#ffffff',
                   borderWidth: 1,
-                  borderColor: taskTab === 'Review' ? '#E65100' : '#E0E0E0',
+                  borderColor: taskTab === 'Review' ? '#F57C00' : '#F3EBF0',
+                  elevation: 1,
                 }}>
-                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Review' ? '#fff' : '#555'}}>
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Review' ? '#E65100' : '#777777'}}>
                   ⏳ Review ({activeDeptTasks.filter(t => (Boolean(t.submissionProof) || t.submissionStatus === 'Submitted' || (t.completed && t.submissionStatus !== 'Approved')) && t.submissionStatus !== 'Approved').length})
                 </Text>
               </TouchableOpacity>
@@ -1209,11 +1184,12 @@ const TLDashboard = () => {
                   paddingVertical: 10,
                   borderRadius: 12,
                   alignItems: 'center',
-                  backgroundColor: taskTab === 'Completed' ? '#2E7D32' : '#F0F2F5',
+                  backgroundColor: taskTab === 'Completed' ? '#E8F5E9' : '#ffffff',
                   borderWidth: 1,
-                  borderColor: taskTab === 'Completed' ? '#2E7D32' : '#E0E0E0',
+                  borderColor: taskTab === 'Completed' ? '#4CAF50' : '#F3EBF0',
+                  elevation: 1,
                 }}>
-                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Completed' ? '#fff' : '#555'}}>
+                <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Completed' ? '#2E7D32' : '#777777'}}>
                   ✅ Done ({activeDeptTasks.filter(t => t.submissionStatus === 'Approved' || (t.completed && !t.submissionProof && t.submissionStatus !== 'Submitted')).length})
                 </Text>
               </TouchableOpacity>
@@ -1305,52 +1281,54 @@ const TLDashboard = () => {
                       {/* Row 3: Progress Bar */}
                       <ProgressBar
                         progress={task.completed ? 1 : (task.submissionProof ? 0.8 : 0.4)}
-                        color={task.completed ? '#2E7D32' : (task.submissionProof ? '#F57C00' : '#1565C0')}
+                        color={task.completed ? '#81C784' : (task.submissionProof ? '#FFB74D' : '#7986CB')}
                         style={{marginVertical: 8, height: 6, borderRadius: 3}}
                       />
 
                       {/* Row 4: Submitted Work Proof Box (for TL Review) */}
                       {Boolean(task.submissionProof) && (
-                        <View style={{marginTop: 10, padding: 10, backgroundColor: '#FFF8E1', borderRadius: 8, borderWidth: 1, borderColor: '#FFE082'}}>
-                          <Text style={{fontSize: 12, fontWeight: 'bold', color: '#E65100', marginBottom: 4}}>
+                        <View style={{marginTop: 10, padding: 12, backgroundColor: '#FAF6F8', borderRadius: 12, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: '#1A237E', marginBottom: 6}}>
                             📤 Work Proof Submitted ({task.submissionType || 'Attachment'})
                           </Text>
                           {Boolean(task.completedByName) && (
-                            <Text style={{fontSize: 11, color: '#555', marginBottom: 4}}>
-                              Submitted by: <Text style={{fontWeight: 'bold', color: '#111'}}>{task.completedByName}</Text>
+                            <Text style={{fontSize: 11, color: '#666666', marginBottom: 4}}>
+                              Submitted by: <Text style={{fontWeight: 'bold', color: '#1A237E'}}>{task.completedByName}</Text>
                             </Text>
                           )}
                           {Boolean(task.proofNotes) && (
-                            <Text style={{fontSize: 12, color: '#333', fontStyle: 'italic', marginBottom: 8}}>
+                            <Text style={{fontSize: 12, color: '#333333', fontStyle: 'italic', marginBottom: 8}}>
                               "{task.proofNotes}"
                             </Text>
                           )}
                           <TouchableOpacity
-                            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#FFB300', marginBottom: 10}}
+                            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#F3EBF0', marginBottom: 10}}
                             onPress={() => {
                               if (task.submissionProof) {
                                 Linking.openURL(task.submissionProof).catch(() => Alert.alert('Link', task.submissionProof));
                               }
                             }}>
-                            <Icon name="open-in-new" size={16} color="#E65100" style={{marginRight: 6}} />
-                            <Text style={{fontSize: 12, color: '#E65100', fontWeight: 'bold', flex: 1}} numberOfLines={1}>
+                            <Icon name="open-in-new" size={16} color="#3F51B5" style={{marginRight: 6}} />
+                            <Text style={{fontSize: 12, color: '#3F51B5', fontWeight: 'bold', flex: 1}} numberOfLines={1}>
                               {task.submissionProof}
                             </Text>
                           </TouchableOpacity>
 
-                          {/* Action Buttons for TL */}
-                          <View style={{flexDirection: 'row', gap: 8, marginTop: 4}}>
-                            <TouchableOpacity
-                              style={{flex: 1, backgroundColor: '#2E7D32', paddingVertical: 8, borderRadius: 6, alignItems: 'center'}}
-                              onPress={() => handleApproveTaskSubmission(task.id)}>
-                              <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>✅ Approve Work</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={{flex: 1, backgroundColor: '#D32F2F', paddingVertical: 8, borderRadius: 6, alignItems: 'center'}}
-                              onPress={() => handleRejectTaskSubmission(task.id)}>
-                              <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>🔄 Request Revision</Text>
-                            </TouchableOpacity>
-                          </View>
+                          {/* Action Buttons for TL (Only shown if NOT already approved) */}
+                          {task.submissionStatus !== 'Approved' && (
+                            <View style={{flexDirection: 'row', gap: 8, marginTop: 4}}>
+                              <TouchableOpacity
+                                style={{flex: 1, backgroundColor: '#E8F5E9', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#C8E6C9'}}
+                                onPress={() => handleApproveTaskSubmission(task.id)}>
+                                <Text style={{color: '#2E7D32', fontSize: 12, fontWeight: 'bold'}}>✅ Approve Work</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={{flex: 1, backgroundColor: '#FFEBEE', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#FFCDD2'}}
+                                onPress={() => handleRejectTaskSubmission(task.id)}>
+                                <Text style={{color: '#C62828', fontSize: 12, fontWeight: 'bold'}}>🔄 Request Revision</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
                         </View>
                       )}
 
@@ -1366,7 +1344,7 @@ const TLDashboard = () => {
                           <Text
                             style={{
                               fontWeight: 'bold',
-                              color: task.submissionStatus === 'Approved' ? '#2E7D32' : task.submissionStatus === 'Submitted' ? '#F57C00' : task.completed ? '#2E7D32' : '#1565C0',
+                              color: task.submissionStatus === 'Approved' ? '#2E7D32' : task.submissionStatus === 'Submitted' ? '#F57C00' : task.completed ? '#2E7D32' : '#3F51B5',
                             }}>
                             {task.submissionStatus === 'Approved' ? '✅ Approved' : task.submissionStatus === 'Submitted' || task.submissionProof ? '⏳ Awaiting Review' : task.completed ? 'Completed' : 'In Progress'}
                           </Text>
@@ -1375,7 +1353,7 @@ const TLDashboard = () => {
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            backgroundColor: task.completed ? '#E8F5E9' : '#E3F2FD',
+                            backgroundColor: task.completed ? '#E8F5E9' : '#E8EAF6',
                             paddingHorizontal: 10,
                             paddingVertical: 4,
                             borderRadius: 12,
@@ -1383,14 +1361,14 @@ const TLDashboard = () => {
                           <Icon
                             name={task.completed ? 'check-circle' : 'clock-outline'}
                             size={14}
-                            color={task.completed ? '#2E7D32' : '#1565C0'}
+                            color={task.completed ? '#2E7D32' : '#3F51B5'}
                             style={{marginRight: 4}}
                           />
                           <Text
                             style={{
                               fontSize: 11,
                               fontWeight: 'bold',
-                              color: task.completed ? '#2E7D32' : '#1565C0',
+                              color: task.completed ? '#2E7D32' : '#3F51B5',
                             }}>
                             {task.completed ? 'Done' : 'Active'}
                           </Text>
@@ -1413,7 +1391,7 @@ const TLDashboard = () => {
                 <Button
                   compact
                   mode="contained"
-                  buttonColor="#D32F2F"
+                  buttonColor="#E57373"
                   onPress={handleInstantMeet}
                   style={{marginRight: 6}}>
                   ⚡ Instant Meet
@@ -1438,11 +1416,12 @@ const TLDashboard = () => {
                     paddingVertical: 10,
                     borderRadius: 12,
                     alignItems: 'center',
-                    backgroundColor: meetingTab === tab ? '#2E7D32' : '#F0F2F5',
+                    backgroundColor: meetingTab === tab ? '#E8EAF6' : '#ffffff',
                     borderWidth: 1,
-                    borderColor: meetingTab === tab ? '#2E7D32' : '#E0E0E0',
+                    borderColor: meetingTab === tab ? '#3F51B5' : '#F3EBF0',
+                    elevation: 1,
                   }}>
-                  <Text style={{fontWeight: 'bold', fontSize: 13, color: meetingTab === tab ? '#fff' : '#555'}}>
+                  <Text style={{fontWeight: 'bold', fontSize: 13, color: meetingTab === tab ? '#3F51B5' : '#777777'}}>
                     {tab === 'Upcoming' ? '📅 Upcoming' : '🕐 Past Meetings'}
                   </Text>
                 </TouchableOpacity>
@@ -1467,8 +1446,13 @@ const TLDashboard = () => {
                 <Card key={meet.id} style={styles.cardMargin}>
                   <Card.Content>
                     <View style={styles.rowBetween}>
-                      <Text style={styles.cardTitle}>{meet.title}</Text>
-                      <Chip icon="clock-outline">{meet.time || '4:30 PM'}</Chip>
+                      <Text style={[styles.cardTitle, {flex: 1}]}>{meet.title}</Text>
+                      <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                        <Chip icon="clock-outline">{meet.time || '4:30 PM'}</Chip>
+                        <TouchableOpacity onPress={() => handleDeleteMeeting(meet.id || `${meet.title}_${meet.date}`)} style={{padding: 4}}>
+                          <Icon name="trash-can-outline" size={20} color="#D32F2F" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <Text style={styles.cardSub}>Date: {meet.date}</Text>
                     <View style={styles.rowBetween}>
@@ -1543,7 +1527,12 @@ const TLDashboard = () => {
               return modulesList.map((mod, idx) => (
                 <Card key={mod.id || idx} style={styles.cardMargin}>
                   <Card.Content>
-                    <Text style={styles.cardTitle}>📹 {mod.title}</Text>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <Text style={[styles.cardTitle, {flex: 1}]}>📹 {mod.title}</Text>
+                      <TouchableOpacity onPress={() => handleDeleteModule(mod.id || mod.title)} style={{padding: 4}}>
+                        <Icon name="trash-can-outline" size={20} color="#D32F2F" />
+                      </TouchableOpacity>
+                    </View>
                     <Text style={styles.cardSub}>Instructor: {mod.instructor || 'TL'} | Duration: {mod.duration || '30 mins'}</Text>
                     {!!mod.description && (
                       <Text style={{fontSize: 12, color: '#555', marginTop: 4}}>{mod.description}</Text>
@@ -2117,12 +2106,12 @@ const TLDashboard = () => {
                     <Text style={{textAlign: 'center', color: '#888', marginVertical: 20}}>No approved interns found in {activeDept}.</Text>
                   ) : (
                     approvedInterns.map((intern, idx) => (
-                      <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', padding: 10, borderRadius: 8, marginBottom: 8}}>
-                        <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10}} />
+                      <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                        <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#E8EAF6'}} color="#3F51B5" />
                         <View style={{flex: 1}}>
-                          <Text style={{fontWeight: 'bold', fontSize: 14, color: '#333'}}>{intern.name}</Text>
+                          <Text style={{fontWeight: 'bold', fontSize: 14, color: '#1A237E'}}>{intern.name}</Text>
                           <Text style={{fontSize: 12, color: '#666'}}>{intern.email}</Text>
-                          <Text style={{fontSize: 11, color: '#2E7D32'}}>Joined: {intern.joined}</Text>
+                          <Text style={{fontSize: 11, color: '#3F51B5'}}>Joined: {intern.joined}</Text>
                         </View>
                         <Chip compact icon={intern.offerLetterName ? 'file-document' : 'alert-circle'}>
                           {intern.offerLetterName ? 'Offer Verified' : 'No Letter'}
@@ -2142,14 +2131,14 @@ const TLDashboard = () => {
                       .map((intern, idx) => {
                         const att = db?.attendance?.[intern.id]?.[todayStr];
                         return (
-                          <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', padding: 10, borderRadius: 8, marginBottom: 8}}>
-                            <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#2E7D32'}} />
+                          <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                            <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#E8F5E9'}} color="#2E7D32" />
                             <View style={{flex: 1}}>
-                              <Text style={{fontWeight: 'bold', fontSize: 14, color: '#1B5E20'}}>{intern.name}</Text>
-                              <Text style={{fontSize: 12, color: '#388E3C'}}>Morning: {att?.morning_marked_at ? new Date(att.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Marked'}</Text>
+                              <Text style={{fontWeight: 'bold', fontSize: 14, color: '#2E7D32'}}>{intern.name}</Text>
+                              <Text style={{fontSize: 12, color: '#555'}}>Morning: {att?.morning_marked_at ? new Date(att.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Marked'}</Text>
                               <Text style={{fontSize: 11, color: '#2E7D32'}}>Status: {att?.status || 'Present'}</Text>
                             </View>
-                            <Chip icon="check-circle" style={{backgroundColor: '#C8E6C9'}}>Active</Chip>
+                            <Chip icon="check-circle" style={{backgroundColor: '#E8F5E9'}} textStyle={{color: '#2E7D32'}}>Active</Chip>
                           </View>
                         );
                       })
@@ -2164,11 +2153,11 @@ const TLDashboard = () => {
                     approvedInterns
                       .filter(i => !db?.attendance?.[i.id]?.[todayStr])
                       .map((intern, idx) => (
-                        <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE', padding: 10, borderRadius: 8, marginBottom: 8}}>
-                          <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#C62828'}} color="#fff" />
+                        <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                          <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#FFEBEE'}} color="#C62828" />
                           <View style={{flex: 1}}>
-                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#B71C1C'}}>{intern.name}</Text>
-                            <Text style={{fontSize: 12, color: '#C62828'}}>{intern.email}</Text>
+                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#C62828'}}>{intern.name}</Text>
+                            <Text style={{fontSize: 12, color: '#777'}}>{intern.email}</Text>
                             <Text style={{fontSize: 11, color: '#D32F2F'}}>Status: Not Checked-in</Text>
                           </View>
                         </View>
@@ -2184,12 +2173,26 @@ const TLDashboard = () => {
                     activeDeptTasks
                       .filter(t => !t.completed)
                       .map((task, idx) => (
-                        <View key={idx} style={{backgroundColor: '#FFF3E0', padding: 10, borderRadius: 8, marginBottom: 8}}>
-                          <View style={styles.rowBetween}>
-                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#E65100'}}>{task.title}</Text>
-                            <Chip compact style={{backgroundColor: '#FFE0B2'}}>{task.priority || 'Medium'} Priority</Chip>
+                        <View key={idx} style={{backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#1A237E', flex: 1, marginRight: 8}} numberOfLines={2}>
+                              {task.title}
+                            </Text>
+                            <Chip 
+                              compact 
+                              style={{
+                                backgroundColor: task.priority === 'High' ? '#FFEBEE' : task.priority === 'Low' ? '#E8F5E9' : '#FFF3E0'
+                              }}>
+                              <Text style={{
+                                fontSize: 11, 
+                                fontWeight: 'bold', 
+                                color: task.priority === 'High' ? '#C62828' : task.priority === 'Low' ? '#2E7D32' : '#E65100'
+                              }}>
+                                {task.priority || 'Medium'} Priority
+                              </Text>
+                            </Chip>
                           </View>
-                          <Text style={{fontSize: 12, color: '#F57C00', marginTop: 4}}>Due: {task.dueDate || 'Today'}</Text>
+                          <Text style={{fontSize: 12, color: '#666666', marginTop: 4}}>Due: {task.dueDate || 'Today'}</Text>
                         </View>
                       ))
                   )
@@ -2201,11 +2204,11 @@ const TLDashboard = () => {
                     const reportsCount = (db?.reports || []).filter(r => r.internId === intern.id).length;
                     const score = Math.min(99, 82 + reportsCount * 2);
                     return (
-                      <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3E5F5', padding: 10, borderRadius: 8, marginBottom: 8}}>
-                        <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#7B1FA2'}} color="#fff" />
+                      <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
+                        <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#F3E5F5'}} color="#7B1FA2" />
                         <View style={{flex: 1}}>
                           <Text style={{fontWeight: 'bold', fontSize: 14, color: '#4A148C'}}>{intern.name}</Text>
-                          <Text style={{fontSize: 12, color: '#7B1FA2'}}>Reports Submitted: {reportsCount}</Text>
+                          <Text style={{fontSize: 12, color: '#666'}}>Reports Submitted: {reportsCount}</Text>
                         </View>
                         <Text style={{fontSize: 18, fontWeight: 'bold', color: '#7B1FA2'}}>{score}%</Text>
                       </View>
@@ -2677,9 +2680,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardMargin: {
-    marginBottom: 10,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    marginBottom: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#F3EBF0',
+    elevation: 1,
   },
   cardTitle: {
     fontSize: 15,

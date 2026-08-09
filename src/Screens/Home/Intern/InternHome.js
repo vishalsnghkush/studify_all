@@ -844,12 +844,12 @@ const InternHome = () => {
                 <Text style={{ fontSize: 16, fontWeight: 'bold', marginLeft: 8 }}>Daily Check-in</Text>
                 <View style={{ 
                   marginLeft: 'auto', 
-                  backgroundColor: !attendanceToday ? '#FFEBEE' : attendanceToday.status === 'Full' ? '#E8F5E9' : '#FFF8E1',
+                  backgroundColor: !attendanceToday ? '#FFEBEE' : attendanceToday.status === 'Full' ? '#E8F5E9' : '#FFF3E0',
                   paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 
                 }}>
                   <Text style={{ 
                     fontSize: 12, fontWeight: '600',
-                    color: !attendanceToday ? '#C62828' : attendanceToday.status === 'Full' ? '#2E7D32' : '#F9A825'
+                    color: !attendanceToday ? '#C62828' : attendanceToday.status === 'Full' ? '#2E7D32' : '#E65100'
                   }}>
                     {!attendanceToday ? '❌ Absent' : attendanceToday.status === 'Full' ? '✅ Full Day' : '🟡 Half Day'}
                   </Text>

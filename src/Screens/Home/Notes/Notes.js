@@ -1,12 +1,38 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {Screen, BouncyButton} from '../../../Components/Screen';
 import {Text} from '../../../Components/Input';
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, View, Modal, TouchableOpacity, Alert} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from 'react-native-paper';
+import RazorpayCheckout from 'react-native-razorpay';
+import {useSelector} from 'react-redux';
+import useApi from '../../../Components/Api/Api';
+
+const PRICE = 99;
+const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const Notes = ({navigation}) => {
   const {colors, dark} = useTheme();
+  const {user} = useSelector(state => state.initial);
+  const {get, post} = useApi();
+
+  const [unlockedKeys, setUnlockedKeys] = useState([]);
+  const [paywallItem, setPaywallItem] = useState(null);
+  const [paying, setPaying] = useState(false);
+
+  useEffect(() => {
+    const fetchPurchases = async () => {
+      try {
+        const res = await get('/payment/my-purchases', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (res && res.data && res.data.unlockedKeys) {
+          setUnlockedKeys(res.data.unlockedKeys);
+        }
+      } catch (e) {}
+    };
+    fetchPurchases();
+  }, []);
+
+  const LOCKED_ITEMS = ['lectures', 'ncert_solutions', 'chapter_wise_notes', 'combo_study_notes'];
 
   const noteTypes = [
     {
@@ -37,8 +63,9 @@ const Notes = ({navigation}) => {
       color: dark ? 'rgba(74, 20, 140, 0.12)' : '#f3e5f5',
       borderColor: '#4a148c',
       icon: 'video-outline',
-      badge: 'LECTURES',
-      category: 'free',
+      badge: 'PAID',
+      category: 'paid',
+      itemKey: 'lectures',
       actionText: 'Watch Lectures',
     },
     {
@@ -53,8 +80,9 @@ const Notes = ({navigation}) => {
       color: dark ? 'rgba(0, 150, 136, 0.12)' : '#e0f2f1',
       borderColor: '#00897b',
       icon: 'notebook-check-outline',
-      badge: 'NCERT',
-      category: 'free',
+      badge: 'PAID',
+      category: 'paid',
+      itemKey: 'ncert_solutions',
       actionText: 'View Solutions',
     },
     {
@@ -132,8 +160,9 @@ const Notes = ({navigation}) => {
       color: dark ? 'rgba(233, 30, 99, 0.12)' : '#fce4ec',
       borderColor: '#e91e63',
       icon: 'file-document-multiple-outline',
-      badge: 'CHAPTERS',
+      badge: 'PAID',
       category: 'paid',
+      itemKey: 'chapter_wise_notes',
       actionText: 'Access Chapters',
     },
     {
@@ -148,13 +177,69 @@ const Notes = ({navigation}) => {
       color: dark ? 'rgba(230, 81, 0, 0.12)' : '#fff3e0',
       borderColor: '#e65100',
       icon: 'book-open-page-variant',
-      badge: 'COMBO',
+      badge: 'PAID',
       category: 'paid',
+      itemKey: 'combo_study_notes',
       actionText: 'Get Combo',
     },
   ];
 
+  const openRazorPay = (item) => {
+    if (!RazorpayCheckout || !RazorpayCheckout.open) {
+      Alert.alert('RazorPay Error', 'RazorPay SDK module is not linked or initialized correctly in the app build.');
+      return;
+    }
+    setPaying(true);
+    try {
+      const options = {
+        name: 'StudifySuccess',
+        description: item.title,
+        image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: PRICE * 100,
+        prefill: {
+          email: (user && user.email) || '',
+          contact: (user && user.phone && user.phone.length === 10) ? user.phone : '',
+        },
+        theme: {color: '#008b8b'},
+      };
+
+      RazorpayCheckout.open(options)
+      .then(async (e) => {
+        try {
+          await post('/payment/unlock-item', {
+            item_key: item.itemKey,
+            title: item.title,
+            amount: PRICE,
+            payment_id: e.razorpay_payment_id,
+          });
+          setUnlockedKeys(prev => [...prev, item.itemKey]);
+          setPaywallItem(null);
+          if (item.isStack) {
+            navigation.navigate(item.url);
+          } else {
+            navigation.navigate('WebView', {url: item.url});
+          }
+        } catch (err) {
+          Alert.alert('Unlock Error', err.message || 'Payment succeeded but failed to unlock content in database.');
+        }
+      })
+      .catch((error) => {
+        Alert.alert('Payment Cancelled/Failed', error.description || error.message || 'The checkout sheet closed.');
+      })
+      .finally(() => setPaying(false));
+    } catch (err) {
+      Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
+      setPaying(false);
+    }
+  };
+
   const handlePress = item => {
+    if (item.itemKey && !unlockedKeys.includes(item.itemKey)) {
+      setPaywallItem(item);
+      return;
+    }
     if (item.isStack) {
       navigation.navigate(item.url);
     } else {
@@ -276,6 +361,39 @@ const Notes = ({navigation}) => {
           {paidItems.map((item, index) => renderCard(item, index))}
         </View>
       </View>
+
+      {/* Paywall Modal */}
+      <Modal
+        visible={paywallItem !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPaywallItem(null)}>
+        <View style={styles.paywallOverlay}>
+          <View style={styles.paywallCard}>
+            <TouchableOpacity style={styles.paywallClose} onPress={() => setPaywallItem(null)}>
+              <Icon name="close" size={22} color="#555" />
+            </TouchableOpacity>
+            <View style={styles.paywallLockCircle}>
+              <Icon name="lock" size={36} color="#e91e63" />
+            </View>
+            <Text style={styles.paywallTitle}>Premium Content</Text>
+            <Text style={styles.paywallItemName}>{paywallItem && paywallItem.title}</Text>
+            <Text style={styles.paywallDesc}>Unlock lifetime access to this content with a one-time payment.</Text>
+            <View style={styles.paywallPriceRow}>
+              <Text style={styles.paywallPrice}>₹99</Text>
+              <Text style={styles.paywallPriceLabel}>  One-time</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.paywallBtn, paying && {opacity: 0.6}]}
+              onPress={() => paywallItem && openRazorPay(paywallItem)}
+              disabled={paying}>
+              <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
+              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.paywallSecure}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -371,6 +489,91 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 8,
     fontWeight: 'bold',
+  },
+  paywallOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  paywallCard: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+    paddingBottom: 40,
+  },
+  paywallClose: {
+    position: 'absolute',
+    top: 16,
+    right: 20,
+    padding: 6,
+  },
+  paywallLockCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fce4ec',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  paywallTitle: {
+    fontSize: 13,
+    color: '#e91e63',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  paywallItemName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1d1d',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  paywallDesc: {
+    fontSize: 13,
+    color: '#546e7a',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  paywallPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 22,
+  },
+  paywallPrice: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#1a1d1d',
+  },
+  paywallPriceLabel: {
+    fontSize: 14,
+    color: '#546e7a',
+  },
+  paywallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#008b8b',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  paywallBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  paywallSecure: {
+    fontSize: 11,
+    color: '#90a4ae',
+    textAlign: 'center',
   },
 });
 

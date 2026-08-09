@@ -9,7 +9,7 @@ export default function RazorPay(amount, course_id, navigation) {
     image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
     currency: 'INR',
     //test
-    key: 'rzp_test_lVf0GKVvcMD2ad',
+    key: 'rzp_test_TNciL5Zn3FHf5v',
     //live
     // key:"rzp_live_bnmEvhWAmtCTkZ",
     amount: amount * 100,

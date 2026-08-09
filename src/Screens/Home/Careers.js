@@ -8,14 +8,21 @@ import {
   Image,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import {useTheme, Card} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {useSelector} from 'react-redux';
+import RazorpayCheckout from 'react-native-razorpay';
+import useApi from '../../Components/Api/Api';
 
 // Core UI imports from the project
 import Screen from '../../Components/Screen/Screen';
 import Text from '../../Components/Input/Text';
+
+const PRICE = 99;
+const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
 
@@ -29,9 +36,74 @@ const phrases = [
 const Careers = () => {
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {user} = useSelector(state => state.initial);
+  const {get, post} = useApi();
   const scrollViewRef = useRef(null);
   const categoriesGridRef = useRef(null);
   const [categoriesYPosition, setCategoriesYPosition] = useState(0);
+  const [resumeUnlocked, setResumeUnlocked] = useState(false);
+  const [showResumePaywall, setShowResumePaywall] = useState(false);
+  const [resumePaying, setResumePaying] = useState(false);
+
+  useEffect(() => {
+    // Check resume purchase
+    const checkPurchases = async () => {
+      try {
+        const res = await get('/payment/my-purchases', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (res && res.data && res.data.unlockedKeys) {
+          setResumeUnlocked(res.data.unlockedKeys.includes('resume_builder'));
+        }
+      } catch (e) {}
+    };
+    checkPurchases();
+  }, []);
+
+  const openResumeRazorPay = () => {
+    if (!RazorpayCheckout || !RazorpayCheckout.open) {
+      Alert.alert('RazorPay Error', 'RazorPay SDK module is not linked or initialized correctly in the app build.');
+      return;
+    }
+    setResumePaying(true);
+    try {
+      const options = {
+        name: 'StudifySuccess',
+        description: 'Resume Builder Access',
+        image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: PRICE * 100,
+        prefill: {
+          email: (user && user.email) || '',
+          contact: (user && user.phone && user.phone.length === 10) ? user.phone : '',
+        },
+        theme: {color: '#3b82f6'},
+      };
+
+      RazorpayCheckout.open(options)
+      .then(async (e) => {
+        try {
+          await post('/payment/unlock-item', {
+            item_key: 'resume_builder',
+            title: 'Resume Builder',
+            amount: PRICE,
+            payment_id: e.razorpay_payment_id,
+          });
+          setResumeUnlocked(true);
+          setShowResumePaywall(false);
+          openLink('https://careers.studifysuccess.com/resume-builder', 'Resume Builder');
+        } catch (err) {
+          Alert.alert('Unlock Error', err.message || 'Payment succeeded but failed to unlock content in database.');
+        }
+      })
+      .catch((error) => {
+        Alert.alert('Payment Cancelled/Failed', error.description || error.message || 'The checkout sheet closed.');
+      })
+      .finally(() => setResumePaying(false));
+    } catch (err) {
+      Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
+      setResumePaying(false);
+    }
+  };
 
   // Typing animation phrase cycler
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -271,15 +343,16 @@ const Careers = () => {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() =>
-                    openLink(
-                      'https://careers.studifysuccess.com/resume-builder',
-                      'Resume Builder',
-                    )
-                  }
+                  onPress={() => {
+                    if (resumeUnlocked) {
+                      openLink('https://careers.studifysuccess.com/resume-builder', 'Resume Builder');
+                    } else {
+                      setShowResumePaywall(true);
+                    }
+                  }}
                   style={[styles.heroPillBtn, {backgroundColor: '#3b82f6'}]}>
                   <Text size="small" style={styles.heroBtnText}>
-                    Resume ❯
+                    {resumeUnlocked ? 'Resume ❯' : '🔒 Resume ₹99'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -701,6 +774,39 @@ const Careers = () => {
         </View>
         <View style={{height: 35}} />
       </ScrollView>
+
+      {/* Resume Paywall Modal */}
+      <Modal
+        visible={showResumePaywall}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowResumePaywall(false)}>
+        <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end'}}>
+          <View style={{backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, alignItems: 'center', paddingBottom: 40}}>
+            <TouchableOpacity style={{position: 'absolute', top: 16, right: 20, padding: 6}} onPress={() => setShowResumePaywall(false)}>
+              <Icon name="close" size={22} color="#555" />
+            </TouchableOpacity>
+            <View style={{width: 72, height: 72, borderRadius: 36, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 16, marginTop: 8}}>
+              <Icon name="file-account-outline" size={36} color="#3b82f6" />
+            </View>
+            <Text style={{fontSize: 13, color: '#3b82f6', fontWeight: 'bold', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase'}}>Premium Access</Text>
+            <Text style={{fontSize: 20, fontWeight: 'bold', color: '#1a1d1d', marginBottom: 10, textAlign: 'center'}}>Resume Builder</Text>
+            <Text style={{fontSize: 13, color: '#546e7a', textAlign: 'center', lineHeight: 20, marginBottom: 20}}>Build a professional resume that stands out. Unlock lifetime access with a one-time payment.</Text>
+            <View style={{flexDirection: 'row', alignItems: 'baseline', marginBottom: 22}}>
+              <Text style={{fontSize: 36, fontWeight: 'bold', color: '#1a1d1d'}}>₹99</Text>
+              <Text style={{fontSize: 14, color: '#546e7a'}}>  One-time</Text>
+            </View>
+            <TouchableOpacity
+              style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#3b82f6', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, elevation: 3, marginBottom: 16, opacity: resumePaying ? 0.6 : 1}}
+              onPress={openResumeRazorPay}
+              disabled={resumePaying}>
+              <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
+              <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{resumePaying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+            </TouchableOpacity>
+            <Text style={{fontSize: 11, color: '#90a4ae', textAlign: 'center'}}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
