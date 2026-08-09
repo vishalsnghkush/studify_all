@@ -13,7 +13,9 @@ import {
   Image,
   Animated,
   PanResponder,
+  Modal,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -137,6 +139,7 @@ const Home = () => {
 
   // Mascot visibility toggle — persisted in AsyncStorage (OFF by default)
   const [showMascot, setShowMascot] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('@studify_show_mascot').then(val => {
@@ -430,10 +433,31 @@ const Home = () => {
     });
   };
 
+  const chatPan = useRef(new Animated.ValueXY()).current;
+  const chatPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        chatPan.setOffset({
+          x: chatPan.x._value,
+          y: chatPan.y._value,
+        });
+        chatPan.setValue({x: 0, y: 0});
+      },
+      onPanResponderMove: Animated.event(
+        [null, {dx: chatPan.x, dy: chatPan.y}],
+        {useNativeDriver: false}
+      ),
+      onPanResponderRelease: () => {
+        chatPan.flattenOffset();
+      },
+    })
+  ).current;
+
   const handleCloudPress = () => {
-    navigation.navigate('WebView', {
-      url: 'https://ai.studifysuccess.com/',
-    });
+    chatPan.setValue({x: 0, y: 0});
+    setShowChatModal(true);
   };
 
   // Pan responder to support drag-to-toss and spring back
@@ -1381,6 +1405,77 @@ const Home = () => {
         </Animated.View>
       </View>
       )}
+
+      {/* Inline Chat Bot Floating Widget modal */}
+      <Modal
+        visible={showChatModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowChatModal(false)}
+      >
+        {/* Backdrop overlay */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={() => setShowChatModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.25)' }} />
+        </TouchableOpacity>
+
+        {/* Floating Chat Box positioned absolutely */}
+        <Animated.View
+          style={[
+            styles.floatingChatBox,
+            {
+              transform: [
+                { translateX: chatPan.x },
+                { translateY: chatPan.y }
+              ]
+            }
+          ]}
+        >
+          {/* Header serves as the drag handle */}
+          <Animated.View
+            style={styles.modalHeader}
+            {...chatPanResponder.panHandlers}
+          >
+            <Image
+              source={require('../../Assets/Images/silver_robot.png')}
+              style={styles.modalMascotIcon}
+            />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.modalTitle}>Study Buddy Assistant</Text>
+              <Text style={styles.modalSubtitle}>Drag header to move 🤖</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowChatModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Icon name="close" size={16} color="#ab2346" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Chatbot WebView */}
+          <WebView
+            source={{ uri: 'http://192.168.1.3:3000/chatbot/index.html' }}
+            style={{ flex: 1 }}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView load error: ', nativeEvent);
+            }}
+            onHttpError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView HTTP response error: ', nativeEvent);
+            }}
+            onMessage={(event) => {
+              console.log('WebView console message: ', event.nativeEvent.data);
+            }}
+          />
+        </Animated.View>
+      </Modal>
     </View>
     </CopilotProvider>
   );
@@ -2131,6 +2226,67 @@ const styles = StyleSheet.create({
   },
   subtitleBoldFocus: {
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: 16,
+    paddingBottom: 110,
+  },
+  floatingChatBox: {
+    position: 'absolute',
+    bottom: 110,
+    right: 16,
+    width: 320,
+    height: 500,
+    backgroundColor: '#fff8fa',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 225, 235, 0.9)',
+    elevation: 20,
+    shadowColor: '#ab2346',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 225, 235, 0.9)',
+  },
+  modalMascotIcon: {
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a2e2e',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: '#007171',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 225, 235, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(171, 35, 70, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
