@@ -18,7 +18,44 @@ import useApi from '../../../Components/Api/Api';
 import { extractDateISO } from '../../../Utils/MockInternDb';
 
 export default function FounderDashboard({ navigation }) {
-  const colors = useTheme().colors;
+  const theme = useTheme();
+  const colors = theme.colors;
+  const isDark = theme.dark;
+
+  const bg = isDark ? colors.background : '#FAF6F8';
+  const cardBg = isDark ? colors.elevation.level1 : '#ffffff';
+  const borderColor = isDark ? colors.outlineVariant : '#F3EBF0';
+  const textDarkBlue = isDark ? colors.onSurface : '#1A237E';
+  const textBody = isDark ? colors.onSurfaceVariant : '#555';
+  const textHeading = isDark ? colors.onSurface : '#263238';
+
+  const styles = useMemo(() => {
+    return {
+      ...baseStyles,
+      header: {
+        ...baseStyles.header,
+        backgroundColor: bg,
+      },
+      sectionHeading: {
+        ...baseStyles.sectionHeading,
+        color: textDarkBlue,
+      },
+      cardVal: {
+        ...baseStyles.cardVal,
+        color: textDarkBlue,
+      },
+      cardLbl: {
+        ...baseStyles.cardLbl,
+        color: textBody,
+      },
+      input: {
+        ...baseStyles.input,
+        backgroundColor: isDark ? colors.elevation.level1 : '#FFF',
+        borderColor: isDark ? colors.outline : '#CCC',
+        color: isDark ? colors.onSurface : '#333',
+      },
+    };
+  }, [isDark, colors, bg, cardBg, borderColor, textDarkBlue, textBody, textHeading]);
   const { get, post, remove } = useApi();
   const [loading, setLoading] = useState(false);
 
@@ -355,44 +392,44 @@ export default function FounderDashboard({ navigation }) {
   };
 
   return (
-    <Screen NoHeader style={{ padding: 0, backgroundColor: '#FAF6F8' }}>
+    <Screen NoHeader style={{ padding: 0, backgroundColor: bg }}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#FAF6F8' }]}>
+      <View style={[styles.header, { backgroundColor: bg }]}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 11, color: '#E60067', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
             Executive Hub 👑
           </Text>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A237E' }}>Founder Dashboard</Text>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: textDarkBlue }}>Founder Dashboard</Text>
         </View>
-        <Avatar.Icon size={42} icon="crown" style={{ backgroundColor: '#FFF5F7' }} color="#FFD700" />
+        <Avatar.Icon size={42} icon="crown" style={{ backgroundColor: isDark ? 'rgba(230,0,103,0.1)' : '#FFF5F7' }} color="#FFD700" />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, backgroundColor: '#FAF6F8' }}
+        contentContainerStyle={{ padding: 16, backgroundColor: bg }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#1A237E']} />}>
         
         {/* Single Screen Overview Cards */}
         <Text style={styles.sectionHeading}>Company Overview</Text>
         <View style={styles.gridRow}>
           <TouchableOpacity style={styles.miniCard} onPress={() => { setInternFilterDept('All'); setInternModal(true); }}>
-            <Card style={{ backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+            <Card style={{ backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
               <Card.Content style={styles.miniCardContent}>
-                <View style={{ backgroundColor: '#E8EAF6', padding: 8, borderRadius: 12, marginBottom: 8 }}>
-                  <Icon name="account-group" size={24} color="#3F51B5" />
+                <View style={{ backgroundColor: isDark ? 'rgba(63,81,181,0.15)' : '#E8EAF6', padding: 8, borderRadius: 12, marginBottom: 8 }}>
+                  <Icon name="account-group" size={24} color={isDark ? '#9FA8DA' : '#3F51B5'} />
                 </View>
-                <Text style={[styles.cardVal, { color: '#1A237E', fontSize: 22 }]}>{totalInterns}</Text>
+                <Text style={[styles.cardVal, { color: textDarkBlue, fontSize: 22 }]}>{totalInterns}</Text>
                 <Text style={styles.cardLbl}>Total Interns</Text>
               </Card.Content>
             </Card>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.miniCard} onPress={() => { setInternFilterDept('All'); setInternModal(true); }}>
-            <Card style={{ backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+            <Card style={{ backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
               <Card.Content style={styles.miniCardContent}>
-                <View style={{ backgroundColor: '#E8F5E9', padding: 8, borderRadius: 12, marginBottom: 8 }}>
-                  <Icon name="check-circle" size={24} color="#2E7D32" />
+                <View style={{ backgroundColor: isDark ? 'rgba(46,125,50,0.15)' : '#E8F5E9', padding: 8, borderRadius: 12, marginBottom: 8 }}>
+                  <Icon name="check-circle" size={24} color={isDark ? '#81C784' : '#2E7D32'} />
                 </View>
-                <Text style={[styles.cardVal, { color: '#2E7D32', fontSize: 22 }]}>{activeTodayCount}</Text>
+                <Text style={[styles.cardVal, { color: isDark ? '#81C784' : '#2E7D32', fontSize: 22 }]}>{activeTodayCount}</Text>
                 <Text style={styles.cardLbl}>Active Today</Text>
               </Card.Content>
             </Card>
@@ -401,24 +438,24 @@ export default function FounderDashboard({ navigation }) {
 
         <View style={styles.gridRow}>
           <TouchableOpacity style={styles.miniCard} onPress={() => { setInternFilterDept('All'); setInternModal(true); }}>
-            <Card style={{ backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+            <Card style={{ backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
               <Card.Content style={styles.miniCardContent}>
-                <View style={{ backgroundColor: '#FFEBEE', padding: 8, borderRadius: 12, marginBottom: 8 }}>
-                  <Icon name="close-circle" size={24} color="#C62828" />
+                <View style={{ backgroundColor: isDark ? 'rgba(198,40,40,0.15)' : '#FFEBEE', padding: 8, borderRadius: 12, marginBottom: 8 }}>
+                  <Icon name="close-circle" size={24} color={isDark ? '#EF9A9A' : '#C62828'} />
                 </View>
-                <Text style={[styles.cardVal, { color: '#C62828', fontSize: 22 }]}>{Math.max(0, totalInterns - activeTodayCount)}</Text>
+                <Text style={[styles.cardVal, { color: isDark ? '#EF9A9A' : '#C62828', fontSize: 22 }]}>{Math.max(0, totalInterns - activeTodayCount)}</Text>
                 <Text style={styles.cardLbl}>Absent Today</Text>
               </Card.Content>
             </Card>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.miniCard} onPress={() => setTaskModal(true)}>
-            <Card style={{ backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+            <Card style={{ backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
               <Card.Content style={styles.miniCardContent}>
-                <View style={{ backgroundColor: '#FFF3E0', padding: 8, borderRadius: 12, marginBottom: 8 }}>
-                  <Icon name="clipboard-alert" size={24} color="#E65100" />
+                <View style={{ backgroundColor: isDark ? 'rgba(230,81,0,0.15)' : '#FFF3E0', padding: 8, borderRadius: 12, marginBottom: 8 }}>
+                  <Icon name="clipboard-alert" size={24} color={isDark ? '#FFB74D' : '#E65100'} />
                 </View>
-                <Text style={[styles.cardVal, { color: '#E65100', fontSize: 22 }]}>{pendingTasksCount}</Text>
+                <Text style={[styles.cardVal, { color: isDark ? '#FFB74D' : '#E65100', fontSize: 22 }]}>{pendingTasksCount}</Text>
                 <Text style={styles.cardLbl}>Pending Tasks</Text>
               </Card.Content>
             </Card>
@@ -427,7 +464,7 @@ export default function FounderDashboard({ navigation }) {
 
         {/* 1. Departments Overview Summary Matrix */}
         <Text style={styles.sectionHeading}>Departments Overview</Text>
-        <Card style={{ marginBottom: 16, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+        <Card style={{ marginBottom: 16, backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
           <Card.Content style={{ paddingVertical: 12 }}>
             {departmentMatrix.map((dept, idx) => (
               <TouchableOpacity
@@ -439,9 +476,9 @@ export default function FounderDashboard({ navigation }) {
                 style={{ marginBottom: idx === departmentMatrix.length - 1 ? 0 : 12 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="domain" size={18} color="#1A237E" style={{ marginRight: 6 }} />
-                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1A237E' }}>{dept.department}</Text>
-                    <Icon name="chevron-right" size={18} color="#777" style={{ marginLeft: 4 }} />
+                    <Icon name="domain" size={18} color={isDark ? colors.primary : '#1A237E'} style={{ marginRight: 6 }} />
+                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: textDarkBlue }}>{dept.department}</Text>
+                    <Icon name="chevron-right" size={18} color={isDark ? colors.outline : '#777'} style={{ marginLeft: 4 }} />
                   </View>
                   <Chip
                     compact
@@ -455,11 +492,11 @@ export default function FounderDashboard({ navigation }) {
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 6 }}>
-                  <Text style={{ fontSize: 12, color: '#555' }}>
-                    👥 <Text style={{ fontWeight: 'bold', color: '#111' }}>{dept.headcount}</Text> Interns (Tap to View)
+                  <Text style={{ fontSize: 12, color: textBody }}>
+                    👥 <Text style={{ fontWeight: 'bold', color: textHeading }}>{dept.headcount}</Text> Interns (Tap to View)
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#555' }}>
-                    ⏳ <Text style={{ fontWeight: 'bold', color: '#E65100' }}>{dept.pendingTasks}</Text> Pending Tasks
+                  <Text style={{ fontSize: 12, color: textBody }}>
+                    ⏳ <Text style={{ fontWeight: 'bold', color: isDark ? '#FFB74D' : '#E65100' }}>{dept.pendingTasks}</Text> Pending Tasks
                   </Text>
                 </View>
 
@@ -476,7 +513,7 @@ export default function FounderDashboard({ navigation }) {
 
         {/* 2. Team Performance Analytics */}
         <Text style={styles.sectionHeading}>Team Performance Rankings 🏆</Text>
-        <Card style={{ marginBottom: 16, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#F3EBF0', elevation: 1 }}>
+        <Card style={{ marginBottom: 16, backgroundColor: cardBg, borderRadius: 16, borderWidth: 1, borderColor: borderColor, elevation: 1 }}>
           <Card.Content style={{ paddingVertical: 12 }}>
             {rankedDepts.slice(0, 7).map((dept, idx) => {
               const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣'];
@@ -486,12 +523,12 @@ export default function FounderDashboard({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#333' }}>{dept.department}</Text>
-                        <Text style={{ fontSize: 10, color: '#666', marginLeft: 6 }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 13, color: textHeading }}>{dept.department}</Text>
+                        <Text style={{ fontSize: 10, color: textBody, marginLeft: 6 }}>
                           ({dept.completedTasks} Tasks + {dept.checkedInToday} Active)
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: dept.score > 0 ? '#2E7D32' : '#9E9E9E' }}>
+                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: dept.score > 0 ? (isDark ? '#81C784' : '#2E7D32') : (isDark ? colors.outline : '#9E9E9E') }}>
                         {dept.score} pts
                       </Text>
                     </View>
@@ -510,27 +547,57 @@ export default function FounderDashboard({ navigation }) {
         {/* 3. Founder Management Controls Grid */}
         <Text style={styles.sectionHeading}>Founder Controls</Text>
         <View style={{ gap: 10, marginBottom: 24 }}>
-          <Button mode="contained" buttonColor="#1A237E" icon="domain" onPress={() => setDeptModal(true)}>
+          <Button 
+            mode="contained" 
+            buttonColor={isDark ? colors.primary : '#1A237E'} 
+            textColor={isDark ? colors.onPrimary : '#fff'} 
+            icon="domain" 
+            onPress={() => setDeptModal(true)}>
             Manage Departments
           </Button>
 
-          <Button mode="contained-tonal" icon="book-open-page-variant" onPress={() => setModuleModal(true)}>
+          <Button 
+            mode="contained-tonal" 
+            textColor={isDark ? colors.onSecondaryContainer : '#1A237E'}
+            style={isDark && {backgroundColor: colors.secondaryContainer}}
+            icon="book-open-page-variant" 
+            onPress={() => setModuleModal(true)}>
             Manage Modules (Dept Independent)
           </Button>
 
-          <Button mode="outlined" icon="account-crown" onPress={() => setTlModal(true)}>
+          <Button 
+            mode="outlined" 
+            textColor={isDark ? colors.primary : '#1A237E'}
+            style={{borderColor: isDark ? colors.outline : '#1A237E'}}
+            icon="account-crown" 
+            onPress={() => setTlModal(true)}>
             Manage Team Leaders
           </Button>
 
-          <Button mode="outlined" icon="account-supervisor" onPress={() => setInternModal(true)}>
+          <Button 
+            mode="outlined" 
+            textColor={isDark ? colors.primary : '#1A237E'}
+            style={{borderColor: isDark ? colors.outline : '#1A237E'}}
+            icon="account-supervisor" 
+            onPress={() => setInternModal(true)}>
             Manage Interns & Reassignments
           </Button>
 
-          <Button mode="contained-tonal" icon="clipboard-check" onPress={() => setTaskModal(true)}>
+          <Button 
+            mode="contained-tonal" 
+            textColor={isDark ? colors.onSecondaryContainer : '#1A237E'}
+            style={isDark && {backgroundColor: colors.secondaryContainer}}
+            icon="clipboard-check" 
+            onPress={() => setTaskModal(true)}>
             Manage Tasks (Master Control)
           </Button>
 
-          <Button mode="contained" buttonColor="#2E7D32" icon="chart-donut" onPress={() => setAnalyticsModal(true)}>
+          <Button 
+            mode="contained" 
+            buttonColor={isDark ? '#388E3C' : '#2E7D32'} 
+            textColor="#fff" 
+            icon="chart-donut" 
+            onPress={() => setAnalyticsModal(true)}>
             View Deep Analytics
           </Button>
         </View>
@@ -931,7 +998,7 @@ export default function FounderDashboard({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingVertical: 16,

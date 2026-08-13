@@ -17,7 +17,95 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {extractDateISO, getTodayAttendanceRecord, isAttendanceCheckedIn} from '../../../Utils/MockInternDb';
 
 const TLMyTeam = () => {
-  const {colors} = useTheme();
+  const theme = useTheme();
+  const {colors} = theme;
+  const isDark = theme.dark;
+
+  const styles = useMemo(() => {
+    return {
+      ...baseStyles,
+      container: {
+        ...baseStyles.container,
+        backgroundColor: isDark ? colors.background : '#F5F7FA',
+      },
+      header: {
+        ...baseStyles.header,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+      },
+      greet: {
+        ...baseStyles.greet,
+        color: isDark ? colors.onSurfaceVariant : '#666',
+      },
+      title: {
+        ...baseStyles.title,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      searchBar: {
+        ...baseStyles.searchBar,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+      },
+      teamCard: {
+        ...baseStyles.teamCard,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+      },
+      internName: {
+        ...baseStyles.internName,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      internEmail: {
+        ...baseStyles.internEmail,
+        color: isDark ? colors.onSurfaceVariant : '#666',
+      },
+      metricsRow: {
+        ...baseStyles.metricsRow,
+        borderTopColor: isDark ? colors.outlineVariant : '#eee',
+      },
+      metricBox: {
+        ...baseStyles.metricBox,
+        borderRightColor: isDark ? colors.outlineVariant : '#eee',
+      },
+      metricLabel: {
+        ...baseStyles.metricLabel,
+        color: isDark ? colors.onSurfaceVariant : '#888',
+      },
+      metricValue: {
+        ...baseStyles.metricValue,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      modalContent: {
+        ...baseStyles.modalContent,
+        backgroundColor: isDark ? colors.elevation.level2 : '#fff',
+      },
+      modalTitle: {
+        ...baseStyles.modalTitle,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      profileBox: {
+        ...baseStyles.profileBox,
+        borderBottomColor: isDark ? colors.outlineVariant : '#eee',
+      },
+      profileName: {
+        ...baseStyles.profileName,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      profileEmail: {
+        ...baseStyles.profileEmail,
+        color: isDark ? colors.onSurfaceVariant : '#666',
+      },
+      profileDept: {
+        ...baseStyles.profileDept,
+        color: isDark ? colors.onSurface : '#333',
+      },
+      profileDays: {
+        ...baseStyles.profileDays,
+        color: isDark ? colors.onSurfaceVariant : '#888',
+      },
+      subTitle: {
+        ...baseStyles.subTitle,
+        color: isDark ? colors.onSurface : '#444',
+      },
+    };
+  }, [isDark, colors]);
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
   
@@ -287,8 +375,8 @@ const TLMyTeam = () => {
                 <View style={styles.cardTopRow}>
                   <Avatar.Text size={48} label={intern.avatar || 'I'} style={{backgroundColor: colors.primaryContainer}} color={colors.onPrimaryContainer}/>
                   <View style={styles.infoCol}>
-                    <Text style={styles.internName}>{intern.name}</Text>
-                    <Text style={styles.internEmail}>{intern.email}</Text>
+                    <Text style={styles.internName} numberOfLines={1}>{intern.name}</Text>
+                    <Text style={styles.internEmail} numberOfLines={1}>{intern.email}</Text>
                   </View>
                   <IconButton
                     icon="message-text-outline"
@@ -585,7 +673,7 @@ const TLMyTeam = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff8fa',

@@ -60,7 +60,86 @@ const safeText = val => {
 const PAST_MEETINGS_KEY = '@studify_tl_past_meetings';
 
 const TLDashboard = () => {
-  const {colors} = useTheme();
+  const theme = useTheme();
+  const {colors} = theme;
+  const isDark = theme.dark;
+
+  // Shadow override styles with theme aware colors dynamically
+  const styles = useMemo(() => {
+    return {
+      ...baseStyles,
+      container: {
+        ...baseStyles.container,
+        backgroundColor: isDark ? colors.background : '#F5F7FA',
+      },
+      header: {
+        ...baseStyles.header,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+        borderBottomWidth: isDark ? 1 : 0,
+        borderBottomColor: colors.outlineVariant,
+      },
+      welcomeText: {
+        ...baseStyles.welcomeText,
+        color: isDark ? colors.onSurface : '#1A237E',
+      },
+      deptText: {
+        ...baseStyles.deptText,
+        color: isDark ? colors.onSurfaceVariant : '#666',
+      },
+      categoryScroll: {
+        ...baseStyles.categoryScroll,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+      },
+      sectionTitle: {
+        ...baseStyles.sectionTitle,
+        color: isDark ? colors.onSurface : '#263238',
+      },
+      metricVal: {
+        ...baseStyles.metricVal,
+        color: isDark ? colors.onPrimaryContainer : '#1A237E',
+      },
+      metricLbl: {
+        ...baseStyles.metricLbl,
+        color: isDark ? colors.onSurfaceVariant : '#555',
+      },
+      cardMargin: {
+        ...baseStyles.cardMargin,
+        backgroundColor: isDark ? colors.elevation.level1 : '#ffffff',
+        borderColor: isDark ? colors.outlineVariant : '#F3EBF0',
+      },
+      cardTitle: {
+        ...baseStyles.cardTitle,
+        color: isDark ? colors.onSurface : '#263238',
+      },
+      cardSub: {
+        ...baseStyles.cardSub,
+        color: isDark ? colors.onSurfaceVariant : '#666',
+      },
+      emptyCard: {
+        ...baseStyles.emptyCard,
+        backgroundColor: isDark ? colors.elevation.level1 : '#fff',
+      },
+      emptyText: {
+        ...baseStyles.emptyText,
+        color: isDark ? colors.onSurfaceVariant : '#888',
+      },
+      modalCard: {
+        ...baseStyles.modalCard,
+        backgroundColor: isDark ? colors.elevation.level2 : '#fff',
+      },
+      modalHeading: {
+        ...baseStyles.modalHeading,
+        color: isDark ? colors.onSurface : '#1A237E',
+      },
+      modalInput: {
+        ...baseStyles.modalInput,
+        borderColor: isDark ? colors.outline : '#CCC',
+        backgroundColor: isDark ? colors.elevation.level1 : '#FAFAFA',
+        color: isDark ? colors.onSurface : '#333',
+      },
+    };
+  }, [isDark, colors]);
+
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
@@ -952,7 +1031,7 @@ const TLDashboard = () => {
           <View>
             <Text style={styles.welcomeText}>Team Leader Hub 👑</Text>
             <Text style={styles.deptText}>
-              Department: <Text style={{fontWeight: 'bold'}}>{activeDept}</Text>
+              Department: <Text style={{fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E'}}>{activeDept}</Text>
             </Text>
           </View>
           <TouchableOpacity
@@ -1004,21 +1083,21 @@ const TLDashboard = () => {
             {/* 2-Column Side-by-Side Metric Rows (Clickable) */}
             <View style={styles.gridRow}>
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#E3F2FD'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(21,101,192,0.15)' : '#E3F2FD'}]}
                 onPress={() => openMetricDetail('Total Interns')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="account-group" size={26} color="#1565C0" />
-                  <Text style={styles.metricVal}>{approvedInterns.length}</Text>
+                  <Icon name="account-group" size={26} color={isDark ? '#90CAF9' : '#1565C0'} />
+                  <Text style={[styles.metricVal, {color: isDark ? '#90CAF9' : '#1A237E'}]}>{approvedInterns.length}</Text>
                   <Text style={styles.metricLbl}>Total Interns 🔍</Text>
                 </Card.Content>
               </Card>
 
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#E8F5E9'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(46,125,50,0.15)' : '#E8F5E9'}]}
                 onPress={() => openMetricDetail('Active Today')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="check-circle" size={26} color="#2E7D32" />
-                  <Text style={styles.metricVal}>{activeTodayCount}</Text>
+                  <Icon name="check-circle" size={26} color={isDark ? '#A5D6A7' : '#2E7D32'} />
+                  <Text style={[styles.metricVal, {color: isDark ? '#A5D6A7' : '#2E7D32'}]}>{activeTodayCount}</Text>
                   <Text style={styles.metricLbl}>Active Today 🔍</Text>
                 </Card.Content>
               </Card>
@@ -1026,21 +1105,21 @@ const TLDashboard = () => {
 
             <View style={styles.gridRow}>
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#FFEBEE'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(198,40,40,0.15)' : '#FFEBEE'}]}
                 onPress={() => openMetricDetail('Absent')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="account-minus" size={26} color="#C62828" />
-                  <Text style={styles.metricVal}>{absentCount}</Text>
+                  <Icon name="account-minus" size={26} color={isDark ? '#EF9A9A' : '#C62828'} />
+                  <Text style={[styles.metricVal, {color: isDark ? '#EF9A9A' : '#C62828'}]}>{absentCount}</Text>
                   <Text style={styles.metricLbl}>Absent 🔍</Text>
                 </Card.Content>
               </Card>
 
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#FFF3E0'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(239,108,0,0.15)' : '#FFF3E0'}]}
                 onPress={() => openMetricDetail('Pending Tasks')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="clock-outline" size={26} color="#EF6C00" />
-                  <Text style={styles.metricVal}>{pendingTasksCount}</Text>
+                  <Icon name="clock-outline" size={26} color={isDark ? '#FFCC80' : '#EF6C00'} />
+                  <Text style={[styles.metricVal, {color: isDark ? '#FFCC80' : '#EF6C00'}]}>{pendingTasksCount}</Text>
                   <Text style={styles.metricLbl}>Pending Tasks 🔍</Text>
                 </Card.Content>
               </Card>
@@ -1048,21 +1127,21 @@ const TLDashboard = () => {
 
             <View style={styles.gridRow}>
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#F3E5F5'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(123,31,162,0.15)' : '#F3E5F5'}]}
                 onPress={() => openMetricDetail('Avg Performance')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="chart-line" size={26} color="#7B1FA2" />
-                  <Text style={styles.metricVal}>{avgPerformance}</Text>
+                  <Icon name="chart-line" size={26} color={isDark ? '#CE93D8' : '#7B1FA2'} />
+                  <Text style={[styles.metricVal, {color: isDark ? '#CE93D8' : '#7B1FA2'}]}>{avgPerformance}</Text>
                   <Text style={styles.metricLbl}>Avg Performance 🔍</Text>
                 </Card.Content>
               </Card>
 
               <Card
-                style={[styles.halfMetricCard, {backgroundColor: '#FFF8E1'}]}
+                style={[styles.halfMetricCard, {backgroundColor: isDark ? 'rgba(245,127,23,0.15)' : '#FFF8E1'}]}
                 onPress={() => openMetricDetail('Top Performer')}>
                 <Card.Content style={styles.metricContent}>
-                  <Icon name="crown" size={26} color="#F57F17" />
-                  <Text style={[styles.metricVal, {fontSize: 14}]} numberOfLines={1}>
+                  <Icon name="crown" size={26} color={isDark ? '#FFE082' : '#F57F17'} />
+                  <Text style={[styles.metricVal, {fontSize: 14, color: isDark ? '#FFE082' : '#1A237E'}]} numberOfLines={1}>
                     {topPerformer.name}
                   </Text>
                   <Text style={styles.metricLbl}>Top Performer ({topPerformer.score}%) 🔍</Text>
@@ -1268,13 +1347,13 @@ const TLDashboard = () => {
                             {task.priority || 'Medium'} Priority
                           </Text>
                         </View>
-                        <Text style={{fontSize: 12, color: '#666', fontWeight: '500'}}>
+                        <Text style={{fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#666', fontWeight: '500'}}>
                           Due: {task.dueDate || 'Today'}
                         </Text>
                       </View>
 
                       {/* Row 2: Full Task Title */}
-                      <Text style={[styles.cardTitle, {marginVertical: 4, color: '#1A237E'}]}>
+                      <Text style={[styles.cardTitle, {marginVertical: 4, color: isDark ? colors.primary : '#1A237E'}]}>
                         {task.title}
                       </Text>
 
@@ -1287,29 +1366,29 @@ const TLDashboard = () => {
 
                       {/* Row 4: Submitted Work Proof Box (for TL Review) */}
                       {Boolean(task.submissionProof) && (
-                        <View style={{marginTop: 10, padding: 12, backgroundColor: '#FAF6F8', borderRadius: 12, borderWidth: 1, borderColor: '#F3EBF0'}}>
-                          <Text style={{fontSize: 12, fontWeight: 'bold', color: '#1A237E', marginBottom: 6}}>
+                        <View style={{marginTop: 10, padding: 12, backgroundColor: isDark ? colors.elevation.level2 : '#FAF6F8', borderRadius: 12, borderWidth: 1, borderColor: isDark ? colors.outlineVariant : '#F3EBF0'}}>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E', marginBottom: 6}}>
                             📤 Work Proof Submitted ({task.submissionType || 'Attachment'})
                           </Text>
                           {Boolean(task.completedByName) && (
-                            <Text style={{fontSize: 11, color: '#666666', marginBottom: 4}}>
-                              Submitted by: <Text style={{fontWeight: 'bold', color: '#1A237E'}}>{task.completedByName}</Text>
+                            <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#666666', marginBottom: 4}}>
+                              Submitted by: <Text style={{fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E'}}>{task.completedByName}</Text>
                             </Text>
                           )}
                           {Boolean(task.proofNotes) && (
-                            <Text style={{fontSize: 12, color: '#333333', fontStyle: 'italic', marginBottom: 8}}>
+                            <Text style={{fontSize: 12, color: isDark ? colors.onSurface : '#333333', fontStyle: 'italic', marginBottom: 8}}>
                               "{task.proofNotes}"
                             </Text>
                           )}
                           <TouchableOpacity
-                            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#F3EBF0', marginBottom: 10}}
+                            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? colors.elevation.level3 : '#FFFFFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: isDark ? colors.outlineVariant : '#F3EBF0', marginBottom: 10}}
                             onPress={() => {
                               if (task.submissionProof) {
                                 Linking.openURL(task.submissionProof).catch(() => Alert.alert('Link', task.submissionProof));
                               }
                             }}>
-                            <Icon name="open-in-new" size={16} color="#3F51B5" style={{marginRight: 6}} />
-                            <Text style={{fontSize: 12, color: '#3F51B5', fontWeight: 'bold', flex: 1}} numberOfLines={1}>
+                            <Icon name="open-in-new" size={16} color={isDark ? colors.primary : '#3F51B5'} style={{marginRight: 6}} />
+                            <Text style={{fontSize: 12, color: isDark ? colors.primary : '#3F51B5', fontWeight: 'bold', flex: 1}} numberOfLines={1}>
                               {task.submissionProof}
                             </Text>
                           </TouchableOpacity>
@@ -1318,14 +1397,14 @@ const TLDashboard = () => {
                           {task.submissionStatus !== 'Approved' && (
                             <View style={{flexDirection: 'row', gap: 8, marginTop: 4}}>
                               <TouchableOpacity
-                                style={{flex: 1, backgroundColor: '#E8F5E9', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#C8E6C9'}}
+                                style={{flex: 1, backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : '#E8F5E9', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: isDark ? '#81C784' : '#C8E6C9'}}
                                 onPress={() => handleApproveTaskSubmission(task.id)}>
-                                <Text style={{color: '#2E7D32', fontSize: 12, fontWeight: 'bold'}}>✅ Approve Work</Text>
+                                <Text style={{color: isDark ? '#81C784' : '#2E7D32', fontSize: 12, fontWeight: 'bold'}}>✅ Approve Work</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
-                                style={{flex: 1, backgroundColor: '#FFEBEE', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#FFCDD2'}}
+                                style={{flex: 1, backgroundColor: isDark ? 'rgba(244,67,54,0.15)' : '#FFEBEE', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: isDark ? '#EF9A9A' : '#FFCDD2'}}
                                 onPress={() => handleRejectTaskSubmission(task.id)}>
-                                <Text style={{color: '#C62828', fontSize: 12, fontWeight: 'bold'}}>🔄 Request Revision</Text>
+                                <Text style={{color: isDark ? '#EF9A9A' : '#C62828', fontSize: 12, fontWeight: 'bold'}}>🔄 Request Revision</Text>
                               </TouchableOpacity>
                             </View>
                           )}
@@ -1340,11 +1419,12 @@ const TLDashboard = () => {
                           alignItems: 'center',
                           marginTop: 8,
                         }}>
-                        <Text style={{fontSize: 12, color: '#555'}}>
+                        <Text style={{fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#555'}}>
+                          Status:{' '}
                           <Text
                             style={{
                               fontWeight: 'bold',
-                              color: task.submissionStatus === 'Approved' ? '#2E7D32' : task.submissionStatus === 'Submitted' ? '#F57C00' : task.completed ? '#2E7D32' : '#3F51B5',
+                              color: task.submissionStatus === 'Approved' ? (isDark ? '#81C784' : '#2E7D32') : task.submissionStatus === 'Submitted' ? '#F57C00' : task.completed ? (isDark ? '#81C784' : '#2E7D32') : (isDark ? colors.primary : '#3F51B5'),
                             }}>
                             {task.submissionStatus === 'Approved' ? '✅ Approved' : task.submissionStatus === 'Submitted' || task.submissionProof ? '⏳ Awaiting Review' : task.completed ? 'Completed' : 'In Progress'}
                           </Text>
@@ -1353,7 +1433,7 @@ const TLDashboard = () => {
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            backgroundColor: task.completed ? '#E8F5E9' : '#E8EAF6',
+                            backgroundColor: task.completed ? (isDark ? 'rgba(46,125,50,0.15)' : '#E8F5E9') : (isDark ? 'rgba(63,81,181,0.15)' : '#E8EAF6'),
                             paddingHorizontal: 10,
                             paddingVertical: 4,
                             borderRadius: 12,
@@ -1361,14 +1441,14 @@ const TLDashboard = () => {
                           <Icon
                             name={task.completed ? 'check-circle' : 'clock-outline'}
                             size={14}
-                            color={task.completed ? '#2E7D32' : '#3F51B5'}
+                            color={task.completed ? (isDark ? '#81C784' : '#2E7D32') : (isDark ? '#9FA8DA' : '#3F51B5')}
                             style={{marginRight: 4}}
                           />
                           <Text
                             style={{
                               fontSize: 11,
                               fontWeight: 'bold',
-                              color: task.completed ? '#2E7D32' : '#3F51B5',
+                              color: task.completed ? (isDark ? '#81C784' : '#2E7D32') : (isDark ? '#9FA8DA' : '#3F51B5'),
                             }}>
                             {task.completed ? 'Done' : 'Active'}
                           </Text>
@@ -1459,7 +1539,16 @@ const TLDashboard = () => {
                       <Button
                         compact
                         mode="contained-tonal"
-                        onPress={() => Linking.openURL(meet.link)}>
+                        onPress={() => {
+                          const url = meet.meeting_link || meet.link;
+                          if (url) {
+                            Linking.openURL(url).catch(() => {
+                              Alert.alert('Error', 'Unable to open meeting link.');
+                            });
+                          } else {
+                            Alert.alert('No Link', 'No meeting link is available.');
+                          }
+                        }}>
                         Join Google Meet
                       </Button>
                       <Button
@@ -1695,13 +1784,11 @@ const TLDashboard = () => {
           </View>
         )}
 
-        {/* ================= MODULE 9 & 10: LEAVES & ATTENDANCE ================= */}
-        {(activeCategory === 'Overview' ||
-          activeCategory === 'Leaves' ||
-          activeCategory === 'Attendance') && (
+        {/* ================= LEAVES CATEGORY SCREEN ================= */}
+        {(activeCategory === 'Overview' || activeCategory === 'Leaves') && (
           <View style={styles.sectionPadding}>
             <Text style={styles.sectionTitle}>
-              Leave Requests & Attendance ({activeDept})
+              Leave Requests ({activeDept})
             </Text>
             <SegmentedButtons
               value={leaveTab}
@@ -1789,6 +1876,117 @@ const TLDashboard = () => {
             )}
           </View>
         )}
+
+        {/* ================= ATTENDANCE CATEGORY SCREEN ================= */}
+        {activeCategory === 'Attendance' && (() => {
+          // Calculate today's totals
+          const totalInterns = approvedInterns.length;
+          let presentCount = 0;
+          approvedInterns.forEach(intern => {
+            const attRecord = getTodayAttendanceRecord(db?.attendance, intern);
+            if (isAttendanceCheckedIn(attRecord)) {
+              presentCount++;
+            }
+          });
+          const absentCount = totalInterns - presentCount;
+
+          return (
+            <View style={styles.sectionPadding}>
+              <Text style={styles.sectionTitle}>
+                Today's Roster & Attendance ({activeDept})
+              </Text>
+
+              {/* Roster Summary Card */}
+              <Card style={{marginBottom: 16, backgroundColor: '#E0F2F1'}}>
+                <Card.Content style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center'}}>
+                  <View style={{alignItems: 'center'}}>
+                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#004D40'}}>{totalInterns}</Text>
+                    <Text style={{fontSize: 11, color: '#00796B'}}>Total Interns</Text>
+                  </View>
+                  <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
+                  <View style={{alignItems: 'center'}}>
+                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#2E7D32'}}>{presentCount}</Text>
+                    <Text style={{fontSize: 11, color: '#388E3C'}}>Present Today</Text>
+                  </View>
+                  <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
+                  <View style={{alignItems: 'center'}}>
+                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#C62828'}}>{absentCount}</Text>
+                    <Text style={{fontSize: 11, color: '#D32F2F'}}>Absent Today</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+
+              {totalInterns === 0 ? (
+                <Card style={styles.emptyCard}>
+                  <Card.Content style={styles.emptyContent}>
+                    <Icon name="account-multiple-remove" size={40} color="#888" />
+                    <Text style={styles.emptyText}>No approved interns in this department roster.</Text>
+                  </Card.Content>
+                </Card>
+              ) : (
+                approvedInterns.map(intern => {
+                  const attRecord = getTodayAttendanceRecord(db?.attendance, intern);
+                  const isCheckedIn = isAttendanceCheckedIn(attRecord);
+                  const status = isCheckedIn ? (attRecord.status || 'Present') : 'Absent';
+                  
+                  return (
+                    <Card key={intern.id} style={styles.cardMargin}>
+                      <Card.Content>
+                        <View style={styles.rowBetween}>
+                          <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8}}>
+                            <Avatar.Text 
+                              size={36} 
+                              label={intern.avatar || (intern.name ? intern.name.split(' ').map(n=>n[0]).join('').slice(0,2) : 'IN')} 
+                              backgroundColor={isCheckedIn ? '#E8F5E9' : '#FFEBEE'}
+                              color={isCheckedIn ? '#2E7D32' : '#C62828'}
+                            />
+                            <View style={{flex: 1}}>
+                              <Text style={styles.cardTitle} numberOfLines={1}>{intern.name}</Text>
+                              <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#777'}} numberOfLines={1}>{intern.email}</Text>
+                            </View>
+                          </View>
+                          <Chip
+                            icon={isCheckedIn ? 'check-circle' : 'close-circle'}
+                            style={{
+                              backgroundColor: isCheckedIn ? '#E8F5E9' : '#FFEBEE',
+                            }}
+                            textStyle={{
+                              color: isCheckedIn ? '#2E7D32' : '#C62828',
+                              fontWeight: 'bold'
+                            }}>
+                            {isCheckedIn ? `${status} ✅` : 'Absent ❌'}
+                          </Chip>
+                        </View>
+
+                        {/* Check-in Times / Details if present */}
+                        {isCheckedIn && (
+                          <View style={{marginTop: 8, padding: 8, backgroundColor: '#F9F9F9', borderRadius: 8}}>
+                            {attRecord.morning_marked_at ? (
+                              <Text style={{fontSize: 11, color: '#555'}}>
+                                🌅 Morning Check-in: {new Date(attRecord.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </Text>
+                            ) : null}
+                            {attRecord.evening_marked_at ? (
+                              <Text style={{fontSize: 11, color: '#555', marginTop: attRecord.morning_marked_at ? 4 : 0}}>
+                                🌇 Evening Check-in: {new Date(attRecord.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </Text>
+                            ) : null}
+                            {!attRecord.morning_marked_at && !attRecord.evening_marked_at && (
+                              <Text style={{fontSize: 11, color: '#555'}}>
+                                 Marked present manually by TL
+                              </Text>
+                            )}
+                          </View>
+                        )}
+
+                      </Card.Content>
+                    </Card>
+                  );
+                })
+              )}
+            </View>
+          );
+        })()}
       </ScrollView>
 
       {/* MODAL 1: Task Creation (Module 3) */}
@@ -2583,7 +2781,7 @@ const TLDashboard = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',

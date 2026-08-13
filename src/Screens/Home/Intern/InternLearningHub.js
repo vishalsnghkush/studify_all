@@ -24,7 +24,9 @@ const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 const {width} = Dimensions.get('window');
 
 const InternLearningHub = () => {
-  const {colors} = useTheme();
+  const theme = useTheme();
+  const colors = theme.colors;
+  const isDark = theme.dark;
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
   const { get, post } = useApi();
@@ -136,9 +138,40 @@ const InternLearningHub = () => {
   }, [activeView, navigation]);
 
   const handleJoin = (link) => {
+    if (!link) {
+      Alert.alert('No Link', 'No resource link is available.');
+      return;
+    }
     Linking.openURL(link).catch((err) =>
       Alert.alert('Error', 'Unable to launch link.'),
     );
+  };
+
+  const handleWatchVideo = (course) => {
+    const driveRegExp = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const match = course.video_url ? course.video_url.match(driveRegExp) : null;
+    
+    if (match && match[1]) {
+      navigation.navigate('LecturePlayer', {
+        lecture: {
+          id: match[1],
+          name: course.title,
+          description: course.description,
+          subject: 'Training Module',
+        }
+      });
+    } else if (course.video_url && !course.video_url.startsWith('http') && course.video_url.length > 15) {
+      navigation.navigate('LecturePlayer', {
+        lecture: {
+          id: course.video_url,
+          name: course.title,
+          description: course.description,
+          subject: 'Training Module',
+        }
+      });
+    } else {
+      handleJoin(course.video_url);
+    }
   };
 
   const renderMainView = () => (
@@ -288,7 +321,7 @@ const InternLearningHub = () => {
                 Instructor: {course.instructor} | Duration: {course.duration}
               </Text>
               <Text style={styles.courseDesc}>{course.description}</Text>
-              <Button mode="outlined" icon="play-circle-outline" onPress={() => handleJoin(course.video_url)} style={styles.watchBtn}>
+              <Button mode="outlined" icon="play-circle-outline" onPress={() => handleWatchVideo(course)} style={styles.watchBtn}>
                 Watch Video
               </Button>
             </Card.Content>
@@ -377,28 +410,28 @@ const InternLearningHub = () => {
         animationType="slide"
         onRequestClose={() => setShowPaywall(false)}>
         <View style={styles.paywallOverlay}>
-          <View style={styles.paywallCard}>
+          <View style={[styles.paywallCard, {backgroundColor: isDark ? colors.elevation.level3 : '#fff'}]}>
             <TouchableOpacity style={styles.paywallClose} onPress={() => setShowPaywall(false)}>
-              <Icon name="close" size={22} color="#555" />
+              <Icon name="close" size={22} color={isDark ? colors.onSurfaceVariant : '#555'} />
             </TouchableOpacity>
-            <View style={styles.paywallLockCircle}>
-              <Icon name="lock" size={36} color="#3F51B5" />
+            <View style={[styles.paywallLockCircle, {backgroundColor: isDark ? 'rgba(63,81,181,0.15)' : '#EEF2FF'}]}>
+              <Icon name="lock" size={36} color={isDark ? '#9FA8DA' : '#3F51B5'} />
             </View>
-            <Text style={[styles.paywallTitle, {color: '#3F51B5'}]}>Premium Content</Text>
-            <Text style={styles.paywallItemName}>Training Modules</Text>
-            <Text style={styles.paywallDesc}>Unlock lifetime access to all recorded training videos with a one-time payment.</Text>
+            <Text style={[styles.paywallTitle, {color: isDark ? '#9FA8DA' : '#3F51B5'}]}>Premium Content</Text>
+            <Text style={[styles.paywallItemName, {color: isDark ? colors.onSurface : '#1A237E'}]}>Training Modules</Text>
+            <Text style={[styles.paywallDesc, {color: isDark ? colors.onSurfaceVariant : '#555'}]}>Unlock lifetime access to all recorded training videos with a one-time payment.</Text>
             <View style={styles.paywallPriceRow}>
-              <Text style={styles.paywallPrice}>₹99</Text>
-              <Text style={styles.paywallPriceLabel}>  One-time</Text>
+              <Text style={[styles.paywallPrice, {color: isDark ? colors.onSurface : '#1A237E'}]}>₹99</Text>
+              <Text style={[styles.paywallPriceLabel, {color: isDark ? colors.onSurfaceVariant : '#666'}]}>  One-time</Text>
             </View>
             <TouchableOpacity
-              style={[styles.paywallBtn, {backgroundColor: '#3F51B5'}, paying && {opacity: 0.6}]}
+              style={[styles.paywallBtn, {backgroundColor: isDark ? colors.primary : '#3F51B5'}, paying && {opacity: 0.6}]}
               onPress={openRazorPay}
               disabled={paying}>
               <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
               <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
             </TouchableOpacity>
-            <Text style={styles.paywallSecure}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+            <Text style={[styles.paywallSecure, {color: isDark ? colors.outline : '#888'}]}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
           </View>
         </View>
       </Modal>
@@ -545,6 +578,88 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     marginTop: 4,
+  },
+  paywallOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  paywallCard: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    position: 'relative',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  paywallClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+  },
+  paywallLockCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  paywallTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  paywallItemName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  paywallDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  paywallPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 20,
+  },
+  paywallPrice: {
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  paywallPriceLabel: {
+    fontSize: 13,
+  },
+  paywallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    width: '100%',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  paywallBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  paywallSecure: {
+    fontSize: 10,
+    textAlign: 'center',
   }
 });
 

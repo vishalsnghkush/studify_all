@@ -16,7 +16,9 @@ import useApi from '../../../Components/Api/Api';
 const {width} = Dimensions.get('window');
 
 const InternPerformance = () => {
-  const {colors} = useTheme();
+  const theme = useTheme();
+  const {colors} = theme;
+  const isDark = theme.dark;
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
 
@@ -102,10 +104,10 @@ const InternPerformance = () => {
 
   if (internStatus !== 'Approved') {
     return (
-      <Screen NoHeader style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' }}>
-        <Icon name="lock-outline" size={64} color="#999" style={{ marginBottom: 16 }} />
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 }}>Verification Required</Text>
-        <Text style={{ fontSize: 13, color: '#666', textAlign: 'center', lineHeight: 18, marginBottom: 16 }}>
+      <Screen NoHeader style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: colors.background }}>
+        <Icon name="lock-outline" size={64} color={colors.outline} style={{ marginBottom: 16 }} />
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.onSurface, marginBottom: 8 }}>Verification Required</Text>
+        <Text style={{ fontSize: 13, color: colors.onSurfaceVariant, textAlign: 'center', lineHeight: 18, marginBottom: 16 }}>
           Performance Dashboard is locked. Please upload your Internship Offer Letter in your Profile and await TL approval to unlock it.
         </Text>
         <Button mode="contained" onPress={() => navigation.navigate('InternProfile')}>
@@ -205,7 +207,7 @@ const InternPerformance = () => {
 
         {/* Badges & Achievements Section */}
         <Text style={styles.sectionTitle}>Badges & Achievements 🏆</Text>
-        <Card style={{marginBottom: 16, backgroundColor: '#fff', borderRadius: 12}}>
+        <Card style={{marginBottom: 16, backgroundColor: isDark ? colors.elevation.level1 : '#fff', borderRadius: 12}}>
           <Card.Content style={{paddingVertical: 12}}>
             <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between'}}>
               {[
@@ -216,12 +218,12 @@ const InternPerformance = () => {
                 { id: 'b5', title: 'Streak Gold', desc: '30-day streak milestone', icon: 'seal-variant', color: '#94a3b8', earned: (metrics.accuracy || 0) >= 95 },
                 { id: 'b6', title: 'Top Performer', desc: 'Ranked #1 in department', icon: 'trophy-award', color: '#8b5cf6', earned: (metrics.accuracy || 0) >= 90 },
               ].map(badge => (
-                <View key={badge.id} style={{width: '48%', marginBottom: 12, padding: 8, backgroundColor: badge.earned ? '#F0FDF4' : '#F9FAFB', borderRadius: 8, borderWidth: 1, borderColor: badge.earned ? '#BBF7D0' : '#E5E7EB', alignItems: 'center'}}>
-                  <Icon name={badge.earned ? badge.icon : 'lock-outline'} size={28} color={badge.earned ? badge.color : '#9CA3AF'} />
-                  <Text style={{fontSize: 12, fontWeight: 'bold', color: badge.earned ? '#111827' : '#6B7280', marginTop: 4, textAlign: 'center'}}>{badge.title}</Text>
-                  <Text style={{fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 2}}>{badge.desc}</Text>
-                  <View style={{marginTop: 6, backgroundColor: badge.earned ? '#10B981' : '#D1D5DB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10}}>
-                    <Text style={{fontSize: 9, color: '#fff', fontWeight: 'bold'}}>{badge.earned ? '✓ Earned' : 'Locked'}</Text>
+                <View key={badge.id} style={{width: '48%', marginBottom: 12, padding: 8, backgroundColor: badge.earned ? (isDark ? 'rgba(16,185,129,0.12)' : '#F0FDF4') : (isDark ? colors.elevation.level2 : '#F9FAFB'), borderRadius: 8, borderWidth: 1, borderColor: badge.earned ? (isDark ? 'rgba(16,185,129,0.35)' : '#BBF7D0') : (isDark ? colors.outlineVariant : '#E5E7EB'), alignItems: 'center'}}>
+                  <Icon name={badge.earned ? badge.icon : 'lock-outline'} size={28} color={badge.earned ? badge.color : (isDark ? colors.outline : '#9CA3AF')} />
+                  <Text style={{fontSize: 12, fontWeight: 'bold', color: badge.earned ? (isDark ? colors.onSurface : '#111827') : (isDark ? colors.outline : '#6B7280'), marginTop: 4, textAlign: 'center'}}>{badge.title}</Text>
+                  <Text style={{fontSize: 10, color: isDark ? colors.onSurfaceVariant : '#6B7280', textAlign: 'center', marginTop: 2}}>{badge.desc}</Text>
+                  <View style={{marginTop: 6, backgroundColor: badge.earned ? '#10B981' : (isDark ? colors.outlineVariant : '#D1D5DB'), paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10}}>
+                    <Text style={{fontSize: 9, color: badge.earned ? '#fff' : (isDark ? colors.onSurfaceVariant : '#fff'), fontWeight: 'bold'}}>{badge.earned ? '✓ Earned' : 'Locked'}</Text>
                   </View>
                 </View>
               ))}
