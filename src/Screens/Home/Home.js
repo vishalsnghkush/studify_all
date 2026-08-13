@@ -1457,7 +1457,7 @@ const Home = () => {
 
           {/* Chatbot WebView */}
           <WebView
-            source={{ uri: 'http://192.168.1.3:3000/chatbot/index.html' }}
+            source={{ uri: 'https://www.api.studifysuccess.com/chatbot/index.html' }}
             style={{ flex: 1 }}
             javaScriptEnabled={true}
             domStorageEnabled={true}
