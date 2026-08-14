@@ -608,31 +608,37 @@ export default function FounderDashboard({ navigation }) {
       <Modal visible={deptModal} animationType="slide" onRequestClose={() => setDeptModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A237E' }}>Manage Departments</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>Manage Departments</Text>
             <TouchableOpacity onPress={() => setDeptModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
-          <Card style={{ padding: 12, marginBottom: 16, backgroundColor: '#F5F5F5' }}>
-            <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>+ Create New Department</Text>
+          <Card style={{ padding: 12, marginBottom: 16, backgroundColor: isDark ? colors.elevation.level2 : '#F5F5F5' }}>
+            <Text style={{ fontWeight: 'bold', marginBottom: 6, color: isDark ? colors.onSurface : '#333' }}>+ Create New Department</Text>
             <TextInput
               placeholder="Enter department name (e.g. AI Research)"
+              placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'}
               value={newDeptName}
               onChangeText={setNewDeptName}
               style={styles.input}
             />
-            <Button mode="contained" buttonColor="#1A237E" onPress={handleAddDepartment} style={{ marginTop: 8 }}>
+            <Button 
+              mode="contained" 
+              buttonColor={isDark ? colors.primary : '#1A237E'} 
+              textColor={isDark ? colors.onPrimary : '#fff'}
+              onPress={handleAddDepartment} 
+              style={{ marginTop: 8 }}>
               Add Department
             </Button>
           </Card>
 
-          <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Active Departments ({customDepts.length})</Text>
+          <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: isDark ? colors.onSurface : '#333' }}>Active Departments ({customDepts.length})</Text>
           <ScrollView>
             {customDepts.map(d => {
               const deptMembers = team.filter(m => (m.department || '').trim().toLowerCase() === d.toLowerCase());
               return (
-                <View key={d} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#EEE' }}>
+                <View key={d} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: isDark ? colors.outlineVariant : '#EEE' }}>
                   <TouchableOpacity
                     onPress={() => {
                       setDeptModal(false);
@@ -641,11 +647,11 @@ export default function FounderDashboard({ navigation }) {
                     }}
                     style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Icon name="domain" size={20} color="#1A237E" style={{ marginRight: 8 }} />
-                      <Text style={{ fontSize: 15, fontWeight: '600' }}>{d}</Text>
+                      <Icon name="domain" size={20} color={isDark ? colors.primary : '#1A237E'} style={{ marginRight: 8 }} />
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: isDark ? colors.onSurface : '#333' }}>{d}</Text>
                     </View>
-                    <Chip compact style={{ backgroundColor: deptMembers.length > 0 ? '#E8EAF6' : '#F5F5F5' }}>
-                      <Text style={{ color: deptMembers.length > 0 ? '#1A237E' : '#777', fontWeight: 'bold' }}>
+                    <Chip compact style={{ backgroundColor: deptMembers.length > 0 ? (isDark ? 'rgba(63,81,181,0.15)' : '#E8EAF6') : (isDark ? colors.elevation.level2 : '#F5F5F5') }}>
+                      <Text style={{ color: deptMembers.length > 0 ? (isDark ? '#9FA8DA' : '#1A237E') : (isDark ? colors.onSurfaceVariant : '#777'), fontWeight: 'bold' }}>
                         {deptMembers.length} Members ›
                       </Text>
                     </Chip>
@@ -656,15 +662,15 @@ export default function FounderDashboard({ navigation }) {
                     <View style={{ marginTop: 8, paddingLeft: 28, gap: 4 }}>
                       {deptMembers.map((m, idx) => (
                         <View key={m.id || idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: 13, color: '#333' }}>
+                          <Text style={{ fontSize: 13, color: isDark ? colors.onSurface : '#333' }}>
                             • <Text style={{ fontWeight: 'bold' }}>{m.name || `${m.fname || ''} ${m.lname || ''}`}</Text>
                           </Text>
-                          <Text style={{ fontSize: 11, color: '#1565C0', fontWeight: '500' }}>{m.role || 'Intern'}</Text>
+                          <Text style={{ fontSize: 11, color: isDark ? '#90CAF9' : '#1565C0', fontWeight: '500' }}>{m.role || 'Intern'}</Text>
                         </View>
                       ))}
                     </View>
                   ) : (
-                    <Text style={{ fontSize: 11, color: '#9E9E9E', fontStyle: 'italic', marginTop: 4, paddingLeft: 28 }}>
+                    <Text style={{ fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#9E9E9E', fontStyle: 'italic', marginTop: 4, paddingLeft: 28 }}>
                       No interns assigned to this department
                     </Text>
                   )}
@@ -676,24 +682,25 @@ export default function FounderDashboard({ navigation }) {
       </Modal>
 
       {/* ================= MODAL 2: MANAGE MODULES (DEPT INDEPENDENT) ================= */}
+      {/* ================= MODAL 2: MANAGE MODULES (DEPT INDEPENDENT) ================= */}
       <Modal visible={moduleModal} animationType="slide" onRequestClose={() => setModuleModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1A237E' }}>Manage Training Modules</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>Manage Training Modules</Text>
             <TouchableOpacity onPress={() => setModuleModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <ScrollView>
-            <Card style={{ padding: 12, marginBottom: 16, backgroundColor: '#F5F5F5' }}>
-              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Publish New Training Module</Text>
-              <TextInput placeholder="Module Title" value={modTitle} onChangeText={setModTitle} style={styles.input} />
-              <TextInput placeholder="Duration (e.g. 45 mins)" value={modDuration} onChangeText={setModDuration} style={styles.input} />
-              <TextInput placeholder="Description" value={modDesc} onChangeText={setModDesc} style={styles.input} multiline />
-              <TextInput placeholder="Video / Link URL" value={modVideo} onChangeText={setModVideo} style={styles.input} />
+            <Card style={{ padding: 12, marginBottom: 16, backgroundColor: isDark ? colors.elevation.level2 : '#F5F5F5' }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8, color: isDark ? colors.onSurface : '#333' }}>Publish New Training Module</Text>
+              <TextInput placeholder="Module Title" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={modTitle} onChangeText={setModTitle} style={styles.input} />
+              <TextInput placeholder="Duration (e.g. 45 mins)" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={modDuration} onChangeText={setModDuration} style={styles.input} />
+              <TextInput placeholder="Description" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={modDesc} onChangeText={setModDesc} style={styles.input} multiline />
+              <TextInput placeholder="Video / Link URL" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={modVideo} onChangeText={setModVideo} style={styles.input} />
 
-              <Text style={{ fontWeight: 'bold', marginTop: 8, marginBottom: 6 }}>Target Departments (Select Independently):</Text>
+              <Text style={{ fontWeight: 'bold', marginTop: 8, marginBottom: 6, color: isDark ? colors.onSurface : '#333' }}>Target Departments (Select Independently):</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                 {customDepts.map(d => {
                   const selected = selectedDeptsForMod.includes(d);
@@ -708,29 +715,33 @@ export default function FounderDashboard({ navigation }) {
                           setSelectedDeptsForMod(prev => [...prev, d]);
                         }
                       }}
-                      style={{ backgroundColor: selected ? '#1A237E' : '#E0E0E0' }}>
-                      <Text style={{ color: selected ? '#fff' : '#333', fontSize: 11 }}>{d}</Text>
+                      style={{ backgroundColor: selected ? (isDark ? colors.primary : '#1A237E') : (isDark ? colors.elevation.level3 : '#E0E0E0') }}>
+                      <Text style={{ color: selected ? '#fff' : (isDark ? colors.onSurface : '#333'), fontSize: 11 }}>{d}</Text>
                     </Chip>
                   );
                 })}
               </View>
 
-              <Button mode="contained" buttonColor="#1A237E" onPress={handlePublishModuleFounder}>
+              <Button 
+                mode="contained" 
+                buttonColor={isDark ? colors.primary : '#1A237E'} 
+                textColor={isDark ? colors.onPrimary : '#fff'}
+                onPress={handlePublishModuleFounder}>
                 Publish Module
               </Button>
             </Card>
 
-            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Existing Modules ({modules.length})</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: isDark ? colors.onSurface : '#333' }}>Existing Modules ({modules.length})</Text>
             {modules.map((mod, idx) => (
-              <Card key={mod.id || idx} style={{ marginBottom: 10 }}>
+              <Card key={mod.id || idx} style={{ marginBottom: 10, backgroundColor: isDark ? colors.elevation.level1 : '#fff' }}>
                 <Card.Content>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 14 }}>📹 {mod.title}</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: isDark ? colors.onSurface : '#333' }}>📹 {mod.title}</Text>
                     <TouchableOpacity onPress={() => remove(`/interns/trainings/modules/${mod.id}`).then(loadData)}>
                       <Icon name="trash-can-outline" size={20} color="#D32F2F" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={{ fontSize: 12, color: '#555', marginTop: 2 }}>Departments: {mod.department || 'All'}</Text>
+                  <Text style={{ fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#555', marginTop: 2 }}>Departments: {mod.department || 'All'}</Text>
                 </Card.Content>
               </Card>
             ))}
@@ -742,36 +753,36 @@ export default function FounderDashboard({ navigation }) {
       <Modal visible={tlModal} animationType="slide" onRequestClose={() => setTlModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A237E' }}>Manage Team Leaders</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>Manage Team Leaders</Text>
             <TouchableOpacity onPress={() => setTlModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <ScrollView>
-            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Team Leaders & Members ({team.length})</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: isDark ? colors.onSurface : '#333' }}>Team Leaders & Members ({team.length})</Text>
             {team.map((m, idx) => {
               const isTL = m.role === 'TL' || m.role === 'Team Leader' || m.is_tl === 1 || m.is_tl === true;
               return (
-                <Card key={m.id || idx} style={{ marginBottom: 10, backgroundColor: isTL ? '#E8EAF6' : '#fff' }}>
+                <Card key={m.id || idx} style={{ marginBottom: 10, backgroundColor: isTL ? (isDark ? 'rgba(63,81,181,0.15)' : '#E8EAF6') : (isDark ? colors.elevation.level1 : '#fff') }}>
                   <Card.Content style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <Avatar.Text
                         size={38}
                         label={(m.name || `${m.fname || ''}`).substring(0, 2).toUpperCase()}
-                        style={{ marginRight: 12, backgroundColor: isTL ? '#1A237E' : '#78909C' }}
+                        style={{ marginRight: 12, backgroundColor: isTL ? (isDark ? colors.primary : '#1A237E') : '#78909C' }}
                       />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#111' }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 15, color: isDark ? colors.onSurface : '#111' }}>
                           {m.name || `${m.fname || ''} ${m.lname || ''}`} {isTL ? '👑' : ''}
                         </Text>
-                        <Text style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
-                          Dept: <Text style={{ fontWeight: '600', color: '#1A237E' }}>{m.department || 'Tech'}</Text>
+                        <Text style={{ fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#555', marginTop: 2 }}>
+                          Dept: <Text style={{ fontWeight: '600', color: isDark ? colors.primary : '#1A237E' }}>{m.department || 'Tech'}</Text>
                         </Text>
                       </View>
                     </View>
-                    <Chip compact style={{ backgroundColor: isTL ? '#1A237E' : '#E0E0E0' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: isTL ? '#FFF' : '#444' }}>
+                    <Chip compact style={{ backgroundColor: isTL ? (isDark ? colors.primary : '#1A237E') : (isDark ? colors.elevation.level3 : '#E0E0E0') }}>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: isTL ? '#FFF' : (isDark ? colors.onSurface : '#444') }}>
                         {isTL ? '👑 Team Leader' : 'Intern'}
                       </Text>
                     </Chip>
@@ -787,14 +798,15 @@ export default function FounderDashboard({ navigation }) {
       <Modal visible={internModal} animationType="slide" onRequestClose={() => setInternModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A237E' }}>Manage Interns</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>Manage Interns</Text>
             <TouchableOpacity onPress={() => setInternModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <TextInput
             placeholder="Search intern by name..."
+            placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'}
             value={internSearch}
             onChangeText={setInternSearch}
             style={[styles.input, { marginBottom: 10 }]}
@@ -806,7 +818,8 @@ export default function FounderDashboard({ navigation }) {
                 key={d}
                 selected={internFilterDept === d}
                 onPress={() => setInternFilterDept(d)}
-                style={{ marginRight: 6 }}>
+                style={{ marginRight: 6, backgroundColor: internFilterDept === d ? (isDark ? colors.primary : '#1A237E') : (isDark ? colors.elevation.level2 : '#E0E0E0') }}
+                textStyle={{ color: internFilterDept === d ? '#fff' : (isDark ? colors.onSurface : '#333'), fontSize: 11 }}>
                 {d}
               </Chip>
             ))}
@@ -821,25 +834,25 @@ export default function FounderDashboard({ navigation }) {
                 return matchesDept && matchesSearch;
               })
               .map((m, idx) => (
-                <Card key={m.id || idx} style={{ marginBottom: 10 }}>
+                <Card key={m.id || idx} style={{ marginBottom: 10, backgroundColor: isDark ? colors.elevation.level1 : '#fff' }}>
                   <Card.Content>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <View>
-                        <Text style={{ fontWeight: 'bold', fontSize: 14 }}>{m.name || `${m.fname || ''} ${m.lname || ''}`}</Text>
-                        <Text style={{ fontSize: 11, color: '#555' }}>Email: {m.email || 'N/A'}</Text>
-                        <Text style={{ fontSize: 11, color: '#1565C0', fontWeight: 'bold' }}>Department: {m.department || 'Tech'}</Text>
+                        <Text style={{ fontWeight: 'bold', fontSize: 14, color: isDark ? colors.onSurface : '#333' }}>{m.name || `${m.fname || ''} ${m.lname || ''}`}</Text>
+                        <Text style={{ fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#555' }}>Email: {m.email || 'N/A'}</Text>
+                        <Text style={{ fontSize: 11, color: isDark ? colors.primary : '#1565C0', fontWeight: 'bold' }}>Department: {m.department || 'Tech'}</Text>
                       </View>
                     </View>
 
                     <Divider style={{ marginVertical: 8 }} />
-                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#777', marginBottom: 4 }}>Transfer Department:</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: isDark ? colors.onSurfaceVariant : '#777', marginBottom: 4 }}>Transfer Department:</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                       {customDepts.map(targetD => (
                         <TouchableOpacity
                           key={targetD}
                           onPress={() => handleTransferInternDept(m.id || m.user_id, m.name, targetD)}
-                          style={{ backgroundColor: m.department === targetD ? '#1A237E' : '#E0E0E0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 10, color: m.department === targetD ? '#fff' : '#333' }}>{targetD}</Text>
+                          style={{ backgroundColor: m.department === targetD ? (isDark ? colors.primary : '#1A237E') : (isDark ? colors.elevation.level2 : '#E0E0E0'), paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 10, color: m.department === targetD ? '#fff' : (isDark ? colors.onSurface : '#333') }}>{targetD}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -854,47 +867,56 @@ export default function FounderDashboard({ navigation }) {
       <Modal visible={taskModal} animationType="slide" onRequestClose={() => setTaskModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A237E' }}>Master Task Manager</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>Master Task Manager</Text>
             <TouchableOpacity onPress={() => setTaskModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <ScrollView>
-            <Card style={{ padding: 12, marginBottom: 16, backgroundColor: '#F5F5F5' }}>
-              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>+ Create Master Task</Text>
-              <TextInput placeholder="Task Title" value={taskTitle} onChangeText={setTaskTitle} style={styles.input} />
-              <TextInput placeholder="Task Description" value={taskDesc} onChangeText={setTaskDesc} style={styles.input} multiline />
+            <Card style={{ padding: 12, marginBottom: 16, backgroundColor: isDark ? colors.elevation.level2 : '#F5F5F5' }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8, color: isDark ? colors.onSurface : '#333' }}>+ Create Master Task</Text>
+              <TextInput placeholder="Task Title" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={taskTitle} onChangeText={setTaskTitle} style={styles.input} />
+              <TextInput placeholder="Task Description" placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'} value={taskDesc} onChangeText={setTaskDesc} style={styles.input} multiline />
 
-              <Text style={{ fontWeight: 'bold', marginTop: 6, marginBottom: 4 }}>Target Department:</Text>
+              <Text style={{ fontWeight: 'bold', marginTop: 6, marginBottom: 4, color: isDark ? colors.onSurface : '#333' }}>Target Department:</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
                 {['All', ...customDepts].map(d => (
                   <Chip
                     key={d}
                     selected={taskTargetDept === d}
                     onPress={() => setTaskTargetDept(d)}
-                    compact>
+                    compact
+                    style={{ backgroundColor: taskTargetDept === d ? (isDark ? colors.primary : '#1A237E') : (isDark ? colors.elevation.level3 : '#E0E0E0') }}
+                    textStyle={{ color: taskTargetDept === d ? '#fff' : (isDark ? colors.onSurface : '#333'), fontSize: 11 }}>
                     {d}
                   </Chip>
                 ))}
               </View>
 
-              <Button mode="contained" buttonColor="#1A237E" onPress={handleCreateMasterTask}>
+              <Button 
+                mode="contained" 
+                buttonColor={isDark ? colors.primary : '#1A237E'} 
+                textColor={isDark ? colors.onPrimary : '#fff'}
+                onPress={handleCreateMasterTask}>
                 Broadcast Task
               </Button>
             </Card>
 
-            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Active Server Tasks ({tasks.length})</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: isDark ? colors.onSurface : '#333' }}>Active Server Tasks ({tasks.length})</Text>
             {tasks.map((t, idx) => (
-              <Card key={t.id || idx} style={{ marginBottom: 10 }}>
+              <Card key={t.id || idx} style={{ marginBottom: 10, backgroundColor: isDark ? colors.elevation.level1 : '#fff' }}>
                 <Card.Content>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 14, flex: 1, marginRight: 8 }} numberOfLines={2}>{t.title}</Text>
-                    <Chip compact style={{ backgroundColor: t.completed ? '#E8F5E9' : '#FFF3E0' }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14, flex: 1, marginRight: 8, color: isDark ? colors.onSurface : '#333' }} numberOfLines={2}>{t.title}</Text>
+                    <Chip 
+                      compact 
+                      style={{ backgroundColor: t.completed ? (isDark ? 'rgba(76,175,80,0.15)' : '#E8F5E9') : (isDark ? 'rgba(255,183,77,0.15)' : '#FFF3E0') }}
+                      textStyle={{ color: t.completed ? (isDark ? '#81C784' : '#2E7D32') : (isDark ? '#FFB74D' : '#EF6C00'), fontWeight: 'bold' }}>
                       {t.completed ? '✅ Done' : '⏳ Pending'}
                     </Chip>
                   </View>
-                  <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Dept: {t.department || 'All'} | Priority: {t.priority || 'Medium'}</Text>
+                  <Text style={{ fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#666', marginTop: 4 }}>Dept: {t.department || 'All'} | Priority: {t.priority || 'Medium'}</Text>
                 </Card.Content>
               </Card>
             ))}
@@ -906,40 +928,40 @@ export default function FounderDashboard({ navigation }) {
       <Modal visible={analyticsModal} animationType="slide" onRequestClose={() => setAnalyticsModal(false)}>
         <Screen style={{ padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2E7D32' }}>Executive Business Analytics</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: isDark ? '#81C784' : '#2E7D32' }}>Executive Business Analytics</Text>
             <TouchableOpacity onPress={() => setAnalyticsModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <ScrollView>
-            <Card style={{ marginBottom: 14, backgroundColor: '#E8F5E9' }}>
+            <Card style={{ marginBottom: 14, backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : '#E8F5E9' }}>
               <Card.Content>
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#1B5E20' }}>Company Turnaround Rate</Text>
-                <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#2E7D32', marginVertical: 4 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, color: isDark ? '#81C784' : '#1B5E20' }}>Company Turnaround Rate</Text>
+                <Text style={{ fontSize: 32, fontWeight: 'bold', color: isDark ? '#A5D6A7' : '#2E7D32', marginVertical: 4 }}>
                   {completionRate}
                 </Text>
-                <Text style={{ fontSize: 12, color: '#444' }}>
+                <Text style={{ fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#444' }}>
                   Real-time ratio: {tasks.length - pendingTasksCount} completed tasks out of {tasks.length} total tasks.
                 </Text>
               </Card.Content>
             </Card>
 
-            <Card style={{ marginBottom: 14 }}>
+            <Card style={{ marginBottom: 14, backgroundColor: isDark ? colors.elevation.level1 : '#fff' }}>
               <Card.Content>
-                <Text style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 10 }}>Department Efficiency Matrix</Text>
+                <Text style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 10, color: isDark ? colors.onSurface : '#333' }}>Department Efficiency Matrix</Text>
                 {departmentMatrix.map(d => {
                   const hasMembers = d.headcount > 0;
                   return (
                     <View key={d.department} style={{ marginVertical: 8 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1A237E' }}>{d.department}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E' }}>{d.department}</Text>
                         {hasMembers ? (
-                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#2E7D32' }}>
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: isDark ? '#81C784' : '#2E7D32' }}>
                             {d.compPct}% Tasks | {d.attPct}% Attendance
                           </Text>
                         ) : (
-                          <Text style={{ fontSize: 11, color: '#9E9E9E', fontStyle: 'italic' }}>
+                          <Text style={{ fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#9E9E9E', fontStyle: 'italic' }}>
                             0% (0 Interns)
                           </Text>
                         )}
@@ -964,20 +986,27 @@ export default function FounderDashboard({ navigation }) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Icon name="bug" size={22} color="#D32F2F" style={{ marginRight: 6 }} />
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Live Debugger Console</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? colors.onSurface : '#111' }}>Live Debugger Console</Text>
             </View>
             <TouchableOpacity onPress={() => setShowDebugModal(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={isDark ? colors.onSurface : '#333'} />
             </TouchableOpacity>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
             <Button compact mode="contained-tonal" onPress={() => setDebugLogs([])}>Clear Console</Button>
-            <Button compact mode="contained" buttonColor="#1A237E" onPress={loadData}>Re-Fetch API Data</Button>
+            <Button 
+              compact 
+              mode="contained" 
+              buttonColor={isDark ? colors.primary : '#1A237E'} 
+              textColor={isDark ? colors.onPrimary : '#fff'}
+              onPress={loadData}>
+              Re-Fetch API Data
+            </Button>
           </View>
 
           {debugLogs.length === 0 ? (
-            <Text style={{ color: '#777', fontStyle: 'italic', marginTop: 20 }}>No logs captured yet.</Text>
+            <Text style={{ color: isDark ? colors.onSurfaceVariant : '#777', fontStyle: 'italic', marginTop: 20 }}>No logs captured yet.</Text>
           ) : (
             <ScrollView style={{ backgroundColor: '#1E1E1E', padding: 10, borderRadius: 8 }}>
               {debugLogs.map(item => (
