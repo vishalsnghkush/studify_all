@@ -77,6 +77,21 @@ export default function FounderDashboard({ navigation }) {
     console.log(`[FOUNDER_DEBUG] [${type}] ${message}`, data || '');
   };
 
+  // PIN lock for Founder Dashboard access
+  const [pinLocked, setPinLocked] = useState(true);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
+
+  const handleVerifyFounderPin = () => {
+    if (enteredPin === '8487') {
+      setPinLocked(false);
+      setEnteredPin('');
+      setPinError('');
+    } else {
+      setPinError('Incorrect PIN. Access Denied!');
+    }
+  };
+
   // Modals state
   const [deptModal, setDeptModal] = useState(false);
   const [moduleModal, setModuleModal] = useState(false);
@@ -390,6 +405,75 @@ export default function FounderDashboard({ navigation }) {
       Alert.alert('Updated', `Department update recorded for ${userName}.`);
     }
   };
+
+  if (pinLocked) {
+    return (
+      <Screen NoHeader style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: bg }}>
+        <Card style={{ width: '85%', padding: 20, backgroundColor: cardBg, borderRadius: 24, borderWidth: 1, borderColor: borderColor, elevation: 10 }}>
+          <Card.Content style={{ alignItems: 'center' }}>
+            <Icon name="crown" size={48} color={isDark ? colors.primary : '#1A237E'} style={{ marginBottom: 12 }} />
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: textDarkBlue, textAlign: 'center', marginBottom: 8 }}>Founder Hub Locked</Text>
+            <Text style={{ fontSize: 13, color: textBody, textAlign: 'center', marginBottom: 20 }}>
+              Enter the master 4-digit PIN to access executive controls.
+            </Text>
+
+            <TextInput
+              placeholder="Enter PIN"
+              placeholderTextColor={isDark ? colors.onSurfaceVariant : '#888'}
+              value={enteredPin}
+              onChangeText={text => {
+                setEnteredPin(text);
+                if (pinError) setPinError('');
+              }}
+              keyboardType="numeric"
+              secureTextEntry={true}
+              maxLength={4}
+              style={{
+                borderWidth: 1,
+                borderColor: isDark ? colors.outline : '#CCC',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                width: 150,
+                textAlign: 'center',
+                fontSize: 20,
+                letterSpacing: 8,
+                backgroundColor: isDark ? colors.elevation.level2 : '#FAFAFA',
+                color: isDark ? colors.onSurface : '#333',
+                marginBottom: 12,
+              }}
+            />
+
+            {!!pinError && (
+              <Text style={{ color: '#D32F2F', fontSize: 13, fontWeight: '600', marginBottom: 14, textAlign: 'center' }}>
+                {pinError}
+              </Text>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%', marginTop: 8 }}>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.goBack()}
+                style={{ flex: 1, borderColor: isDark ? colors.outline : '#CCC' }}
+                textColor={isDark ? colors.onSurface : '#333'}
+              >
+                Back
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleVerifyFounderPin}
+                style={{ flex: 1 }}
+                buttonColor={isDark ? colors.primary : '#1A237E'}
+                textColor={isDark ? colors.onPrimary : '#fff'}
+              >
+                Unlock
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+      </Screen>
+    );
+  }
 
   return (
     <Screen NoHeader style={{ padding: 0, backgroundColor: bg }}>
