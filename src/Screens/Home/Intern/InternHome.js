@@ -19,6 +19,7 @@ import {getInternDb, syncInternProfile, saveInternTasks} from '../../../Utils/Mo
 import useApi from '../../../Components/Api/Api';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AIChatbot from '../../../Components/AIChatbot';
 
 const {width} = Dimensions.get('window');
 
@@ -688,6 +689,7 @@ const InternHome = () => {
   };
 
   return (
+    <View style={{flex: 1}}>
     <Screen NoHeader style={styles.scrollContainer}>
       {/* Header Greeting */}
       <View style={styles.header}>
@@ -1157,6 +1159,8 @@ const InternHome = () => {
           </Dialog>
         </Portal>
       </Screen>
+      <AIChatbot role="intern" />
+    </View>
   );
 };
 

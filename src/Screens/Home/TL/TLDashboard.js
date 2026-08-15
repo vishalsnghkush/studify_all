@@ -35,6 +35,7 @@ import {useNavigation} from '@react-navigation/native';
 import {DateTimePickerAndroid} from '@react-native-community/datetimepicker';
 import {useSelector, useDispatch} from 'react-redux';
 import {onSelectGroup, fetchChatGroups} from '../../../Redux/Slices/ChatSlice';
+import AIChatbot from '../../../Components/AIChatbot';
 
 const {width} = Dimensions.get('window');
 
@@ -1024,6 +1025,7 @@ const TLDashboard = () => {
   }, [db?.leaves, leaveTab]);
 
   return (
+    <View style={{flex: 1}}>
     <Screen NoHeader style={styles.container}>
       <ScrollView contentContainerStyle={{paddingBottom: 40}}>
         {/* Header */}
@@ -2777,7 +2779,9 @@ const TLDashboard = () => {
           </Card>
         </View>
       </Modal>
-    </Screen>
+      </Screen>
+      <AIChatbot role="tl" />
+    </View>
   );
 };
 

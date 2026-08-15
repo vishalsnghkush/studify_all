@@ -14,8 +14,12 @@ import {
   Animated,
   PanResponder,
   Modal,
+  FlatList,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import useApi from '../../Components/Api/Api';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -28,6 +32,7 @@ import {getRecentNote, getTopEngagedSubjects, openRecentItem} from '../../Utils/
 import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
 import Notifee, { TriggerType, RepeatFrequency } from '@notifee/react-native';
 import {CopilotProvider, CopilotStep, walkthroughable, useCopilot} from 'react-native-copilot';
+import AIChatbot from '../../Components/AIChatbot';
 
 const CopilotView = walkthroughable(View);
 const copilotStartRef = {current: null};
@@ -70,7 +75,12 @@ const Home = () => {
     return () => {
       if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
     };
-  }, [gamificationState?.xp, gamificationState?.streak, gamificationState?.badges?.length, user?.email]);
+  }, [
+    gamificationState && gamificationState.xp,
+    gamificationState && gamificationState.streak,
+    gamificationState && gamificationState.badges && gamificationState.badges.length,
+    user && user.email
+  ]);
 
   // Animations for AI Bot
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -140,6 +150,208 @@ const Home = () => {
   // Mascot visibility toggle — persisted in AsyncStorage (OFF by default)
   const [showMascot, setShowMascot] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+
+  // Native Chatbot State & Messaging API Integration
+  const { post: chatPost } = useApi();
+  const flatListRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 'welcome_1',
+      sender: 'ai',
+      text: '👋 Hello! Welcome to StudifySuccess. How can I help you today?',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatDebugLogs, setChatDebugLogs] = useState([]);
+  const [showChatDebug, setShowChatDebug] = useState(false);
+
+  const logChatDebug = (type, msg, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = { id: `${Date.now()}_${Math.random()}`, time: timestamp, type, message: msg, data: data ? JSON.stringify(data) : null };
+    setChatDebugLogs(prev => [logEntry, ...prev].slice(0, 30));
+    console.log(`[CHATBOT_DEBUG] [${type}] ${msg}`, data || '');
+  };
+
+  const handleSendNativeMessage = async () => {
+    const userText = inputMessage.trim();
+    if (!userText || chatLoading) return;
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg = {
+      id: `user_${Date.now()}`,
+      sender: 'user',
+      text: userText,
+      time: timestamp,
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    setInputMessage('');
+    setChatLoading(true);
+
+    logChatDebug('INFO', 'Sending message to /chatbot/chat', { text: userText, role: (user && user.role) || 'student', email: (user && user.email) || 'guest' });
+
+    // Retrieve local AsyncStorage data for student personalization
+    let recentNote = null;
+    let subjectEngagement = null;
+    let featureUsage = null;
+    let pinnedSubject = null;
+    let notebooks = null;
+    let savedNotes = null;
+    let testHistory = null;
+    let studyPlannerSlots = null;
+    let savedLectures = null;
+    let studySessionsHistory = null;
+    let notesReadHistory = null;
+    let examTarget = null;
+    let totalNotesPages = 0;
+    let weakTopic = null;
+    let weeklyGoals = null;
+    try {
+      const rawNote = await AsyncStorage.getItem('@studify_recent_note');
+      recentNote = rawNote ? JSON.parse(rawNote) : null;
+      
+      const rawEngage = await AsyncStorage.getItem('@studify_subject_engagement');
+      subjectEngagement = rawEngage ? JSON.parse(rawEngage) : null;
+
+      const rawFeature = await AsyncStorage.getItem('@studify_feature_usage');
+      featureUsage = rawFeature ? JSON.parse(rawFeature) : null;
+
+      pinnedSubject = await AsyncStorage.getItem('@studify_pinned_subject');
+
+      const rawNotebooks = await AsyncStorage.getItem('@voice_notebooks');
+      notebooks = rawNotebooks ? JSON.parse(rawNotebooks) : null;
+
+      if (notebooks && Array.isArray(notebooks)) {
+        for (const notebook of notebooks) {
+          const pagesData = await AsyncStorage.getItem(`@voice_notebook_pages_${notebook.id}`);
+          if (pagesData) {
+            totalNotesPages += JSON.parse(pagesData).length;
+          }
+        }
+      }
+
+      const rawSavedNotes = await AsyncStorage.getItem('@studify_saved_notes');
+      savedNotes = rawSavedNotes ? JSON.parse(rawSavedNotes) : null;
+
+      const rawTestHistory = await AsyncStorage.getItem('@studify_test_history');
+      testHistory = rawTestHistory ? JSON.parse(rawTestHistory) : null;
+
+      const rawSlots = await AsyncStorage.getItem('studify_slots');
+      studyPlannerSlots = rawSlots ? JSON.parse(rawSlots) : null;
+
+      const rawLectures = await AsyncStorage.getItem('@studify_saved_lectures');
+      savedLectures = rawLectures ? JSON.parse(rawLectures) : null;
+
+      const rawSessions = await AsyncStorage.getItem('@studify_study_sessions_history');
+      studySessionsHistory = rawSessions ? JSON.parse(rawSessions) : null;
+
+      const rawNotesRead = await AsyncStorage.getItem('@studify_notes_read_history');
+      notesReadHistory = rawNotesRead ? JSON.parse(rawNotesRead) : null;
+
+      const rawTarget = await AsyncStorage.getItem('@studify_exam_target');
+      examTarget = rawTarget ? JSON.parse(rawTarget) : null;
+
+      const rawFailed = await AsyncStorage.getItem('@studify_last_failed_topic');
+      weakTopic = rawFailed ? JSON.parse(rawFailed) : null;
+
+      const rawGoals = await AsyncStorage.getItem('@studify_intern_weekly_goals');
+      weeklyGoals = rawGoals ? JSON.parse(rawGoals) : null;
+    } catch (err) {
+      logChatDebug('WARN', 'Failed to read AsyncStorage: ' + err.message);
+    }
+
+    try {
+      const payload = {
+        message: userText,
+        sessionId: (user && user.email) ? `session_${user.email}` : 'guest_session',
+        role: (user && user.role) || 'student',
+        email: (user && user.email) || '',
+        recentNote,
+        subjectEngagement,
+        featureUsage,
+        pinnedSubject,
+        notebooks,
+        savedNotes,
+        testHistory,
+        studyPlannerSlots,
+        savedLectures,
+        studySessionsHistory,
+        notesReadHistory,
+        examTarget,
+        totalNotesPages,
+        weakTopic,
+        weeklyGoals,
+      };
+
+      let resData = null;
+      const endpoints = [
+        'http://192.168.1.3:3000/chat',
+        'http://192.168.1.3:3000/api/chat',
+        'http://192.168.1.3:3000/chatbot/chat',
+        'http://10.0.2.2:3000/chat',
+        'https://www.api.studifysuccess.com/chat',
+        'https://www.api.studifysuccess.com/api/chat',
+        'https://www.api.studifysuccess.com/chatbot/chat',
+      ];
+
+      let lastErr = null;
+
+      for (const url of endpoints) {
+        try {
+          logChatDebug('INFO', `Attempting endpoint: ${url}`);
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            resData = data;
+            logChatDebug('SUCCESS', `Response received from ${url}`, resData);
+            break;
+          } else {
+            logChatDebug('WARN', `Endpoint ${url} returned HTTP ${response.status}`);
+          }
+        } catch (e) {
+          lastErr = e;
+          logChatDebug('WARN', `Endpoint ${url} error: ${e.message}`);
+        }
+      }
+
+      if (!resData) {
+        throw lastErr || new Error('All chatbot API endpoints failed');
+      }
+
+      const aiReplyText = (resData && resData.reply) || (resData && resData.data && resData.data.reply) || "I'm here to assist you! Please ask any question regarding courses, fees, or attendance.";
+
+      const aiMsg = {
+        id: `ai_${Date.now()}`,
+        sender: 'ai',
+        text: aiReplyText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setChatMessages(prev => [...prev, aiMsg]);
+    } catch (err) {
+      logChatDebug('ERROR', 'Chatbot API request failed', (err && err.message) || err);
+      const fallbackMsg = {
+        id: `ai_err_${Date.now()}`,
+        sender: 'ai',
+        text: '⚠️ Unable to connect to assistant backend. Please check network connection.',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isError: true,
+      };
+      setChatMessages(prev => [...prev, fallbackMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   useEffect(() => {
     AsyncStorage.getItem('@studify_show_mascot').then(val => {
@@ -851,7 +1063,7 @@ const Home = () => {
                   {color: '#e65100'},
                   dark && {color: colors.onSurface},
                 ]}>
-                {`${gamificationState?.streak || 1}d`}
+                {`${(gamificationState && gamificationState.streak) || 1}d`}
               </Text>
               <Text
                 style={[
@@ -949,7 +1161,7 @@ const Home = () => {
 
         {/* AI Flashcards Banner Card */}
         <BouncyButton
-          onPress={() => navigation.navigate('AiFlashcards', { subject: weakTopic ? weakTopic.subject : (recentNote?.subject || 'Physics'), topic: weakTopic ? weakTopic.topic : 'General Revision' })}
+          onPress={() => navigation.navigate('AiFlashcards', { subject: weakTopic ? weakTopic.subject : ((recentNote && recentNote.subject) || 'Physics'), topic: weakTopic ? weakTopic.topic : 'General Revision' })}
           style={[
             styles.personalBanner,
             { backgroundColor: '#e8eaf6', borderColor: '#c5cae9' },
@@ -1295,187 +1507,7 @@ const Home = () => {
 
       </Screen>
 
-      {/* Floating AI Bot Assistant — only when mascot is ON */}
-      {showMascot && (
-        <View style={styles.botContainer} pointerEvents="box-none">
-        {/* Cloud/Bubble for Chat with AI */}
-        <Animated.View
-          style={[
-            styles.cloudBubble,
-            dark && styles.cloudBubbleDark,
-            {
-              transform: [{translateY: cloudFloatAnim}],
-            },
-          ]}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleCloudPress}
-            style={styles.cloudButton}>
-            <Animated.Text
-              style={[
-                styles.cloudText,
-                dark && styles.cloudTextDark,
-                {opacity: textOpacity},
-              ]}>
-              {personalPhrases[phraseIndex]}
-
-            </Animated.Text>
-          </TouchableOpacity>
-
-          {/* Thought bubble pointers */}
-          <View
-            style={[styles.thoughtDotLarge, dark && styles.thoughtDotDark]}
-          />
-          <View
-            style={[styles.thoughtDotSmall, dark && styles.thoughtDotDark]}
-          />
-        </Animated.View>
-
-        {/* Impact Ring */}
-        <Animated.View
-          style={[
-            styles.impactRing,
-            dark && styles.impactRingDark,
-            {
-              transform: [{scale: impactScale}],
-              opacity: impactOpacity,
-            },
-          ]}
-        />
-
-        {/* Sparkle Particles Trail */}
-        <MascotParticleTrail pan={pan} rotateYAnim={rotateYAnim} />
-
-        {/* Robot Button */}
-        <Animated.View
-          style={[
-            styles.botImageContainer,
-            {
-              transform: [
-                {translateX: pan.x},
-                {
-                  translateY: Animated.add(
-                    Animated.add(floatAnim, jumpAnim),
-                    pan.y,
-                  ),
-                },
-                {scale: scaleAnim},
-                {rotate: rotateInterpolate},
-                {rotateY: rotateYInterpolate},
-              ],
-            },
-          ]}
-          {...panResponder.panHandlers}>
-          {/* Normal Happy Robot */}
-          <Animated.Image
-            source={require('../../Assets/Images/silver_robot.png')}
-            style={[
-              styles.botImage,
-              {
-                opacity: normalImageOpacity,
-              },
-            ]}
-          />
-
-          {/* Dizzy Robot */}
-          <Animated.Image
-            source={require('../../Assets/Images/silver_robot_dizzy.png')}
-            style={[
-              styles.botImage,
-              {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                opacity: dizzyImageOpacity,
-              },
-            ]}
-          />
-
-          {/* Dizzy Stars overlay */}
-          <Animated.View
-            style={[
-              styles.starsContainer,
-              {
-                opacity: starsAnim,
-                transform: [{rotate: starsRotate}],
-              },
-            ]}>
-            <Text style={styles.starText}>💫</Text>
-          </Animated.View>
-        </Animated.View>
-      </View>
-      )}
-
-      {/* Inline Chat Bot Floating Widget modal */}
-      <Modal
-        visible={showChatModal}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setShowChatModal(false)}
-      >
-        {/* Backdrop overlay */}
-        <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
-          activeOpacity={1}
-          onPress={() => setShowChatModal(false)}
-        >
-          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.25)' }} />
-        </TouchableOpacity>
-
-        {/* Floating Chat Box positioned absolutely */}
-        <Animated.View
-          style={[
-            styles.floatingChatBox,
-            {
-              transform: [
-                { translateX: chatPan.x },
-                { translateY: chatPan.y }
-              ]
-            }
-          ]}
-        >
-          {/* Header serves as the drag handle */}
-          <Animated.View
-            style={styles.modalHeader}
-            {...chatPanResponder.panHandlers}
-          >
-            <Image
-              source={require('../../Assets/Images/silver_robot.png')}
-              style={styles.modalMascotIcon}
-            />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.modalTitle}>Study Buddy Assistant</Text>
-              <Text style={styles.modalSubtitle}>Drag header to move 🤖</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setShowChatModal(false)}
-              style={styles.modalCloseButton}
-            >
-              <Icon name="close" size={16} color="#ab2346" />
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Chatbot WebView */}
-          <WebView
-            source={{ uri: 'https://www.api.studifysuccess.com/chatbot/index.html' }}
-            style={{ flex: 1 }}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            startInLoadingState={true}
-            onError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.warn('WebView load error: ', nativeEvent);
-            }}
-            onHttpError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.warn('WebView HTTP response error: ', nativeEvent);
-            }}
-            onMessage={(event) => {
-              console.log('WebView console message: ', event.nativeEvent.data);
-            }}
-          />
-        </Animated.View>
-      </Modal>
+      <AIChatbot role="student" />
     </View>
     </CopilotProvider>
   );
