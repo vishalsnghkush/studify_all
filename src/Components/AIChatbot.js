@@ -390,13 +390,7 @@ const AIChatbot = ({ role: initialRole }) => {
       };
 
       const endpoints = [
-        'http://192.168.1.3:3000/chat',
-        'http://192.168.1.3:3000/api/chat',
-        'http://192.168.1.3:3000/chatbot/chat',
-        'http://10.0.2.2:3000/chat',
         'https://www.api.studifysuccess.com/chat',
-        'https://www.api.studifysuccess.com/api/chat',
-        'https://www.api.studifysuccess.com/chatbot/chat',
       ];
 
       let lastErr = null;
