@@ -37,7 +37,7 @@ const useApi = () => {
       
       const response = await axios({
         method: reqMethod,
-        url: endpoint,
+        url: BASE_URL + endpoint,
         data: reqData,
         params: axiosParams,
         headers: reqHeaders,
@@ -50,28 +50,13 @@ const useApi = () => {
       }
       return response.data;
     } catch (error) {
-      if (error.response?.status === 503 || error.response?.status === 502) {
-        console.warn('Local tunnel 503/502 detected, attempting fallback request...');
-        try {
-          const fallbackRes = await axios({
-            method: reqMethod,
-            url: `https://www.api.studifysuccess.com/api${endpoint}`,
-            data: reqData,
-            params: params,
-            headers: reqHeaders,
-          });
-          return fallbackRes.data;
-        } catch (fallbackErr) {
-          console.warn('Fallback request also failed.');
-        }
-      }
       if (!skipErrorFlash) {
         if (error.response?.data?.message) {
           FlashMessage({
             message: error.response.data.message,
             type: 'danger',
           });
-        } else if (error.response?.status !== 503 && error.response?.status !== 502) {
+        } else {
           FlashMessage({
             message: error.message || 'Something went wrong',
             type: 'danger',

@@ -1474,7 +1474,7 @@ const Home = () => {
                   styles.mascotToggleTitle,
                   dark && {color: '#e0d7ff'}
                 ]}>
-                  Your Study Buddy
+                  Studify AI Assistant
                 </Text>
                 <Text style={[
                   styles.mascotToggleSubtitle,
@@ -1501,7 +1501,7 @@ const Home = () => {
 
       </Screen>
 
-      <AIChatbot role="student" />
+      <AIChatbot role="student" visible={showMascot} />
     </View>
     </CopilotProvider>
   );

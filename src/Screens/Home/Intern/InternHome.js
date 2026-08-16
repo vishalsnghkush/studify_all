@@ -8,6 +8,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import {Text} from '../../../Components/Input';
 import {Screen} from '../../../Components/Screen';
@@ -62,6 +63,20 @@ const InternHome = () => {
   const [weeklyGoals, setWeeklyGoals] = useState([]);
   const [goalInput, setGoalInput] = useState('');
   const [goalModalVisible, setGoalModalVisible] = useState(false);
+
+  // Mascot visibility toggle
+  const [showMascot, setShowMascot] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@studify_show_mascot').then(val => {
+      if (val === 'true') setShowMascot(true);
+    });
+  }, []);
+
+  const handleToggleMascot = async (val) => {
+    setShowMascot(val);
+    await AsyncStorage.setItem('@studify_show_mascot', val ? 'true' : 'false');
+  };
 
   const WEEKLY_GOALS_KEY = '@studify_intern_weekly_goals';
 
@@ -1158,8 +1173,59 @@ const InternHome = () => {
             </Dialog.Actions>
           </Dialog>
         </Portal>
+
+        {/* ✨ Mascot Toggle Card */}
+        <View style={styles.mascotToggleCard}>
+          <View style={[
+            styles.mascotToggleBg,
+            {backgroundColor: colors.background, borderColor: colors.outlineVariant}
+          ]}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleToggleMascot(!showMascot)}
+              style={[
+                styles.mascotToggleTrack,
+                showMascot
+                  ? {backgroundColor: colors.primary}
+                  : {backgroundColor: '#d1d5db'},
+                {marginRight: 14},
+              ]}>
+              <Animated.View
+                style={[
+                  styles.mascotToggleThumb,
+                  {
+                    transform: [{
+                      translateX: showMascot ? 24 : 2,
+                    }],
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.mascotToggleLeft}>
+              <Text style={styles.mascotToggleEmoji}>🤖</Text>
+              <View style={{flex: 1, marginLeft: 12}}>
+                <Text style={styles.mascotToggleTitle}>
+                  Studify AI Assistant
+                </Text>
+                <Text style={styles.mascotToggleSubtitle}>
+                  {showMascot
+                    ? '✨ Buddy is here! Drag me around 🎉'
+                    : '💤 Call your buddy to play!'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.mascotToggleTagline}>
+            {showMascot
+              ? '🌟 Your buddy is watching you study — keep going!'
+              : '👋 Toggle on to summon your mascot companion!'}
+          </Text>
+        </View>
+
       </Screen>
-      <AIChatbot role="intern" />
+      <AIChatbot role="intern" visible={showMascot} />
     </View>
   );
 };
@@ -1461,6 +1527,63 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  mascotToggleCard: {
+    marginHorizontal: 15,
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  mascotToggleBg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  mascotToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  mascotToggleEmoji: {
+    fontSize: 28,
+  },
+  mascotToggleTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  mascotToggleSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  mascotToggleTrack: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+  },
+  mascotToggleThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mascotToggleTagline: {
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 12,
+    fontWeight: '600',
   },
 });
 

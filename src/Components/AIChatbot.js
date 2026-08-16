@@ -20,9 +20,9 @@ import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import MascotParticleTrail from './Screen/MascotParticleTrail';
-import MarkdownText from './MarkdownText';
+// import MarkdownText from './MarkdownText';
 
-const STATIC_PHRASES = [
+const STUDENT_PHRASES = [
   'Generate Notes 📚',
   'Chapter Summary 🔍',
   'NCERT Solutions 💡',
@@ -32,9 +32,33 @@ const STATIC_PHRASES = [
   'Create Assignment 📋',
   'Doubts Solve 💬',
   'Mind Maps 🧠',
+  'My Courses 🎓',
+  'App Support 💬',
 ];
 
-const AIChatbot = ({ role: initialRole }) => {
+const INTERN_PHRASES = [
+  'Submit EOD Report 📋',
+  'Leave Requests 🗓️',
+  'My Tasks 🎯',
+  'Learning Modules 📚',
+  'My Attendance 📅',
+  'Weekly Goals 🎯',
+  'App Support 💬',
+  'HR Queries 👥',
+];
+
+const TL_PHRASES = [
+  'Team Attendance 📊',
+  'Assign New Task 📋',
+  'Send Announcement 📢',
+  'Intern Performance 🏆',
+  'Schedule Meeting 📅',
+  'Review EOD Reports 📝',
+  'Team Overview 👥',
+  'App Support 💬',
+];
+
+const AIChatbot = ({ role: initialRole, visible }) => {
   const navigation = useNavigation();
   const { colors, dark } = useTheme();
   const { user } = useSelector(state => state.initial);
@@ -78,8 +102,21 @@ const AIChatbot = ({ role: initialRole }) => {
   const chatFlatListRef = useRef(null);
 
   // Mascot phrases rotating
+  const getRole = () => initialRole || ((user && user.is_tl) ? 'tl' : (user && user.is_intern) ? 'intern' : 'student');
   const [phraseIndex, setPhraseIndex] = useState(0);
-  const [personalPhrases, setPersonalPhrases] = useState(STATIC_PHRASES);
+  const [personalPhrases, setPersonalPhrases] = useState(() => {
+    const r = getRole();
+    return r === 'tl' ? TL_PHRASES : r === 'intern' ? INTERN_PHRASES : STUDENT_PHRASES;
+  });
+
+  // Dynamically update phrases whenever the user role changes
+  useEffect(() => {
+    const r = getRole();
+    const phrases = r === 'tl' ? TL_PHRASES : r === 'intern' ? INTERN_PHRASES : STUDENT_PHRASES;
+    setPersonalPhrases(phrases);
+    setPhraseIndex(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRole, user?.is_intern, user?.is_tl]);
 
   // Load visibility settings on screen focus
   useFocusEffect(
@@ -201,7 +238,7 @@ const AIChatbot = ({ role: initialRole }) => {
     if (isAnimating.current) return;
     isAnimating.current = true;
     Animated.parallel([
-      Animated.timing(rotateAnim, {
+      Animated.timing(rotateYAnim, {
         toValue: 1,
         duration: 750,
         useNativeDriver: true,
@@ -219,7 +256,7 @@ const AIChatbot = ({ role: initialRole }) => {
         }),
       ]),
     ]).start(() => {
-      rotateAnim.setValue(0);
+      rotateYAnim.setValue(0);
       isAnimating.current = false;
     });
   };
@@ -452,8 +489,8 @@ const AIChatbot = ({ role: initialRole }) => {
   };
 
   const handleCloudPress = () => {
-    chatPan.setValue({ x: 0, y: 0 });
-    setShowChatModal(true);
+    // Chat redirect disabled - bot is display/animation only
+    return;
   };
 
   const getContextSuggestions = () => {
@@ -581,7 +618,8 @@ const AIChatbot = ({ role: initialRole }) => {
     outputRange: [1, 0],
   });
 
-  if (!showMascot) return null;
+  const isBotVisible = visible !== undefined ? visible : showMascot;
+  if (!isBotVisible) return null;
 
   return (
     <View style={styles.botContainer} pointerEvents="box-none">
@@ -709,7 +747,7 @@ const AIChatbot = ({ role: initialRole }) => {
                 style={styles.modalMascotIcon}
               />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={[styles.modalTitle, { color: dark ? '#e0e3e2' : '#1a2e2e' }]}>Study Buddy Assistant</Text>
+                <Text style={[styles.modalTitle, { color: dark ? '#e0e3e2' : '#1a2e2e' }]}>Studify AI Assistant</Text>
                 <Text style={[styles.modalSubtitle, { color: dark ? '#399797' : '#007171' }]}>Drag header to move 🤖</Text>
               </View>
               <TouchableOpacity

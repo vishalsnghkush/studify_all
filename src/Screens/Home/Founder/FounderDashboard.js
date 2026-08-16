@@ -306,6 +306,17 @@ export default function FounderDashboard({ navigation }) {
         video_url: modVideo,
       };
       await post('/interns/trainings/modules', payload);
+      
+      try {
+        await post('/notification/broadcast', {
+          title: 'New Content Uploaded',
+          body: `A new module "${modTitle}" has been published by the Founder.`,
+          department: selectedDeptsForMod.includes('All') ? 'All' : selectedDeptsForMod[0],
+        });
+      } catch (notifErr) {
+        console.warn('Failed to broadcast module notification:', notifErr);
+      }
+
       logDebug('ACTION', 'Published module for departments', payload);
       Alert.alert('Published', `Module "${modTitle}" assigned to selected departments!`);
       setModTitle('');
@@ -333,6 +344,18 @@ export default function FounderDashboard({ navigation }) {
         due_date: 'Today',
       };
       await post('/interns/tasks/sync', { tasks: [payload] });
+
+      try {
+        await post('/notification/broadcast', {
+          title: '📋 New Task Assigned',
+          body: `Founder has assigned a new task: "${taskTitle}" to ${taskTargetDept} department.`,
+          department: taskTargetDept,
+          data: { screen: 'InternTasks' },
+        });
+      } catch (notifErr) {
+        console.warn('Failed to broadcast task notification:', notifErr);
+      }
+
       logDebug('ACTION', 'Created Master Task', payload);
       Alert.alert('Task Created', `Master Task "${taskTitle}" assigned to ${taskTargetDept} department.`);
       setTaskTitle('');

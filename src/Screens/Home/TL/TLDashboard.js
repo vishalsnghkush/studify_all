@@ -883,6 +883,17 @@ const TLDashboard = () => {
           scheduled_time: `${meetDate} at ${meetTime}`,
           meeting_link: meetLink,
         });
+
+        try {
+          await post('/notification/broadcast', {
+            title: 'New Meeting Scheduled',
+            body: `TL scheduled a ${meetType} session: "${meetTitle}" for ${meetDate} at ${meetTime}.`,
+            department: meetAudience === 'All' ? 'All' : activeDept,
+          });
+        } catch (notifErr) {
+          console.warn('Failed to broadcast meeting notification:', notifErr);
+        }
+
       } catch (e) {}
 
       Alert.alert('Meeting Scheduled', `Meeting "${meetTitle}" is live!`);
@@ -2780,7 +2791,7 @@ const TLDashboard = () => {
         </View>
       </Modal>
       </Screen>
-      <AIChatbot role="tl" />
+      {/* <AIChatbot role="tl" /> */}
     </View>
   );
 };

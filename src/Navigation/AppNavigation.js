@@ -68,13 +68,13 @@ const AppNavigation = () => {
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
       }}>
       <Stack.Screen
-        key={user?.is_tl ? 'tl_stack' : user?.is_intern ? 'intern_stack' : 'student_stack'}
+        key={user?.is_tl === true ? 'tl_stack' : user?.is_intern === true ? 'intern_stack' : 'student_stack'}
         options={{headerShown: false}}
         name="Main"
         component={
-          user?.is_tl
+          user?.is_tl === true
             ? TLDrawerNavigation
-            : user?.is_intern
+            : user?.is_intern === true
             ? InternDrawerNavigation
             : DrawerNavigation
         }

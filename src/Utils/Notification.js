@@ -44,6 +44,7 @@ export const onMessageReceived = async message => {
         },
         android: {
           channelId,
+          smallIcon: 'ic_launcher',
           largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
           timestamp: Date.now(),
           showTimestamp: true,
@@ -71,6 +72,7 @@ export const onMessageReceived = async message => {
         data: message?.data || {},
         android: {
           channelId,
+          smallIcon: 'ic_launcher',
           largeIcon: 'https://www.studifysuccess.com/images/apple-touch-icon.webp',
           timestamp: Date.now(),
           showTimestamp: true,

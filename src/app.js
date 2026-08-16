@@ -168,9 +168,17 @@ const App = () => {
       if (type === EventType.PRESS) {
         const data = detail?.notification.data;
         console.log('notifee onForegroundEvent', data);
-        navigate('Chat', {
-          data: data,
-        });
+        // Deep-link directly to InternTasks for task notifications
+        if (data?.screen === 'InternTasks') {
+          navigate('Main', { screen: 'InternBottomNavigation', params: { screen: 'InternTasks' } });
+        } else if (data?.chat_group_id) {
+          navigate('Chat', {
+            data: data,
+          });
+        } else {
+          // For module, broadcast or other notifications — go to Notifications screen
+          navigate('Notifications');
+        }
       }
     });
 
@@ -277,8 +285,14 @@ const App = () => {
   }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
-    if (data?.screen === 'Chat') {
+    // Deep-link to the correct screen based on the notification's data.screen field
+    if (data?.screen === 'InternTasks') {
+      // Navigate into the Intern bottom tab navigator → Tasks tab
+      navigate('Main', { screen: 'InternBottomNavigation', params: { screen: 'InternTasks' } });
+    } else if (data?.screen === 'Chat' || data?.chat_group_id) {
       navigate('Chat', {data: data});
+    } else if (data) {
+      navigate('Notifications');
     }
   };
 
