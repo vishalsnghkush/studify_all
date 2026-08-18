@@ -513,7 +513,7 @@ const TLDashboard = () => {
     return filtered || [];
   }, [db, activeDept]);
 
-  const todayStr = useMemo(() => extractDateISO(new Date()), []);
+  const todayStr = extractDateISO(new Date());
 
   const activeTodayCount = useMemo(() => {
     let count = 0;
@@ -2334,13 +2334,13 @@ const TLDashboard = () => {
 
                 {/* 2. ACTIVE TODAY VIEW */}
                 {metricDetailType === 'Active Today' && (
-                  approvedInterns.filter(i => db?.attendance?.[i.id]?.[todayStr]).length === 0 ? (
+                  approvedInterns.filter(i => isAttendanceCheckedIn(getTodayAttendanceRecord(db?.attendance, i))).length === 0 ? (
                     <Text style={{textAlign: 'center', color: '#888', marginVertical: 20}}>No interns marked active today yet.</Text>
                   ) : (
                     approvedInterns
-                      .filter(i => db?.attendance?.[i.id]?.[todayStr])
+                      .filter(i => isAttendanceCheckedIn(getTodayAttendanceRecord(db?.attendance, i)))
                       .map((intern, idx) => {
-                        const att = db?.attendance?.[intern.id]?.[todayStr];
+                        const att = getTodayAttendanceRecord(db?.attendance, intern);
                         return (
                           <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
                             <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#E8F5E9'}} color="#2E7D32" />
@@ -2358,11 +2358,11 @@ const TLDashboard = () => {
 
                 {/* 3. ABSENT VIEW */}
                 {metricDetailType === 'Absent' && (
-                  approvedInterns.filter(i => !db?.attendance?.[i.id]?.[todayStr]).length === 0 ? (
+                  approvedInterns.filter(i => !isAttendanceCheckedIn(getTodayAttendanceRecord(db?.attendance, i))).length === 0 ? (
                     <Text style={{textAlign: 'center', color: '#2E7D32', marginVertical: 20}}>🎉 Great news! Everyone is active today.</Text>
                   ) : (
                     approvedInterns
-                      .filter(i => !db?.attendance?.[i.id]?.[todayStr])
+                      .filter(i => !isAttendanceCheckedIn(getTodayAttendanceRecord(db?.attendance, i)))
                       .map((intern, idx) => (
                         <View key={idx} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3EBF0'}}>
                           <Avatar.Text size={38} label={intern.avatar || 'IN'} style={{marginRight: 10, backgroundColor: '#FFEBEE'}} color="#C62828" />

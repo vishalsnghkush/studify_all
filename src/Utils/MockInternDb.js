@@ -66,9 +66,7 @@ export const getTodayAttendanceRecord = (attendanceMap, intern) => {
       // Verify the record's actual timestamp is from today (not genuinely yesterday)
       if (rec.morning_marked_at || rec.evening_marked_at) {
         const markedDate = extractDateISO(rec.morning_marked_at || rec.evening_marked_at);
-        if (markedDate === todayISO || markedDate === yesterdayISO) return rec;
-      } else {
-        return rec;
+        if (markedDate === todayISO) return rec;
       }
     }
 
@@ -77,7 +75,7 @@ export const getTodayAttendanceRecord = (attendanceMap, intern) => {
       const recDate = extractDateISO(
         internAtt.date || internAtt.created_at || internAtt.marked_at,
       );
-      if (recDate === todayISO || recDate === yesterdayISO) return internAtt;
+      if (recDate === todayISO) return internAtt;
     }
 
     // Search through all date keys for today

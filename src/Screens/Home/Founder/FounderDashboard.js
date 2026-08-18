@@ -15,7 +15,7 @@ import { Text } from '../../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Screen } from '../../../Components/Screen';
 import useApi from '../../../Components/Api/Api';
-import { extractDateISO } from '../../../Utils/MockInternDb';
+import { extractDateISO, getTodayAttendanceRecord, isAttendanceCheckedIn } from '../../../Utils/MockInternDb';
 
 export default function FounderDashboard({ navigation }) {
   const theme = useTheme();
@@ -178,21 +178,20 @@ export default function FounderDashboard({ navigation }) {
   }, []);
 
   // 2. Computed Metrics
-  const todayISO = useMemo(() => extractDateISO(new Date()), []);
+  const todayISO = extractDateISO(new Date());
 
   const totalInterns = team.length;
 
   const activeTodayCount = useMemo(() => {
     let count = 0;
     team.forEach(m => {
-      const mId = String(m.id || m.user_id);
-      const att = attendance[mId] && attendance[mId][todayISO];
-      if (att && (att.status === 'Full' || att.status === 'Half' || att.status === 'Present' || att.morning_marked_at || att.evening_marked_at)) {
+      const todayAtt = getTodayAttendanceRecord(attendance, m);
+      if (isAttendanceCheckedIn(todayAtt)) {
         count++;
       }
     });
     return count;
-  }, [team, attendance, todayISO]);
+  }, [team, attendance]);
 
   const pendingTasksCount = useMemo(() => {
     return tasks.filter(t => !t.completed && t.submission_status !== 'Approved' && t.submissionStatus !== 'Approved').length;
@@ -220,9 +219,8 @@ export default function FounderDashboard({ navigation }) {
       }
       map[d].headcount += 1;
 
-      const mId = String(m.id || m.user_id);
-      const att = attendance[mId] && attendance[mId][todayISO];
-      if (att && (att.status === 'Full' || att.status === 'Half' || att.status === 'Present' || att.morning_marked_at || att.evening_marked_at)) {
+      const todayAtt = getTodayAttendanceRecord(attendance, m);
+      if (isAttendanceCheckedIn(todayAtt)) {
         map[d].checkedInToday += 1;
       }
     });
