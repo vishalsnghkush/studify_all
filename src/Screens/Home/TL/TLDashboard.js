@@ -248,6 +248,14 @@ const TLDashboard = () => {
   const [eodModalVisible, setEodModalVisible] = useState(false);
   const [selectedEodInternId, setSelectedEodInternId] = useState('all');
 
+  // TL Self-Attendance States (Attendance Module)
+  const [tlAttendanceSubTab, setTlAttendanceSubTab] = useState('my_attendance'); // 'my_attendance' | 'team_roster'
+  const [tlAttendanceToday, setTlAttendanceToday] = useState(null);
+  const [tlAttendanceData, setTlAttendanceData] = useState({});
+  const [tlAttendanceList, setTlAttendanceList] = useState([]);
+  const [tlCalendarDate, setTlCalendarDate] = useState(new Date());
+  const [markingTlAttendance, setMarkingTlAttendance] = useState(false);
+
   const openMetricDetail = type => {
     setMetricDetailType(type);
     setMetricDetailModalVisible(true);
@@ -441,16 +449,31 @@ const TLDashboard = () => {
         const attRes = await get('/interns/attendance', {skipSuccessFlash: true, skipErrorFlash: true});
         if (attRes && attRes.data) {
           const attData = Array.isArray(attRes.data) ? attRes.data : [attRes.data];
+          const tlMap = {};
+          const now = new Date();
+          const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          let todayRec = null;
+
           attData.forEach(record => {
             if (!record || typeof record !== 'object') return;
             const ids = [record.intern_id, record.user_id, record.internId, record.userId].filter(Boolean);
             const dateKey = extractDateISO(record.date || record.created_at || record.marked_at);
+            if (dateKey) {
+              tlMap[dateKey] = record.status || (record.morning_marked_at && record.evening_marked_at ? 'Full' : 'Half');
+              if (dateKey === todayISO) {
+                todayRec = record;
+              }
+            }
             ids.forEach(id => {
               const strId = String(id);
               if (!attendanceMap[strId]) attendanceMap[strId] = {};
               attendanceMap[strId][dateKey] = record;
             });
           });
+
+          setTlAttendanceToday(todayRec);
+          setTlAttendanceData(tlMap);
+          setTlAttendanceList(attData);
         }
       } catch (attErr) {}
 
@@ -681,6 +704,168 @@ const TLDashboard = () => {
     } catch (e) {
       Alert.alert('Error', 'Failed to reject leave');
     }
+  };
+
+  // TL Self-Attendance Actions (Attendance Module)
+  const markTLAttendance = async type => {
+    setMarkingTlAttendance(true);
+    try {
+      const res = await post('/interns/attendance/mark', {type}, {skipSuccessFlash: false});
+      if (res && res.data) {
+        setTlAttendanceToday(res.data);
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        setTlAttendanceData(prev => ({
+          ...prev,
+          [todayKey]: res.data.status || 'Half',
+        }));
+        Alert.alert('Attendance Marked', `${type === 'morning' ? 'Morning Check-in' : 'Evening Check-out'} recorded successfully!`);
+        loadData();
+      }
+    } catch (e) {
+      console.log('TL Mark Attendance error:', e);
+      Alert.alert('Error', e?.message || 'Could not mark attendance. Please check the current time window.');
+    } finally {
+      setMarkingTlAttendance(false);
+    }
+  };
+
+  const changeTLMonth = direction => {
+    setTlCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + direction);
+      return newDate;
+    });
+  };
+
+  // Dynamic Monthly Calendar Renderer for TL
+  const renderTLCalendar = () => {
+    const year = tlCalendarDate.getFullYear();
+    const month = tlCalendarDate.getMonth();
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = new Date(year, month, 1).getDay();
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthYearStr = `${monthNames[month]} ${year}`;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const cells = [];
+
+    // Header with Month Name and Navigation Controls
+    cells.push(
+      <View key="tl-cal-header" style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4}}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => changeTLMonth(-1)}
+          style={{paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: isDark ? (colors.elevation?.level2 || '#333') : '#EEEEEE'}}>
+          <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.onSurface}}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{fontSize: 15, fontWeight: 'bold', color: colors.onSurface}}>
+          {monthYearStr}
+        </Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => changeTLMonth(1)}
+          style={{paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: isDark ? (colors.elevation?.level2 || '#333') : '#EEEEEE'}}>
+          <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.onSurface}}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+
+    // Day Labels Header Row
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    cells.push(
+      <View key="tl-labels" style={{flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8}}>
+        {dayLabels.map(d => (
+          <Text key={d} style={{width: 38, textAlign: 'center', fontSize: 11, fontWeight: '600', color: isDark ? colors.onSurfaceVariant : '#666'}}>
+            {d}
+          </Text>
+        ))}
+      </View>
+    );
+
+    let currentRow = [];
+    for (let i = 0; i < startDay; i++) {
+      currentRow.push(<View key={`empty-${i}`} style={{width: 38, height: 38, margin: 2}} />);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const status = tlAttendanceData[dateKey];
+      const isToday = dateKey === todayStr;
+
+      let statusColor = isDark ? (colors.elevation?.level2 || '#333') : '#F0F0F0';
+      let textColor = colors.onSurface || '#333';
+      let isBold = false;
+      let borderWidth = 0;
+      let borderColor = 'transparent';
+
+      if (status === 'Full' || status === 'Present' || status === 1) {
+        statusColor = '#4CAF50';
+        textColor = '#FFFFFF';
+      } else if (status === 'Half' || status === 2) {
+        statusColor = '#FFA000';
+        textColor = '#FFFFFF';
+      } else if (status === 'Absent' || status === 3) {
+        statusColor = '#F44336';
+        textColor = '#FFFFFF';
+      }
+
+      if (isToday) {
+        borderWidth = 2;
+        borderColor = (statusColor === '#4CAF50' || statusColor === '#F44336') ? '#000000' : '#1A237E';
+        isBold = true;
+        if (!status) {
+          statusColor = isDark ? '#3E2723' : '#FFF9C4';
+          textColor = '#E65100';
+        }
+      }
+
+      currentRow.push(
+        <View key={d} style={{width: 38, height: 38, margin: 2, alignItems: 'center', justifyContent: 'center'}}>
+          <View style={{
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: statusColor,
+            borderWidth: borderWidth,
+            borderColor: borderColor,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Text style={{color: textColor, fontWeight: isBold ? 'bold' : '500', fontSize: 12}}>{d}</Text>
+          </View>
+        </View>
+      );
+
+      if (currentRow.length === 7) {
+        cells.push(
+          <View key={`row-${d}`} style={{flexDirection: 'row', justifyContent: 'space-around', marginBottom: 4}}>
+            {currentRow}
+          </View>
+        );
+        currentRow = [];
+      }
+    }
+
+    if (currentRow.length > 0) {
+      while (currentRow.length < 7) {
+        currentRow.push(<View key={`empty-end-${currentRow.length}`} style={{width: 38, height: 38, margin: 2}} />);
+      }
+      cells.push(
+        <View key="row-last" style={{flexDirection: 'row', justifyContent: 'space-around', marginBottom: 4}}>
+          {currentRow}
+        </View>
+      );
+    }
+
+    return cells;
   };
 
   // Intern Approval (Module 2)
@@ -1892,7 +2077,7 @@ const TLDashboard = () => {
 
         {/* ================= ATTENDANCE CATEGORY SCREEN ================= */}
         {activeCategory === 'Attendance' && (() => {
-          // Calculate today's totals
+          // Calculate today's totals for team roster
           const totalInterns = approvedInterns.length;
           let presentCount = 0;
           approvedInterns.forEach(intern => {
@@ -1903,99 +2088,422 @@ const TLDashboard = () => {
           });
           const absentCount = totalInterns - presentCount;
 
+          // Current time & status for TL Self Attendance
+          const now = new Date();
+          const currentHour = now.getHours();
+          const isMorningWindow = currentHour >= 7 && currentHour < 12;
+          const isEveningWindow = currentHour >= 16 && currentHour < 22;
+
+          const morningMarked = !!tlAttendanceToday?.morning_marked_at;
+          const eveningMarked = !!tlAttendanceToday?.evening_marked_at;
+          const morningTime = tlAttendanceToday?.morning_marked_at
+            ? new Date(tlAttendanceToday.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+            : null;
+          const eveningTime = tlAttendanceToday?.evening_marked_at
+            ? new Date(tlAttendanceToday.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+            : null;
+
+          const todayStatus = tlAttendanceToday?.status === 'Full'
+            ? 'Full Day (8 hrs)'
+            : (morningMarked || eveningMarked)
+            ? 'Half Day (4 hrs)'
+            : 'Absent / Not Marked';
+
+          const todayStatusColor = tlAttendanceToday?.status === 'Full'
+            ? '#2E7D32'
+            : (morningMarked || eveningMarked)
+            ? '#E65100'
+            : '#C62828';
+
+          const todayStatusBg = tlAttendanceToday?.status === 'Full'
+            ? '#E8F5E9'
+            : (morningMarked || eveningMarked)
+            ? '#FFF3E0'
+            : '#FFEBEE';
+
+          // TL Stats Calculation
+          const totalDaysLogged = tlAttendanceList.length;
+          const fullDaysCount = tlAttendanceList.filter(r => r.status === 'Full' || (r.morning_marked_at && r.evening_marked_at)).length;
+          const halfDaysCount = tlAttendanceList.filter(r => r.status === 'Half' || (!r.morning_marked_at && r.evening_marked_at) || (r.morning_marked_at && !r.evening_marked_at)).length;
+          const presentDaysCount = fullDaysCount + halfDaysCount;
+          const totalWorkingHours = (fullDaysCount * 8) + (halfDaysCount * 4);
+          const attPercentage = totalDaysLogged > 0 ? Math.min(100, Math.round((presentDaysCount / totalDaysLogged) * 100)) : 100;
+
           return (
             <View style={styles.sectionPadding}>
-              <Text style={styles.sectionTitle}>
-                Today's Roster & Attendance ({activeDept})
-              </Text>
+              {/* Top Sub-Tab Switcher */}
+              <SegmentedButtons
+                value={tlAttendanceSubTab}
+                onValueChange={setTlAttendanceSubTab}
+                buttons={[
+                  {
+                    value: 'my_attendance',
+                    label: '👤 My Attendance',
+                  },
+                  {
+                    value: 'team_roster',
+                    label: `👥 Team Roster (${presentCount}/${totalInterns})`,
+                  },
+                ]}
+                style={{marginBottom: 16}}
+              />
 
-              {/* Roster Summary Card */}
-              <Card style={{marginBottom: 16, backgroundColor: '#E0F2F1'}}>
-                <Card.Content style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center'}}>
-                  <View style={{alignItems: 'center'}}>
-                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#004D40'}}>{totalInterns}</Text>
-                    <Text style={{fontSize: 11, color: '#00796B'}}>Total Interns</Text>
-                  </View>
-                  <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
-                  <View style={{alignItems: 'center'}}>
-                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#2E7D32'}}>{presentCount}</Text>
-                    <Text style={{fontSize: 11, color: '#388E3C'}}>Present Today</Text>
-                  </View>
-                  <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
-                  <View style={{alignItems: 'center'}}>
-                    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#C62828'}}>{absentCount}</Text>
-                    <Text style={{fontSize: 11, color: '#D32F2F'}}>Absent Today</Text>
-                  </View>
-                </Card.Content>
-              </Card>
-
-              {totalInterns === 0 ? (
-                <Card style={styles.emptyCard}>
-                  <Card.Content style={styles.emptyContent}>
-                    <Icon name="account-multiple-remove" size={40} color="#888" />
-                    <Text style={styles.emptyText}>No approved interns in this department roster.</Text>
-                  </Card.Content>
-                </Card>
-              ) : (
-                approvedInterns.map(intern => {
-                  const attRecord = getTodayAttendanceRecord(db?.attendance, intern);
-                  const isCheckedIn = isAttendanceCheckedIn(attRecord);
-                  const status = isCheckedIn ? (attRecord.status || 'Present') : 'Absent';
-                  
-                  return (
-                    <Card key={intern.id} style={styles.cardMargin}>
-                      <Card.Content>
-                        <View style={styles.rowBetween}>
-                          <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8}}>
-                            <Avatar.Text 
-                              size={36} 
-                              label={intern.avatar || (intern.name ? intern.name.split(' ').map(n=>n[0]).join('').slice(0,2) : 'IN')} 
-                              backgroundColor={isCheckedIn ? '#E8F5E9' : '#FFEBEE'}
-                              color={isCheckedIn ? '#2E7D32' : '#C62828'}
-                            />
-                            <View style={{flex: 1}}>
-                              <Text style={styles.cardTitle} numberOfLines={1}>{intern.name}</Text>
-                              <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#777'}} numberOfLines={1}>{intern.email}</Text>
-                            </View>
-                          </View>
-                          <Chip
-                            icon={isCheckedIn ? 'check-circle' : 'close-circle'}
-                            style={{
-                              backgroundColor: isCheckedIn ? '#E8F5E9' : '#FFEBEE',
-                            }}
-                            textStyle={{
-                              color: isCheckedIn ? '#2E7D32' : '#C62828',
-                              fontWeight: 'bold'
-                            }}>
-                            {isCheckedIn ? `${status} ✅` : 'Absent ❌'}
-                          </Chip>
+              {tlAttendanceSubTab === 'my_attendance' ? (
+                <View>
+                  {/* Today's Check-in / Check-out Card */}
+                  <Card style={[styles.cardMargin, {elevation: 3, borderColor: '#B2DFDB'}]}>
+                    <Card.Content>
+                      <View style={styles.rowBetween}>
+                        <View style={{flex: 1, marginRight: 8}}>
+                          <Text style={{fontSize: 12, color: '#00796B', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5}}>
+                            TL Self Attendance
+                          </Text>
+                          <Text style={[styles.cardTitle, {fontSize: 17, marginTop: 2}]}>
+                            Today's Check-in & Timings
+                          </Text>
+                          <Text style={{fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#666', marginTop: 2}}>
+                            {now.toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'})}
+                          </Text>
                         </View>
+                        <Chip
+                          icon={tlAttendanceToday?.status === 'Full' ? 'check-decagram' : (morningMarked || eveningMarked) ? 'clock-check-outline' : 'alert-circle-outline'}
+                          style={{backgroundColor: todayStatusBg}}
+                          textStyle={{color: todayStatusColor, fontWeight: 'bold', fontSize: 12}}>
+                          {todayStatus}
+                        </Chip>
+                      </View>
 
-                        {/* Check-in Times / Details if present */}
-                        {isCheckedIn && (
-                          <View style={{marginTop: 8, padding: 8, backgroundColor: '#F9F9F9', borderRadius: 8}}>
-                            {attRecord.morning_marked_at ? (
-                              <Text style={{fontSize: 11, color: '#555'}}>
-                                🌅 Morning Check-in: {new Date(attRecord.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                              </Text>
-                            ) : null}
-                            {attRecord.evening_marked_at ? (
-                              <Text style={{fontSize: 11, color: '#555', marginTop: attRecord.morning_marked_at ? 4 : 0}}>
-                                🌇 Evening Check-in: {new Date(attRecord.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                              </Text>
-                            ) : null}
-                            {!attRecord.morning_marked_at && !attRecord.evening_marked_at && (
-                              <Text style={{fontSize: 11, color: '#555'}}>
-                                 Marked present manually by TL
-                              </Text>
-                            )}
-                          </View>
-                        )}
+                      <Divider style={{marginVertical: 14}} />
 
+                      {/* Morning & Evening Check-in Action Buttons */}
+                      <View style={{flexDirection: 'row', gap: 10}}>
+                        {/* Morning Check-in */}
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          disabled={morningMarked || markingTlAttendance || !isMorningWindow}
+                          onPress={() => markTLAttendance('morning')}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            paddingHorizontal: 10,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            backgroundColor: morningMarked
+                              ? '#E8F5E9'
+                              : isMorningWindow
+                              ? '#E3F2FD'
+                              : (isDark ? colors.elevation?.level1 : '#F5F5F5'),
+                            borderWidth: 1.5,
+                            borderColor: morningMarked
+                              ? '#66BB6A'
+                              : isMorningWindow
+                              ? '#2196F3'
+                              : '#E0E0E0',
+                          }}>
+                          <Icon
+                            name={morningMarked ? 'check-circle' : 'weather-sunny'}
+                            size={26}
+                            color={morningMarked ? '#2E7D32' : isMorningWindow ? '#1565C0' : '#9E9E9E'}
+                          />
+                          <Text style={{
+                            fontSize: 13,
+                            fontWeight: 'bold',
+                            marginTop: 4,
+                            color: morningMarked ? '#2E7D32' : isMorningWindow ? '#1565C0' : '#757575',
+                          }}>
+                            {morningMarked
+                              ? 'Morning ✓'
+                              : currentHour >= 12
+                              ? 'Closed'
+                              : currentHour < 7
+                              ? 'After 7 AM'
+                              : '☀️ Morning In'}
+                          </Text>
+                          <Text style={{fontSize: 11, color: morningMarked ? '#388E3C' : '#666', marginTop: 2}}>
+                            {morningMarked && morningTime ? `Recorded: ${morningTime}` : '7:00 AM – 12:00 PM'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Evening Check-out */}
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          disabled={eveningMarked || markingTlAttendance || !isEveningWindow}
+                          onPress={() => markTLAttendance('evening')}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            paddingHorizontal: 10,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            backgroundColor: eveningMarked
+                              ? '#E8F5E9'
+                              : isEveningWindow
+                              ? '#F3E5F5'
+                              : (isDark ? colors.elevation?.level1 : '#F5F5F5'),
+                            borderWidth: 1.5,
+                            borderColor: eveningMarked
+                              ? '#66BB6A'
+                              : isEveningWindow
+                              ? '#AB47BC'
+                              : '#E0E0E0',
+                          }}>
+                          <Icon
+                            name={eveningMarked ? 'check-circle' : 'weather-night'}
+                            size={26}
+                            color={eveningMarked ? '#2E7D32' : isEveningWindow ? '#6A1B9A' : '#9E9E9E'}
+                          />
+                          <Text style={{
+                            fontSize: 13,
+                            fontWeight: 'bold',
+                            marginTop: 4,
+                            color: eveningMarked ? '#2E7D32' : isEveningWindow ? '#6A1B9A' : '#757575',
+                          }}>
+                            {eveningMarked
+                              ? 'Evening ✓'
+                              : currentHour >= 22
+                              ? 'Closed'
+                              : currentHour < 16
+                              ? 'After 4 PM'
+                              : '🌙 Evening Out'}
+                          </Text>
+                          <Text style={{fontSize: 11, color: eveningMarked ? '#388E3C' : '#666', marginTop: 2}}>
+                            {eveningMarked && eveningTime ? `Recorded: ${eveningTime}` : '4:00 PM – 10:00 PM'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Working Hours Bar */}
+                      <View style={{marginTop: 14, padding: 10, backgroundColor: isDark ? colors.elevation?.level1 : '#F9FBFD', borderRadius: 8}}>
+                        <View style={styles.rowBetween}>
+                          <Text style={{fontSize: 12, color: isDark ? colors.onSurface : '#37474F', fontWeight: '500'}}>
+                            ⏱️ Today's Logged Hours:
+                          </Text>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: todayStatusColor}}>
+                            {tlAttendanceToday?.status === 'Full' ? '8.0 Hours' : (morningMarked || eveningMarked) ? '4.0 Hours' : '0.0 Hours'}
+                          </Text>
+                        </View>
+                        <ProgressBar
+                          progress={tlAttendanceToday?.status === 'Full' ? 1.0 : (morningMarked || eveningMarked) ? 0.5 : 0.0}
+                          color={todayStatusColor}
+                          style={{height: 6, borderRadius: 3, marginTop: 6}}
+                        />
+                      </View>
+                    </Card.Content>
+                  </Card>
+
+                  {/* Summary Metric Stats */}
+                  <View style={[styles.gridRow, {marginBottom: 12}]}>
+                    <Card style={[styles.halfMetricCard, {backgroundColor: isDark ? colors.elevation?.level1 : '#FFFFFF'}]}>
+                      <Card.Content style={{alignItems: 'center', paddingVertical: 12}}>
+                        <Text style={{fontSize: 11, color: '#666'}}>Days Present</Text>
+                        <Text style={{fontSize: 20, fontWeight: 'bold', color: '#2E7D32', marginTop: 2}}>
+                          {presentDaysCount}
+                        </Text>
+                        <Text style={{fontSize: 10, color: '#888'}}>({fullDaysCount} Full / {halfDaysCount} Half)</Text>
                       </Card.Content>
                     </Card>
-                  );
-                })
+
+                    <Card style={[styles.halfMetricCard, {backgroundColor: isDark ? colors.elevation?.level1 : '#FFFFFF'}]}>
+                      <Card.Content style={{alignItems: 'center', paddingVertical: 12}}>
+                        <Text style={{fontSize: 11, color: '#666'}}>Working Hours</Text>
+                        <Text style={{fontSize: 20, fontWeight: 'bold', color: '#1565C0', marginTop: 2}}>
+                          {totalWorkingHours} hrs
+                        </Text>
+                        <Text style={{fontSize: 10, color: '#888'}}>Attendance: {attPercentage}%</Text>
+                      </Card.Content>
+                    </Card>
+                  </View>
+
+                  {/* Monthly Attendance Calendar */}
+                  <Card style={[styles.cardMargin, {elevation: 2}]}>
+                    <Card.Content>
+                      <View style={[styles.rowBetween, {marginBottom: 8}]}>
+                        <Text style={[styles.cardTitle, {fontSize: 15}]}>
+                          📅 Monthly Attendance Calendar
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => setTlCalendarDate(new Date())}
+                          style={{paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: isDark ? colors.elevation?.level2 : '#EDE7F6'}}>
+                          <Text style={{fontSize: 11, color: '#512DA8', fontWeight: 'bold'}}>Current Month</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {renderTLCalendar()}
+
+                      {/* Legend */}
+                      <View style={{flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap', marginTop: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? colors.outlineVariant : '#F0F0F0'}}>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 2}}>
+                          <View style={{width: 10, height: 10, borderRadius: 5, backgroundColor: '#4CAF50'}} />
+                          <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#666'}}>Full Day</Text>
+                        </View>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 2}}>
+                          <View style={{width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFA000'}} />
+                          <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#666'}}>Half Day</Text>
+                        </View>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 2}}>
+                          <View style={{width: 10, height: 10, borderRadius: 5, backgroundColor: '#F44336'}} />
+                          <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#666'}}>Absent</Text>
+                        </View>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 2}}>
+                          <View style={{width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#1A237E', backgroundColor: isDark ? '#3E2723' : '#FFF9C4'}} />
+                          <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#666'}}>Today</Text>
+                        </View>
+                      </View>
+                    </Card.Content>
+                  </Card>
+
+                  {/* Recent Attendance History Records */}
+                  <Card style={[styles.cardMargin, {elevation: 2}]}>
+                    <Card.Content>
+                      <View style={[styles.rowBetween, {marginBottom: 10}]}>
+                        <Text style={[styles.cardTitle, {fontSize: 15}]}>
+                          📋 Recent Attendance Log
+                        </Text>
+                        <Badge style={{backgroundColor: '#00796B', color: '#fff'}}>{tlAttendanceList.length} Records</Badge>
+                      </View>
+
+                      {tlAttendanceList.length === 0 ? (
+                        <View style={{alignItems: 'center', paddingVertical: 18}}>
+                          <Icon name="calendar-blank-outline" size={32} color="#B0BEC5" />
+                          <Text style={{fontSize: 12, color: '#78909C', marginTop: 6}}>No previous attendance records found.</Text>
+                        </View>
+                      ) : (
+                        tlAttendanceList.slice(0, 10).map((item, idx) => {
+                          const dateFormatted = item.date || item.created_at || 'N/A';
+                          const isFull = item.status === 'Full' || (item.morning_marked_at && item.evening_marked_at);
+                          const mTime = item.morning_marked_at ? new Date(item.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—';
+                          const eTime = item.evening_marked_at ? new Date(item.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '—';
+
+                          return (
+                            <View
+                              key={item.id || idx}
+                              style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                paddingVertical: 10,
+                                borderBottomWidth: idx < Math.min(10, tlAttendanceList.length) - 1 ? 1 : 0,
+                                borderBottomColor: isDark ? colors.outlineVariant : '#F0F0F0',
+                              }}>
+                              <View>
+                                <Text style={{fontSize: 13, fontWeight: 'bold', color: isDark ? colors.onSurface : '#263238'}}>
+                                  {dateFormatted}
+                                </Text>
+                                <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#777', marginTop: 2}}>
+                                  🌅 In: {mTime} | 🌇 Out: {eTime}
+                                </Text>
+                              </View>
+                              <Chip
+                                compact
+                                style={{
+                                  backgroundColor: isFull ? '#E8F5E9' : '#FFF3E0',
+                                }}
+                                textStyle={{
+                                  fontSize: 11,
+                                  fontWeight: 'bold',
+                                  color: isFull ? '#2E7D32' : '#E65100',
+                                }}>
+                                {isFull ? 'Full Day' : 'Half Day'}
+                              </Chip>
+                            </View>
+                          );
+                        })
+                      )}
+                    </Card.Content>
+                  </Card>
+                </View>
+              ) : (
+                /* Team Roster Sub-View */
+                <View>
+                  {/* Roster Summary Card */}
+                  <Card style={{marginBottom: 16, backgroundColor: '#E0F2F1'}}>
+                    <Card.Content style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center'}}>
+                      <View style={{alignItems: 'center'}}>
+                        <Text style={{fontSize: 20, fontWeight: 'bold', color: '#004D40'}}>{totalInterns}</Text>
+                        <Text style={{fontSize: 11, color: '#00796B'}}>Total Interns</Text>
+                      </View>
+                      <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
+                      <View style={{alignItems: 'center'}}>
+                        <Text style={{fontSize: 20, fontWeight: 'bold', color: '#2E7D32'}}>{presentCount}</Text>
+                        <Text style={{fontSize: 11, color: '#388E3C'}}>Present Today</Text>
+                      </View>
+                      <View style={{height: 30, width: 1, backgroundColor: '#B2DFDB'}} />
+                      <View style={{alignItems: 'center'}}>
+                        <Text style={{fontSize: 20, fontWeight: 'bold', color: '#C62828'}}>{absentCount}</Text>
+                        <Text style={{fontSize: 11, color: '#D32F2F'}}>Absent Today</Text>
+                      </View>
+                    </Card.Content>
+                  </Card>
+
+                  {totalInterns === 0 ? (
+                    <Card style={styles.emptyCard}>
+                      <Card.Content style={styles.emptyContent}>
+                        <Icon name="account-multiple-remove" size={40} color="#888" />
+                        <Text style={styles.emptyText}>No approved interns in this department roster.</Text>
+                      </Card.Content>
+                    </Card>
+                  ) : (
+                    approvedInterns.map(intern => {
+                      const attRecord = getTodayAttendanceRecord(db?.attendance, intern);
+                      const isCheckedIn = isAttendanceCheckedIn(attRecord);
+                      const status = isCheckedIn ? (attRecord.status || 'Present') : 'Absent';
+                      
+                      return (
+                        <Card key={intern.id} style={styles.cardMargin}>
+                          <Card.Content>
+                            <View style={styles.rowBetween}>
+                              <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8}}>
+                                <Avatar.Text 
+                                  size={36} 
+                                  label={intern.avatar || (intern.name ? intern.name.split(' ').map(n=>n[0]).join('').slice(0,2) : 'IN')} 
+                                  backgroundColor={isCheckedIn ? '#E8F5E9' : '#FFEBEE'}
+                                  color={isCheckedIn ? '#2E7D32' : '#C62828'}
+                                />
+                                <View style={{flex: 1}}>
+                                  <Text style={styles.cardTitle} numberOfLines={1}>{intern.name}</Text>
+                                  <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#777'}} numberOfLines={1}>{intern.email}</Text>
+                                </View>
+                              </View>
+                              <Chip
+                                icon={isCheckedIn ? 'check-circle' : 'close-circle'}
+                                style={{
+                                  backgroundColor: isCheckedIn ? '#E8F5E9' : '#FFEBEE',
+                                }}
+                                textStyle={{
+                                  color: isCheckedIn ? '#2E7D32' : '#C62828',
+                                  fontWeight: 'bold'
+                                }}>
+                                {isCheckedIn ? `${status} ✅` : 'Absent ❌'}
+                              </Chip>
+                            </View>
+
+                            {/* Check-in Times / Details if present */}
+                            {isCheckedIn && (
+                              <View style={{marginTop: 8, padding: 8, backgroundColor: isDark ? colors.elevation?.level1 : '#F9F9F9', borderRadius: 8}}>
+                                {attRecord.morning_marked_at ? (
+                                  <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#555'}}>
+                                    🌅 Morning Check-in: {new Date(attRecord.morning_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                  </Text>
+                                ) : null}
+                                {attRecord.evening_marked_at ? (
+                                  <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#555', marginTop: attRecord.morning_marked_at ? 4 : 0}}>
+                                    🌇 Evening Check-in: {new Date(attRecord.evening_marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                  </Text>
+                                ) : null}
+                                {!attRecord.morning_marked_at && !attRecord.evening_marked_at && (
+                                  <Text style={{fontSize: 11, color: isDark ? colors.onSurfaceVariant : '#555'}}>
+                                    Marked present manually by TL
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+
+                          </Card.Content>
+                        </Card>
+                      );
+                    })
+                  )}
+                </View>
               )}
             </View>
           );
