@@ -11,7 +11,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {Text} from '../../../Components/Input';
 import {Screen} from '../../../Components/Screen';
-import {useTheme, Card, Avatar, Searchbar, IconButton, Button, ProgressBar} from 'react-native-paper';
+import {useTheme, Card, Avatar, Searchbar, IconButton, Button, ProgressBar, Portal, Dialog} from 'react-native-paper';
 import useApi from '../../../Components/Api/Api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {extractDateISO, getTodayAttendanceRecord, isAttendanceCheckedIn} from '../../../Utils/MockInternDb';
@@ -118,7 +118,25 @@ const TLMyTeam = () => {
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const activeDept = user?.department || 'Tech';
+  
+  const getFirstDept = (deptStr) => {
+    if (!deptStr) return 'Tech';
+    return deptStr.split(',')[0].trim();
+  };
+
+  const [activeDept, setActiveDept] = useState((user && user.department) ? getFirstDept(user.department) : 'Tech');
+  const [showDeptDialog, setShowDeptDialog] = useState(false);
+
+  // Sync activeDept if user profile changes
+  useEffect(() => {
+    if (user && user.department) {
+      const depts = user.department.split(',').map(d => d.trim()).filter(Boolean);
+      if (!depts.includes(activeDept)) {
+        setActiveDept(depts[0] || 'Tech');
+      }
+    }
+  }, [user]);
+
   const [selectedIntern, setSelectedIntern] = useState(null);
   const [reportModal, setReportModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -126,6 +144,17 @@ const TLMyTeam = () => {
   const [internLearningProgress, setInternLearningProgress] = useState(0);
 
   const { get, post } = useApi();
+
+  const handleApproveReject = async (internId, action) => {
+    try {
+      await post('/interns/team/approve', { internId, action });
+      Alert.alert('Success', `Intern status updated to ${action}`);
+      loadData();
+      setSelectedIntern(prev => prev ? { ...prev, status: action } : null);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update intern status');
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -346,7 +375,14 @@ const TLMyTeam = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.greet}>Active Roster</Text>
-          <Text style={styles.title}>My Team</Text>
+          {user?.department && user.department.includes(',') ? (
+            <TouchableOpacity onPress={() => setShowDeptDialog(true)} style={{flexDirection: 'row', alignItems: 'center', marginTop: 2}}>
+              <Text style={styles.title}>My Team ({activeDept})</Text>
+              <Icon name="chevron-down" size={20} color={colors.primary} style={{marginLeft: 4, marginTop: 4}} />
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.title}>My Team ({activeDept})</Text>
+          )}
         </View>
         <Avatar.Icon size={48} icon="account-group" style={{backgroundColor: colors.primaryContainer}} color={colors.onPrimaryContainer} />
       </View>
@@ -571,20 +607,61 @@ const TLMyTeam = () => {
                   </View>
                 </View>
 
-                {/* Offer Letter Review Section */}
+                 {/* Offer Letter Review Section */}
                 <View style={{ backgroundColor: '#F5F5F5', padding: 12, borderRadius: 8, marginVertical: 12 }}>
                   <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6 }}>Internship Offer Letter</Text>
                   {selectedIntern.offerLetterName ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#DDD' }}>
-                      <Icon name="file-pdf-box" size={28} color="#E53935" />
-                      <Text style={{ flex: 1, fontSize: 12, marginLeft: 8, color: '#333' }}>{selectedIntern.offerLetterName}</Text>
-                      <Button 
-                        mode="contained-tonal" 
-                        compact 
-                        onPress={() => Alert.alert('View Offer Letter', `Offer Letter Document: ${selectedIntern.offerLetterName}\n\n[Verified Signature & Seal Present]\nThis document is authenticated.`)}
-                      >
-                        View
-                      </Button>
+                    <View style={{ backgroundColor: '#fff', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#DDD' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Icon name="file-pdf-box" size={28} color="#E53935" />
+                        <Text style={{ flex: 1, fontSize: 12, marginLeft: 8, color: '#333' }} numberOfLines={1}>
+                          {selectedIntern.offerLetterName}
+                        </Text>
+                        <Button 
+                          mode="contained-tonal" 
+                          compact 
+                          onPress={() => Alert.alert('View Offer Letter', `Offer Letter Document: ${selectedIntern.offerLetterName}\n\n[Verified Signature & Seal Present]\nThis document is authenticated.`)}
+                        >
+                          View
+                        </Button>
+                      </View>
+                      
+                      {/* Status and Action Buttons */}
+                      {selectedIntern.status === 'Approved' || selectedIntern.status === 'Active' ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F5E9', padding: 6, borderRadius: 4, marginTop: 4 }}>
+                          <Icon name="check-circle" size={16} color="#2E7D32" />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#2E7D32', marginLeft: 4 }}>Offer Letter Approved</Text>
+                        </View>
+                      ) : selectedIntern.status === 'Denied' ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFEBEE', padding: 6, borderRadius: 4, marginTop: 4 }}>
+                          <Icon name="close-circle" size={16} color="#C62828" />
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#C62828', marginLeft: 4 }}>Offer Letter Denied / Rejected</Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                          <Button
+                            mode="contained"
+                            buttonColor="#2E7D32"
+                            textColor="#fff"
+                            compact
+                            style={{ flex: 1, marginRight: 4, borderRadius: 6 }}
+                            labelStyle={{ fontSize: 11, fontWeight: 'bold' }}
+                            onPress={() => handleApproveReject(selectedIntern.id, 'Approved')}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            mode="outlined"
+                            textColor="#C62828"
+                            compact
+                            style={{ flex: 1, marginLeft: 4, borderRadius: 6, borderColor: '#C62828' }}
+                            labelStyle={{ fontSize: 11, fontWeight: 'bold' }}
+                            onPress={() => handleApproveReject(selectedIntern.id, 'Denied')}
+                          >
+                            Reject
+                          </Button>
+                        </View>
+                      )}
                     </View>
                   ) : (
                     <Text style={{ fontSize: 12, color: '#C62828', fontStyle: 'italic' }}>⚠️ No offer letter uploaded yet by the intern.</Text>
@@ -669,6 +746,31 @@ const TLMyTeam = () => {
           </View>
         </Modal>
       )}
+      {/* Switch Department Dialog */}
+      <Portal>
+        <Dialog visible={showDeptDialog} onDismiss={() => setShowDeptDialog(false)}>
+          <Dialog.Title>Switch Active Division</Dialog.Title>
+          <Dialog.Content>
+            {user?.department?.split(',').map(d => d.trim()).filter(Boolean).map((dept, index) => (
+              <Button
+                key={index}
+                mode={activeDept === dept ? 'contained' : 'text'}
+                onPress={() => {
+                  setActiveDept(dept);
+                  setShowDeptDialog(false);
+                }}
+                style={{ marginVertical: 4, alignItems: 'flex-start' }}
+                contentStyle={{ justifyContent: 'flex-start' }}
+              >
+                {dept}
+              </Button>
+            ))}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeptDialog(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Screen>
   );
 };

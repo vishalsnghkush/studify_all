@@ -148,12 +148,21 @@ const TLDashboard = () => {
   const {groups} = useSelector(state => state.chat);
   const {get, post, remove} = useApi();
   const [db, setDb] = useState(null);
-  const [activeDept, setActiveDept] = useState((user && user.department) ? user.department : 'Tech');
+  const getFirstDept = (deptStr) => {
+    if (!deptStr) return 'Tech';
+    return deptStr.split(',')[0].trim();
+  };
+
+  const [activeDept, setActiveDept] = useState((user && user.department) ? getFirstDept(user.department) : 'Tech');
+  const [showDeptDialog, setShowDeptDialog] = useState(false);
 
   // Sync activeDept if user profile changes & fetch chat groups
   useEffect(() => {
     if (user && user.department) {
-      setActiveDept(user.department);
+      const depts = user.department.split(',').map(d => d.trim()).filter(Boolean);
+      if (!depts.includes(activeDept)) {
+        setActiveDept(depts[0] || 'Tech');
+      }
     }
   }, [user]);
 
@@ -1228,9 +1237,18 @@ const TLDashboard = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Team Leader Hub 👑</Text>
-            <Text style={styles.deptText}>
-              Department: <Text style={{fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E'}}>{activeDept}</Text>
-            </Text>
+            {user?.department && user.department.includes(',') ? (
+              <TouchableOpacity onPress={() => setShowDeptDialog(true)} style={{flexDirection: 'row', alignItems: 'center', marginTop: 2}}>
+                <Text style={styles.deptText}>
+                  Department: <Text style={{fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E', textDecorationLine: 'underline'}}>{activeDept}</Text>
+                </Text>
+                <Icon name="chevron-down" size={16} color={isDark ? colors.primary : '#1A237E'} style={{marginLeft: 4, marginTop: 2}} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.deptText}>
+                Department: <Text style={{fontWeight: 'bold', color: isDark ? colors.primary : '#1A237E'}}>{activeDept}</Text>
+              </Text>
+            )}
           </View>
           <TouchableOpacity
             style={styles.profileBadge}
@@ -3298,6 +3316,31 @@ const TLDashboard = () => {
           </Card>
         </View>
       </Modal>
+      {/* Switch Department Dialog */}
+      <Portal>
+        <Dialog visible={showDeptDialog} onDismiss={() => setShowDeptDialog(false)}>
+          <Dialog.Title>Switch Active Division</Dialog.Title>
+          <Dialog.Content>
+            {user?.department?.split(',').map(d => d.trim()).filter(Boolean).map((dept, index) => (
+              <Button
+                key={index}
+                mode={activeDept === dept ? 'contained' : 'text'}
+                onPress={() => {
+                  setActiveDept(dept);
+                  setShowDeptDialog(false);
+                }}
+                style={{ marginVertical: 4, alignItems: 'flex-start' }}
+                contentStyle={{ justifyContent: 'flex-start' }}
+              >
+                {dept}
+              </Button>
+            ))}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeptDialog(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
       </Screen>
       {/* <AIChatbot role="tl" /> */}
     </View>

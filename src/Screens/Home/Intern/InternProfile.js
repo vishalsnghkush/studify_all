@@ -70,6 +70,7 @@ const InternProfile = () => {
   // Department state
   const [selectedDept, setSelectedDept] = useState(user?.department || 'Tech');
   const [deptDropdown, setDeptDropdown] = useState(false);
+  const [showMultiDeptDialog, setShowMultiDeptDialog] = useState(false);
 
   // Skill Dialog State
   const [skillDialog, setSkillDialog] = useState(false);
@@ -306,23 +307,96 @@ const InternProfile = () => {
         </View>
 
         {/* Department Selector */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Internship Department</Text>
-            <DropDown
-              label="Select Division"
-              mode="outlined"
-              visible={deptDropdown}
-              showDropDown={() => setDeptDropdown(true)}
-              onDismiss={() => setDeptDropdown(false)}
-              value={selectedDept}
-              setValue={handleDeptChange}
-              list={deptList}
-              dropDownContainerMaxHeight={200}
-              dropDownItemTextStyle={{color: colors.onBackground}}
-            />
-          </Card.Content>
-        </Card>
+        {user?.is_intern ? (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Internship Department</Text>
+              <DropDown
+                label="Select Division"
+                mode="outlined"
+                visible={deptDropdown}
+                showDropDown={() => setDeptDropdown(true)}
+                onDismiss={() => setDeptDropdown(false)}
+                value={selectedDept}
+                setValue={handleDeptChange}
+                list={deptList}
+                dropDownContainerMaxHeight={200}
+                dropDownItemTextStyle={{color: colors.onBackground}}
+              />
+            </Card.Content>
+          </Card>
+        ) : (
+          <>
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.cardTitle}>Managed Departments</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowMultiDeptDialog(true)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderWidth: 1,
+                    borderColor: '#DDD',
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 14,
+                    marginTop: 10,
+                    backgroundColor: '#FAFAFA'
+                  }}
+                >
+                  <Text style={{ flex: 1, fontSize: 14, color: colors.onSurface }}>
+                    {selectedDept || 'Select Departments'}
+                  </Text>
+                  <Icon name="chevron-down" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </Card.Content>
+            </Card>
+
+            <Portal>
+              <Dialog visible={showMultiDeptDialog} onDismiss={() => setShowMultiDeptDialog(false)}>
+                <Dialog.Title>Select Managed Divisions</Dialog.Title>
+                <Dialog.Content style={{ maxHeight: 400 }}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 10 }}>
+                      {deptList.map(dept => {
+                        const isSelected = (selectedDept || '').split(',').map(d => d.trim()).includes(dept.value);
+                        return (
+                          <Chip
+                            key={dept.value}
+                            selected={isSelected}
+                            style={{ margin: 4, backgroundColor: isSelected ? colors.primaryContainer : '#E0E0E0' }}
+                            textStyle={{ color: isSelected ? colors.onPrimaryContainer : '#555', fontSize: 11 }}
+                            onPress={() => {
+                              let currentList = (selectedDept || '').split(',').map(d => d.trim()).filter(Boolean);
+                              if (isSelected) {
+                                if (currentList.length > 1) {
+                                  currentList = currentList.filter(d => d !== dept.value);
+                                } else {
+                                  Alert.alert('Required', 'A Team Leader must manage at least one department.');
+                                  return;
+                                }
+                              } else {
+                                currentList.push(dept.value);
+                              }
+                              const newDeptString = currentList.join(', ');
+                              handleDeptChange(newDeptString);
+                            }}
+                          >
+                            {dept.label}
+                          </Chip>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </Dialog.Content>
+                <Dialog.Actions>
+                  <Button mode="contained" onPress={() => setShowMultiDeptDialog(false)}>Done</Button>
+                </Dialog.Actions>
+              </Dialog>
+            </Portal>
+          </>
+        )}
 
         {/* Internship Duration Card */}
         {user?.is_intern && (

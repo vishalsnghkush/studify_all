@@ -64,7 +64,30 @@ export default function FounderDashboard({ navigation }) {
   const [tasks, setTasks] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [modules, setModules] = useState([]);
-  const [customDepts, setCustomDepts] = useState(['Tech', 'HR', 'Design', 'Operations', 'Sales', 'Marketing', 'Video Editing']);
+  const [customDepts, setCustomDepts] = useState([
+    'Academics',
+    'Campus Ambassador',
+    'Career Counsellor',
+    'Communication And Engagement',
+    'Content Writing',
+    'Customer Support',
+    'Data Analysis',
+    'Digital Marketing',
+    'Finance',
+    'Graphics Design',
+    'Human Resource',
+    'Operations And Growth',
+    'Project Management',
+    'Public Relations',
+    'Research And Dev',
+    'Sales And Marketing',
+    'Social Media Management',
+    'Teaching',
+    'Tech',
+    'Video Editing',
+    'TL Program',
+    'Partner Program'
+  ]);
 
   // Debug Logging State
   const [debugLogs, setDebugLogs] = useState([]);
