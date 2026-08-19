@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
@@ -142,6 +143,7 @@ const TLMyTeam = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [internMetrics, setInternMetrics] = useState({ accuracy: 0, rank: 'None', tasksDone: 0 });
   const [internLearningProgress, setInternLearningProgress] = useState(0);
+  const [editingDuration, setEditingDuration] = useState(null);
 
   const { get, post } = useApi();
 
@@ -450,7 +452,7 @@ const TLMyTeam = () => {
                   </View>
                   <View style={styles.metricBox}>
                     <Text style={styles.metricLabel}>Duration</Text>
-                    <Text style={[styles.metricValue, {color: colors.primary}]}>{intern.duration || '6 Months'}</Text>
+                    <Text style={[styles.metricValue, {color: colors.primary}]}>{intern.duration || 'Not Set'}</Text>
                   </View>
                   <View style={[styles.metricBox, {borderRightWidth: 0}]}>
                     <Text style={styles.metricLabel}>Status</Text>
@@ -510,7 +512,63 @@ const TLMyTeam = () => {
                   <Text style={styles.profileName}>{selectedIntern.name}</Text>
                   <Text style={styles.profileEmail}>{selectedIntern.email}</Text>
                   <Text style={styles.profileDept}>Role: {selectedIntern.department} Intern</Text>
-                  <Text style={styles.profileDays}>Joined: {selectedIntern.joined} | Duration: {selectedIntern.duration}</Text>
+                  <Text style={styles.profileDays}>Joined: {selectedIntern.joined}</Text>
+                  <View style={{marginTop: 6}}>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Text style={{fontSize: 13, color: '#666', fontWeight: '600'}}>Duration: </Text>
+                      {editingDuration !== null ? (
+                        <TouchableOpacity
+                          onPress={() => setEditingDuration(null)}
+                          style={{flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.primary, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#E3F2FD'}}
+                        >
+                          <Text style={{fontSize: 13, color: colors.primary, fontWeight: 'bold'}}>{editingDuration || 'Select Duration'}</Text>
+                          <Icon name="chevron-down" size={16} color={colors.primary} style={{marginLeft: 4}} />
+                          <Icon name="close-circle" size={16} color="#C62828" style={{marginLeft: 6}} />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity onPress={() => setEditingDuration(selectedIntern.duration || '6 Months')} style={{flexDirection: 'row', alignItems: 'center'}}>
+                          <Text style={{fontSize: 13, color: colors.primary, fontWeight: '600'}}>{selectedIntern.duration || 'Not Set'}</Text>
+                          <Icon name="pencil" size={14} color={colors.primary} style={{marginLeft: 4}} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Dropdown Options for TL */}
+                    {editingDuration !== null && (
+                      <View style={{marginTop: 8, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: '#fff', elevation: 3, paddingVertical: 4}}>
+                        {['1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].map((opt) => (
+                          <TouchableOpacity
+                            key={opt}
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingVertical: 10,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justify: 'space-between',
+                              backgroundColor: editingDuration === opt ? '#E3F2FD' : 'transparent',
+                              borderBottomWidth: 0.5,
+                              borderBottomColor: '#eee',
+                            }}
+                            onPress={async () => {
+                              try {
+                                setEditingDuration(opt);
+                                await post('/interns/team/update-duration', { internId: selectedIntern.id, duration: opt });
+                                Alert.alert('Duration Updated', `Successfully updated duration to ${opt}`);
+                                setSelectedIntern(prev => prev ? {...prev, duration: opt} : null);
+                                setEditingDuration(null);
+                                loadData();
+                              } catch(e) {
+                                Alert.alert('Error', 'Failed to update duration');
+                              }
+                            }}
+                          >
+                            <Text style={{fontSize: 13, color: editingDuration === opt ? colors.primary : '#333', fontWeight: editingDuration === opt ? 'bold' : 'normal'}}>{opt}</Text>
+                            {editingDuration === opt && <Icon name="check" size={16} color={colors.primary} />}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </View>
 
                 {/* Performance Analytics (5-Factor Engine + Graph) */}

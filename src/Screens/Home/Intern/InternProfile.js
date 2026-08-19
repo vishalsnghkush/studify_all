@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   Switch,
+  Image,
 } from 'react-native';
 import {Text} from '../../../Components/Input';
 import {Screen, CardHorizontal} from '../../../Components/Screen';
@@ -65,6 +66,8 @@ const InternProfile = () => {
   const [github, setGithub] = useState('');
   const [letterName, setLetterName] = useState('');
   const [resumeName, setResumeName] = useState('');
+  const [internDuration, setInternDuration] = useState('');
+  const [durationDropdown, setDurationDropdown] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('Pending');
 
   // Department state
@@ -108,6 +111,13 @@ const InternProfile = () => {
     {label: 'Partner Program', value: 'Partner Program'},
   ];
 
+  const durationList = [
+    {label: '1 Month', value: '1 Month'},
+    {label: '2 Months', value: '2 Months'},
+    {label: '3 Months', value: '3 Months'},
+    {label: '6 Months', value: '6 Months'},
+  ];
+
   const { get, post } = useApi();
 
   const loadDeptAndResume = async () => {
@@ -142,6 +152,7 @@ const InternProfile = () => {
       const res = await get('/interns/profile', {skipErrorFlash: true});
       if (res && res.data) {
         setLetterName(res.data.offer_letter_name || '');
+        if (res.data.duration) setInternDuration(res.data.duration);
         setVerificationStatus(res.data.status || 'Pending');
         if (res.data.tl_details) {
           setTlDetails(res.data.tl_details);
@@ -199,7 +210,7 @@ const InternProfile = () => {
         }
         if (pickedFile && pickedFile.name) {
           setLetterName(pickedFile.name);
-          await post('/interns/offer_letter', { offerLetterName: pickedFile.name, department: selectedDept, duration: '6 Months' });
+          await post('/interns/offer_letter', { offerLetterName: pickedFile.name, department: selectedDept, duration: internDuration || '6 Months' });
           Alert.alert('Upload Successful', `Selected offer letter: ${pickedFile.name}. Awaiting TL approval.`);
           loadDeptAndResume();
         }
@@ -215,7 +226,7 @@ const InternProfile = () => {
       setTimeout(async () => {
         const mockName = 'Offer_Letter_Verified.pdf';
         setLetterName(mockName);
-        await post('/interns/offer_letter', { offerLetterName: mockName, department: selectedDept, duration: '6 Months' });
+        await post('/interns/offer_letter', { offerLetterName: mockName, department: selectedDept, duration: internDuration || '6 Months' });
         Alert.alert('Upload Successful', 'Offer letter uploaded successfully. Awaiting TL approval.');
         loadDeptAndResume();
       }, 800);
@@ -224,7 +235,7 @@ const InternProfile = () => {
 
   const handleRemoveLetter = async () => {
     setLetterName('');
-    await post('/interns/offer_letter', { offerLetterName: null, department: selectedDept, duration: '6 Months' });
+    await post('/interns/offer_letter', { offerLetterName: null, department: selectedDept, duration: internDuration || '6 Months' });
     Alert.alert('Offer Letter Removed', 'Your offer letter has been deleted.');
     loadDeptAndResume();
   };
@@ -296,12 +307,25 @@ const InternProfile = () => {
     <Screen NoHeader style={styles.container}>
         {/* Header Profile Badge */}
         <View style={styles.profileHeader}>
-          <Avatar.Text
-            size={70}
-            label={(user?.fname?.[0] || 'I') + (user?.lname?.[0] || '')}
-            style={{backgroundColor: colors.primary}}
-            color="#fff"
-          />
+          {user?.avatar ? (
+            <Image
+              source={{uri: user.avatar}}
+              style={{
+                width: 70,
+                height: 70,
+                borderRadius: 35,
+                borderWidth: 2,
+                borderColor: colors.primary,
+              }}
+            />
+          ) : (
+            <Avatar.Text
+              size={70}
+              label={(user?.fname?.[0] || 'I') + (user?.lname?.[0] || '')}
+              style={{backgroundColor: colors.primary}}
+              color="#fff"
+            />
+          )}
           <View style={styles.headerInfo}>
             <Text style={styles.nameText}>{user?.fname || 'Intern'} {user?.lname || ''}</Text>
             <Text style={styles.roleText}>{selectedDept} Division {user?.is_intern ? 'Intern' : 'Team Lead'}</Text>
@@ -464,6 +488,41 @@ const InternProfile = () => {
           <Card style={styles.card}>
             <Card.Content>
               <Text style={styles.cardTitle}>Internship Offer Letter</Text>
+
+              {/* Duration Picker — editable only if not yet set */}
+              <View style={{marginBottom: 12}}>
+                <Text style={{fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6}}>Internship Duration</Text>
+                {internDuration && letterName ? (
+                  <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8}}>
+                    <Icon name="lock" size={16} color="#2E7D32" />
+                    <Text style={{marginLeft: 8, fontSize: 14, fontWeight: '600', color: '#1B5E20'}}>{internDuration} (Locked)</Text>
+                  </View>
+                ) : (
+                  <View>
+                    <TouchableOpacity
+                      onPress={() => setDurationDropdown(!durationDropdown)}
+                      style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FAFAFA'}}
+                    >
+                      <Text style={{fontSize: 14, color: internDuration ? '#333' : '#999'}}>{internDuration || 'Select Duration...'}</Text>
+                      <Icon name={durationDropdown ? 'chevron-up' : 'chevron-down'} size={20} color="#666" />
+                    </TouchableOpacity>
+                    {durationDropdown && (
+                      <View style={{borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginTop: 4, backgroundColor: '#fff', elevation: 2}}>
+                        {durationList.map((item) => (
+                          <TouchableOpacity
+                            key={item.value}
+                            onPress={() => { setInternDuration(item.value); setDurationDropdown(false); }}
+                            style={{paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee'}}
+                          >
+                            <Text style={{fontSize: 14, color: internDuration === item.value ? '#1565C0' : '#333', fontWeight: internDuration === item.value ? 'bold' : 'normal'}}>{item.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+
               <View style={styles.uploadContainer}>
                 {letterName ? (
                   <View style={[styles.uploadedFileBox, verificationStatus === 'Approved' ? { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' } : verificationStatus === 'Denied' ? { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' } : { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>

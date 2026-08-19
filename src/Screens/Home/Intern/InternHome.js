@@ -719,12 +719,25 @@ const InternHome = () => {
             {user?.department || 'Tech'} Division Intern
           </Text>
         </View>
-        <Avatar.Text
-          size={55}
-          label={(user?.fname?.[0] || 'I') + (user?.lname?.[0] || '')}
-          style={{backgroundColor: colors.primaryContainer}}
-          color={colors.onPrimaryContainer}
-        />
+        {user?.avatar ? (
+          <Image
+            source={{uri: user.avatar}}
+            style={{
+              width: 55,
+              height: 55,
+              borderRadius: 27.5,
+              borderWidth: 2,
+              borderColor: colors.primary,
+            }}
+          />
+        ) : (
+          <Avatar.Text
+            size={55}
+            label={(user?.fname?.[0] || 'I') + (user?.lname?.[0] || '')}
+            style={{backgroundColor: colors.primaryContainer}}
+            color={colors.onPrimaryContainer}
+          />
+        )}
       </View>
 
       {/* Verification Gate / Onboarding Status Card */}
