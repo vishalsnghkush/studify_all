@@ -489,8 +489,7 @@ const AIChatbot = ({ role: initialRole, visible }) => {
   };
 
   const handleCloudPress = () => {
-    // Chat redirect disabled - bot is display/animation only
-    return;
+    setShowChatModal(true);
   };
 
   const getContextSuggestions = () => {
@@ -566,6 +565,7 @@ const AIChatbot = ({ role: initialRole, visible }) => {
             }).start();
           } else {
             triggerJump();
+            setShowChatModal(true);
             Animated.spring(pan, {
               toValue: { x: 0, y: 0 },
               useNativeDriver: true,
