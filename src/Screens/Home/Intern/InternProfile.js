@@ -114,6 +114,9 @@ const InternProfile = () => {
     const savedDept = await AsyncStorage.getItem(DEPT_KEY);
     if (savedDept) {
       setSelectedDept(savedDept);
+      if (user && user.department !== savedDept) {
+        dispatch(setUser({...user, department: savedDept}));
+      }
     }
     const activeId = user?.user_id;
     const email = user?.email;

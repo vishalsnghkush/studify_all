@@ -33,6 +33,7 @@ const initialSlice = createSlice({
     setUser(state, action) {
       const wasIntern = state.user?.is_intern === true;
       const wasTl = state.user?.is_tl === true;
+      const wasDept = state.user?.department;
       const payloadIsIntern = action.payload?.is_intern === true;
       const payloadIsTl = action.payload?.is_tl === true;
       // If the payload explicitly carries role info (from savedRole at login or CheckAuth),
@@ -47,6 +48,7 @@ const initialSlice = createSlice({
         ...action.payload,
         is_intern: payloadHasRole ? payloadIsIntern : wasIntern,
         is_tl: payloadHasRole ? payloadIsTl : wasTl,
+        department: action.payload?.department !== undefined ? action.payload.department : wasDept,
       };
     },
     setUserLogout(state) {

@@ -80,10 +80,13 @@ export default function CheckAuth() {
       const isTlFallback = user?.is_tl === true;
       const isIntern = savedRole === 'intern' || isInternFallback;
       const isTl = savedRole === 'tl' || isTlFallback;
+      
+      const savedDept = await AsyncStorage.getItem('@studify_department');
       dispatch(setUser({
         ...res.data,
         is_intern: isIntern,
         is_tl: isTl,
+        department: savedDept || res.data.department || user?.department,
       }));
     } catch (err) {
       console.log('user info error', err);

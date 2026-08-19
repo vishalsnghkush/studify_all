@@ -278,7 +278,7 @@ const EditProfile = ({navigation}) => {
                 error={errors.gender}
               />
             </View>
-            {!reduxUser?.is_intern && (
+            {!reduxUser?.is_intern && !reduxUser?.is_tl && (
               <View style={{marginBottom: 15}}>
                 <DropDown
                   label="Class/Standard"
