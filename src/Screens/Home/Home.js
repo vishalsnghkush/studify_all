@@ -147,8 +147,8 @@ const Home = () => {
   const [isDizzy, setIsDizzy] = useState(false);
   const isAnimating = useRef(false);
 
-  // Mascot visibility toggle — persisted in AsyncStorage (OFF by default)
-  const [showMascot, setShowMascot] = useState(false);
+  // Mascot visibility toggle — persisted in AsyncStorage (ON by default)
+  const [showMascot, setShowMascot] = useState(true);
   const [showChatModal, setShowChatModal] = useState(false);
 
   // Native Chatbot State & Messaging API Integration
@@ -349,7 +349,11 @@ const Home = () => {
 
   useEffect(() => {
     AsyncStorage.getItem('@studify_show_mascot').then(val => {
-      if (val !== null) setShowMascot(val === 'true');
+      if (val !== null) {
+        setShowMascot(val === 'true');
+      } else {
+        setShowMascot(true);
+      }
     });
   }, []);
 

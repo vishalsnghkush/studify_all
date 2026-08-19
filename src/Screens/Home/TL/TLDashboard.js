@@ -155,6 +155,18 @@ const TLDashboard = () => {
 
   const [activeDept, setActiveDept] = useState((user && user.department) ? getFirstDept(user.department) : 'Tech');
   const [showDeptDialog, setShowDeptDialog] = useState(false);
+  const [showMascot, setShowMascot] = useState(true);
+
+  useEffect(() => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    AsyncStorage.getItem('@studify_show_mascot').then(val => {
+      if (val !== null) {
+        setShowMascot(val === 'true');
+      } else {
+        setShowMascot(true);
+      }
+    });
+  }, []);
 
   // Sync activeDept if user profile changes & fetch chat groups
   useEffect(() => {
@@ -3342,7 +3354,7 @@ const TLDashboard = () => {
         </Dialog>
       </Portal>
       </Screen>
-      {/* <AIChatbot role="tl" /> */}
+      <AIChatbot role="tl" visible={showMascot} />
     </View>
   );
 };

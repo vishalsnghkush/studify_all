@@ -65,11 +65,15 @@ const InternHome = () => {
   const [goalModalVisible, setGoalModalVisible] = useState(false);
 
   // Mascot visibility toggle
-  const [showMascot, setShowMascot] = useState(false);
+  const [showMascot, setShowMascot] = useState(true);
 
   useEffect(() => {
     AsyncStorage.getItem('@studify_show_mascot').then(val => {
-      if (val === 'true') setShowMascot(true);
+      if (val !== null) {
+        setShowMascot(val === 'true');
+      } else {
+        setShowMascot(true);
+      }
     });
   }, []);
 
