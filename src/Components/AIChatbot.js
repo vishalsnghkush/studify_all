@@ -488,6 +488,26 @@ const AIChatbot = ({ role: initialRole, visible }) => {
     }
   };
 
+  const parseMarkdownText = (text) => {
+    if (!text) return '';
+    const parts = text.split('**');
+    return parts.map((part, index) => {
+      const isBold = index % 2 === 1;
+      const subParts = part.split('*');
+      return subParts.map((subPart, subIndex) => {
+        const isItalic = subIndex % 2 === 1;
+        let style = {};
+        if (isBold) style.fontWeight = 'bold';
+        if (isItalic) style.fontStyle = 'italic';
+        return (
+          <Text key={`${index}-${subIndex}`} style={style}>
+            {subPart}
+          </Text>
+        );
+      });
+    });
+  };
+
   const handleCloudPress = () => {
     setShowChatModal(true);
   };
@@ -845,15 +865,15 @@ const AIChatbot = ({ role: initialRole, visible }) => {
                               {item.text}
                             </Text>
                           ) : (
-                            <MarkdownText
-                              text={item.text}
-                              dark={dark}
+                            <Text
                               style={{
                                 fontSize: 13,
                                 color: dark ? '#e0e3e2' : '#263238',
                                 lineHeight: 18,
                               }}
-                            />
+                            >
+                              {parseMarkdownText(item.text)}
+                            </Text>
                           )}
                           <Text
                             style={{
