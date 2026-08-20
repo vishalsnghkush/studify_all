@@ -67,6 +67,7 @@ const InternProfile = () => {
   const [letterName, setLetterName] = useState('');
   const [resumeName, setResumeName] = useState('');
   const [internDuration, setInternDuration] = useState('');
+  const [joinedDate, setJoinedDate] = useState('');
   const [durationDropdown, setDurationDropdown] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('Pending');
 
@@ -153,6 +154,7 @@ const InternProfile = () => {
       if (res && res.data) {
         setLetterName(res.data.offer_letter_name || '');
         if (res.data.duration) setInternDuration(res.data.duration);
+        if (res.data.joined_date) setJoinedDate(res.data.joined_date);
         setVerificationStatus(res.data.status || 'Pending');
         if (res.data.tl_details) {
           setTlDetails(res.data.tl_details);
@@ -425,20 +427,50 @@ const InternProfile = () => {
           </>
         )}
 
-        {/* Internship Duration Card */}
-        {user?.is_intern && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={styles.cardTitle}>Internship Progress</Text>
-              <View style={styles.durationHeader}>
-                <Text style={styles.durationLabel}>Duration: 3 Months</Text>
-                <Text style={styles.durationDays}>45 / 90 Days Completed</Text>
-              </View>
-              <ProgressBar progress={0.5} color={colors.primary} style={styles.progressBar} />
-              <Text style={styles.durationDates}>Period: July 01, 2026 - October 01, 2026</Text>
-            </Card.Content>
-          </Card>
-        )}
+        {/* Internship Progress Card */}
+        {user?.is_intern && (() => {
+          const durationStr = internDuration || user?.duration || '3 Months';
+          let totalDays = 90;
+          if (durationStr.includes('1 Month')) totalDays = 30;
+          else if (durationStr.includes('2 Month')) totalDays = 60;
+          else if (durationStr.includes('3 Month')) totalDays = 90;
+          else if (durationStr.includes('6 Month')) totalDays = 180;
+          else if (durationStr.includes('1 Year')) totalDays = 365;
+
+          const rawJoined = joinedDate || user?.joined_date;
+          const startDate = rawJoined ? new Date(rawJoined) : new Date();
+          const today = new Date();
+          
+          const startMs = new Date(startDate).setHours(0,0,0,0);
+          const todayMs = new Date(today).setHours(0,0,0,0);
+          const diffTime = Math.max(0, todayMs - startMs);
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          const completedDays = Math.min(diffDays, totalDays);
+          const progressRatio = totalDays > 0 ? completedDays / totalDays : 0;
+
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + totalDays);
+
+          const formatDateStr = (d) => {
+            try {
+              return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            } catch(e) { return 'N/A'; }
+          };
+
+          return (
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.cardTitle}>Internship Progress</Text>
+                <View style={styles.durationHeader}>
+                  <Text style={styles.durationLabel}>Duration: {durationStr}</Text>
+                  <Text style={styles.durationDays}>{completedDays} / {totalDays} Days Completed</Text>
+                </View>
+                <ProgressBar progress={progressRatio} color={colors.primary} style={styles.progressBar} />
+                <Text style={styles.durationDates}>Period: {formatDateStr(startDate)} - {formatDateStr(endDate)}</Text>
+              </Card.Content>
+            </Card>
+          );
+        })()}
 
         {/* Supervisor details */}
         {user?.is_intern && (
