@@ -8,7 +8,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import {useSelector} from 'react-redux';
 import useApi from '../../../Components/Api/Api';
 
-const PRICE = 99;
+const PRICE = 199;
 const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const Notes = ({navigation}) => {
@@ -380,7 +380,7 @@ const Notes = ({navigation}) => {
             <Text style={styles.paywallItemName}>{paywallItem && paywallItem.title}</Text>
             <Text style={styles.paywallDesc}>Unlock lifetime access to this content with a one-time payment.</Text>
             <View style={styles.paywallPriceRow}>
-              <Text style={styles.paywallPrice}>₹99</Text>
+              <Text style={styles.paywallPrice}>₹199</Text>
               <Text style={styles.paywallPriceLabel}>  One-time</Text>
             </View>
             <TouchableOpacity
@@ -388,7 +388,7 @@ const Notes = ({navigation}) => {
               onPress={() => paywallItem && openRazorPay(paywallItem)}
               disabled={paying}>
               <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
-              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹199 & Unlock'}</Text>
             </TouchableOpacity>
             <Text style={styles.paywallSecure}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
           </View>

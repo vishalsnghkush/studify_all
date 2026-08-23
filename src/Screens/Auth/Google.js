@@ -45,8 +45,8 @@ const Google = ({ selectedRole }) => {
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         let savedRole = await AsyncStorage.getItem(`@studify_role_${cleanEmail}`);
 
-        const isTl = res.data.user?.is_tl || selectedRole === 'tl' || savedRole === 'tl';
-        const isIntern = res.data.user?.is_intern || selectedRole === 'intern' || savedRole === 'intern';
+        const isTl = res.data.user?.is_tl === true;
+        const isIntern = res.data.user?.is_intern === true;
 
         if (cleanEmail) {
           const finalRole = isTl ? 'tl' : isIntern ? 'intern' : 'student';
@@ -55,7 +55,7 @@ const Google = ({ selectedRole }) => {
 
         const updatedUser = {
           ...res.data.user,
-          is_intern: isIntern,
+          is_intern: isIntern && !isTl,
           is_tl: isTl,
         };
         dispatch(

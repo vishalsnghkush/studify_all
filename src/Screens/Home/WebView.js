@@ -1,8 +1,10 @@
 import React from 'react';
 import WebView from 'react-native-webview';
-import {StatusBar, View, ActivityIndicator} from 'react-native';
+import {StatusBar, View, ActivityIndicator, Alert} from 'react-native';
 import {useTheme} from 'react-native-paper';
 import {useSelector} from 'react-redux';
+import RazorpayCheckout from 'react-native-razorpay';
+import useApi from '../../Components/Api/Api';
 
 const downloadDocument = url => {
   console.log('Downloading document from URL:', url);
@@ -13,8 +15,76 @@ const WebviewScreen = ({route}) => {
   const height = StatusBar.currentHeight || 0;
   const {colors} = useTheme();
   const isDark = useSelector(state => state.initial.isDark);
+  const user = useSelector(state => state.initial.user);
+  const { post } = useApi();
+
   const isStudifySite = url.includes('studifysuccess.com');
   const isGoogleDrive = url.includes('drive.google.com');
+
+  const handleWebViewMessage = async (event) => {
+    try {
+      const rawData = event?.nativeEvent?.data;
+      console.log('📱 WebView Message Received:', rawData);
+      if (!rawData) return;
+
+      const messageData = JSON.parse(rawData);
+
+      if (messageData.type === 'WEBVIEW_DEBUG_ERROR') {
+        console.warn('⚠️ WebView Debugger Alert:', messageData.error);
+        Alert.alert('Debugger Diagnostic Log 🛠️', `WebView Error: ${messageData.error}`);
+        return;
+      }
+
+      if (messageData.type === 'RESUME_PAYMENT') {
+        const { package: pkgName, amount } = messageData;
+        console.log(`💳 Launching Razorpay for ${pkgName} - ₹${amount}`);
+
+        const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v';
+
+        const options = {
+          description: `${pkgName} Access`,
+          image: 'https://www.studifysuccess.com/images/logo.png',
+          currency: 'INR',
+          key: RAZORPAY_KEY,
+          amount: amount * 100, // in paise
+          name: 'StudifySuccess',
+          prefill: {
+            email: user?.email || '',
+            contact: user?.phone ? String(user.phone) : '',
+            name: `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'User',
+          },
+          theme: { color: '#3F51B5' },
+        };
+
+        try {
+          const data = await RazorpayCheckout.open(options);
+          console.log('✅ Payment Success:', data);
+          
+          await post('/payment/unlock-item', {
+            item_key: `resume_${pkgName.toLowerCase().replace(/\s+/g, '_')}`,
+            title: pkgName,
+            amount: amount,
+            payment_id: data.razorpay_payment_id,
+          });
+
+          Alert.alert(
+            'Payment Successful! 🎉',
+            `Successfully unlocked ${pkgName} (₹${amount})!`,
+          );
+        } catch (razorpayErr) {
+          console.error('❌ RazorPay Checkout Error:', razorpayErr);
+          const errDesc = razorpayErr?.description || razorpayErr?.message || JSON.stringify(razorpayErr);
+          Alert.alert(
+            'Payment Debugger Alert 🛠️',
+            `RazorPay Status/Error: ${errDesc}`
+          );
+        }
+      }
+    } catch (err) {
+      console.error('❌ WebView Message Parsing Error:', err);
+      Alert.alert('Debugger Alert 🛠️', `Failed to parse message: ${err.message}`);
+    }
+  };
 
   const injectedBeforeLoadScript = `
     (function() {
@@ -135,38 +205,62 @@ const WebviewScreen = ({route}) => {
           formInputs[f].style.setProperty('opacity', '1', 'important');
         }
 
-        // Replace all text nodes so bottom batch name matches top header (Gyanveer -> Aster, Vijaydeep -> Nebula, Vidya -> Nova)
-        try {
-          var walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null, false);
-          var node;
-          while ((node = walker.nextNode())) {
-            if (node.nodeValue) {
-              if (node.nodeValue.indexOf('Gyanveer') !== -1) {
-                node.nodeValue = node.nodeValue.replace(/Gyanveer/g, 'Aster');
-              }
-              if (node.nodeValue.indexOf('Vijaydeep') !== -1) {
-                node.nodeValue = node.nodeValue.replace(/Vijaydeep/g, 'Nebula');
-              }
-              if (node.nodeValue.indexOf('Vidya') !== -1) {
-                node.nodeValue = node.nodeValue.replace(/Vidya/g, 'Nova');
-              }
-            }
-          }
-        } catch (e) {}
-
         var wrappers = document.querySelectorAll('body, html, .main-wrapper');
         for (var j = 0; j < wrappers.length; j++) {
           wrappers[j].style.setProperty('padding-top', '0', 'important');
           wrappers[j].style.setProperty('margin-top', '0', 'important');
         }
       }
-      
+
+      function setupResumeButtonClickListeners() {
+        try {
+          var allElements = document.querySelectorAll('button, a, div, span, p');
+          for (var i = 0; i < allElements.length; i++) {
+            var el = allElements[i];
+            var txt = (el.innerText || el.textContent || '').trim();
+
+            if (txt === 'Basic Resume' && !el.dataset.paymentBound) {
+              el.dataset.paymentBound = 'true';
+              el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'RESUME_PAYMENT',
+                  package: 'Basic Resume',
+                  amount: 299
+                }));
+              }, true);
+            } else if (txt === 'Professional Resume' && !el.dataset.paymentBound) {
+              el.dataset.paymentBound = 'true';
+              el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'RESUME_PAYMENT',
+                  package: 'Professional Resume',
+                  amount: 999
+                }));
+              }, true);
+            }
+          }
+        } catch (err) {
+          window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'WEBVIEW_DEBUG_ERROR',
+            error: err ? (err.message || err.toString()) : 'Unknown JS Error'
+          }));
+        }
+      }
+
       hideHeaderFooter();
-      var interval = setInterval(hideHeaderFooter, 200);
+      setupResumeButtonClickListeners();
+      var interval = setInterval(function() {
+        hideHeaderFooter();
+        setupResumeButtonClickListeners();
+      }, 300);
       
       setTimeout(function() {
         clearInterval(interval);
-      }, 6000);
+      }, 10000);
 
       document.addEventListener('click', hideHeaderFooter);
       document.addEventListener('scroll', hideHeaderFooter);
@@ -188,6 +282,7 @@ const WebviewScreen = ({route}) => {
         javaScriptEnabled={true}
         injectedJavaScriptBeforeContentLoaded={injectedBeforeLoadScript}
         injectedJavaScript={isStudifySite ? postLoadScript : undefined}
+        onMessage={handleWebViewMessage}
         forceDarkOn={isDark}
         algorithmicDarkeningAllowed={isDark}
         onFileDownload={({nativeEvent: {downloadUrl}}) =>

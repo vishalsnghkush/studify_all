@@ -144,6 +144,10 @@ const TLMyTeam = () => {
   const [internMetrics, setInternMetrics] = useState({ accuracy: 0, rank: 'None', tasksDone: 0 });
   const [internLearningProgress, setInternLearningProgress] = useState(0);
   const [editingDuration, setEditingDuration] = useState(null);
+  const [starDialog, setStarDialog] = useState(false);
+  const [starIntern, setStarIntern] = useState(null);
+  const [selectedStars, setSelectedStars] = useState(5);
+  const [starNote, setStarNote] = useState('');
 
   const { get, post } = useApi();
 
@@ -413,7 +417,14 @@ const TLMyTeam = () => {
                 <View style={styles.cardTopRow}>
                   <Avatar.Text size={48} label={intern.avatar || 'I'} style={{backgroundColor: colors.primaryContainer}} color={colors.onPrimaryContainer}/>
                   <View style={styles.infoCol}>
-                    <Text style={styles.internName} numberOfLines={1}>{intern.name}</Text>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Text style={styles.internName} numberOfLines={1}>{intern.name}</Text>
+                      {intern.stars > 0 && (
+                        <View style={{backgroundColor: '#FFF8E1', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, marginLeft: 6, borderWidth: 0.8, borderColor: '#FFB300'}}>
+                          <Text style={{fontSize: 11, fontWeight: 'bold', color: '#F57F17'}}>⭐ {intern.stars}</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.internEmail} numberOfLines={1}>{intern.email}</Text>
                   </View>
                   <IconButton
@@ -513,6 +524,12 @@ const TLMyTeam = () => {
                   <Text style={styles.profileEmail}>{selectedIntern.email}</Text>
                   <Text style={styles.profileDept}>Role: {selectedIntern.department} Intern</Text>
                   <Text style={styles.profileDays}>Joined: {selectedIntern.joined}</Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: '#FFF8E1', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FFB300'}}>
+                    <Icon name="star" size={16} color="#FFB300" style={{marginRight: 4}} />
+                    <Text style={{fontSize: 13, fontWeight: 'bold', color: '#F57F17'}}>
+                      {selectedIntern.stars || 0} Performance Stars Awarded
+                    </Text>
+                  </View>
                   <View style={{marginTop: 6}}>
                     <View style={{flexDirection: 'row', alignItems: 'center'}}>
                       <Text style={{fontSize: 13, color: '#666', fontWeight: '600'}}>Duration: </Text>
@@ -609,13 +626,12 @@ const TLMyTeam = () => {
                     icon="star"
                     style={{marginTop: 10, borderRadius: 8}}
                     onPress={() => {
-                      Alert.prompt('Award Performance Stars', `Award 1 to 5 stars for ${selectedIntern.name}:`, [
-                        {text: 'Cancel', style: 'cancel'},
-                        {
-                          text: 'Award ⭐',
-                          onPress: (stars) => Alert.alert('Stars Awarded!', `Awarded ${stars || '5'} ⭐ to ${selectedIntern.name}!`),
-                        },
-                      ]);
+                      if (selectedIntern) {
+                        setStarIntern({ id: selectedIntern.id, name: selectedIntern.name });
+                      }
+                      setSelectedStars(5);
+                      setStarNote('');
+                      setStarDialog(true);
                     }}>
                     ⭐ Award Stars to Intern
                   </Button>
@@ -824,8 +840,95 @@ const TLMyTeam = () => {
               </Button>
             ))}
           </Dialog.Content>
+        </Dialog>
+
+        {/* Award Performance Stars Dialog */}
+        <Dialog visible={starDialog} onDismiss={() => setStarDialog(false)}>
+          <Dialog.Title>Award Performance Stars ⭐</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{fontSize: 14, color: '#555', marginBottom: 12}}>
+              Award performance stars to {starIntern?.name || selectedIntern?.name || 'Intern'}:
+            </Text>
+            
+            {/* Star Rating Buttons 1 to 5 */}
+            <View style={{flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12}}>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <TouchableOpacity
+                  key={num}
+                  onPress={() => setSelectedStars(num)}
+                  style={{
+                    alignItems: 'center',
+                    padding: 8,
+                    borderRadius: 8,
+                    backgroundColor: selectedStars === num ? '#FFF8E1' : 'transparent',
+                    borderWidth: selectedStars === num ? 1.5 : 0,
+                    borderColor: '#FFB300',
+                  }}
+                >
+                  <Icon
+                    name={num <= selectedStars ? 'star' : 'star-outline'}
+                    size={28}
+                    color="#FFB300"
+                  />
+                  <Text style={{fontSize: 12, fontWeight: 'bold', color: '#333', marginTop: 2}}>{num} ⭐</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Note / Feedback Input */}
+            <TextInput
+              placeholder="Add feedback / note (optional)"
+              value={starNote}
+              onChangeText={setStarNote}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ccc',
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                fontSize: 13,
+                color: '#333',
+                backgroundColor: '#FAFAFA',
+                marginTop: 8,
+              }}
+            />
+          </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowDeptDialog(false)}>Cancel</Button>
+            <Button onPress={() => setStarDialog(false)}>Cancel</Button>
+            <Button
+              mode="contained"
+              buttonColor="#FFB300"
+              textColor="#000"
+              onPress={async () => {
+                const targetId = starIntern?.id || selectedIntern?.id;
+                const targetName = starIntern?.name || selectedIntern?.name || 'Intern';
+
+                if (!targetId) {
+                  Alert.alert('Error', 'No intern selected to award stars.');
+                  setStarDialog(false);
+                  return;
+                }
+
+                try {
+                  setStarDialog(false);
+                  await post('/interns/stars/award', {
+                    internId: targetId,
+                    stars: selectedStars,
+                    note: starNote.trim() || `${selectedStars} Performance Stars Awarded!`,
+                  });
+                  setSelectedIntern(prev => prev ? { ...prev, stars: (Number(prev.stars) || 0) + selectedStars } : null);
+                  loadData();
+                  Alert.alert(
+                    'Stars Awarded! 🎉',
+                    `Successfully awarded ${selectedStars} ⭐ star(s) to ${targetName}!`,
+                  );
+                } catch (e) {
+                  Alert.alert('Error', 'Failed to award stars to intern.');
+                }
+              }}
+            >
+              Award {selectedStars} ⭐
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

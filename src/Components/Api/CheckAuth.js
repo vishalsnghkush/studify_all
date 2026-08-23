@@ -75,16 +75,13 @@ export default function CheckAuth() {
         savedRole = await AsyncStorage.getItem(`@studify_role_${email}`);
       }
       
-      // Fallback: also check current Redux user role flags
-      const isInternFallback = user?.is_intern === true;
-      const isTlFallback = user?.is_tl === true;
-      const isIntern = savedRole === 'intern' || isInternFallback;
-      const isTl = savedRole === 'tl' || isTlFallback;
+      const isTl = res.data?.is_tl === true || res.data?.role === 'TL' || email.endsWith('@ce.du.ac.in');
+      const isIntern = res.data?.is_intern === 1 || res.data?.is_intern === true || isTl;
       
       const savedDept = await AsyncStorage.getItem('@studify_department');
       dispatch(setUser({
         ...res.data,
-        is_intern: isIntern,
+        is_intern: isIntern && !isTl,
         is_tl: isTl,
         department: savedDept || res.data.department || user?.department,
       }));

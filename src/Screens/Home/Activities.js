@@ -12,6 +12,9 @@ import {
 import {useTheme, Card} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import RazorpayCheckout from 'react-native-razorpay';
+import {useSelector} from 'react-redux';
+import useApi from '../../Components/Api/Api';
 
 // Core UI imports from the project
 import Screen from '../../Components/Screen/Screen';
@@ -53,6 +56,8 @@ const categoriesList = [
     title: 'AI',
     img: 'https://www.studifysuccess.com/images/ac_chatbot.webp',
     url: 'https://activities.studifysuccess.com/classes/ai',
+    price: 999,
+    priceText: '₹999/mo',
   },
   {
     title: 'Art',
@@ -63,11 +68,15 @@ const categoriesList = [
     title: 'Coding',
     img: 'https://www.studifysuccess.com/images/ac_code.webp',
     url: 'https://activities.studifysuccess.com/classes/coding',
+    price: 499,
+    priceText: '₹499/mo',
   },
   {
     title: 'Communication',
     img: 'https://www.studifysuccess.com/images/ac_communication.webp',
     url: 'https://activities.studifysuccess.com/classes/communication',
+    price: 499,
+    priceText: '₹499/mo',
   },
   {
     title: 'Computer',
@@ -83,6 +92,8 @@ const categoriesList = [
     title: 'Debate',
     img: 'https://www.studifysuccess.com/images/ac_debate.webp',
     url: 'https://activities.studifysuccess.com/classes/debate',
+    price: 499,
+    priceText: '₹499/mo',
   },
   {
     title: 'English Speak',
@@ -98,6 +109,8 @@ const categoriesList = [
     title: 'Financial Found',
     img: 'https://www.studifysuccess.com/images/act-evaluation.webp',
     url: 'https://activities.studifysuccess.com/classes/financial-foundation',
+    price: 999,
+    priceText: '₹999/mo',
   },
   {
     title: 'French',
@@ -220,6 +233,57 @@ const Activities = () => {
     }, 2500);
     return () => clearInterval(interval);
   }, []);
+
+  const user = useSelector(state => state.initial.user);
+  const { post } = useApi();
+  const [coursePaying, setCoursePaying] = useState(false);
+
+  const handleCategoryPress = async (item) => {
+    if (!item.price) {
+      openLink(item.url, item.title);
+      return;
+    }
+
+    setCoursePaying(true);
+    const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v';
+
+    const options = {
+      description: `${item.title} Monthly Course Subscription`,
+      image: 'https://www.studifysuccess.com/images/logo.png',
+      currency: 'INR',
+      key: RAZORPAY_KEY,
+      amount: item.price * 100,
+      name: 'StudifySuccess',
+      prefill: {
+        email: user?.email || '',
+        contact: user?.phone ? String(user.phone) : '',
+        name: `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'User',
+      },
+      theme: { color: '#3F51B5' },
+    };
+
+    try {
+      const data = await RazorpayCheckout.open(options);
+      await post('/payment/unlock-item', {
+        item_key: `course_${item.title.toLowerCase().replace(/\s+/g, '_')}`,
+        title: `${item.title} Course (${item.priceText})`,
+        amount: item.price,
+        payment_id: data.razorpay_payment_id,
+      });
+
+      Alert.alert(
+        'Subscription Confirmed! 🎉',
+        `Successfully enrolled in ${item.title} (${item.priceText})!`,
+      );
+      openLink(item.url, item.title);
+    } catch (err) {
+      if (err?.code !== 2) {
+        Alert.alert('Payment Cancelled/Failed', err?.description || err?.message || 'The checkout sheet closed.');
+      }
+    } finally {
+      setCoursePaying(false);
+    }
+  };
 
   const openLink = (url, title = 'Web Page') => {
     if (!url) {
@@ -462,7 +526,8 @@ const Activities = () => {
               {categoriesList.map((item, idx) => (
                 <TouchableOpacity
                   key={idx}
-                  onPress={() => openLink(item.url, item.title)}
+                  onPress={() => handleCategoryPress(item)}
+                  disabled={coursePaying}
                   style={[
                     styles.categoryItem,
                     {backgroundColor: colors.surface},
@@ -480,6 +545,11 @@ const Activities = () => {
                     style={[styles.categoryLabel, {color: colors.onSurface}]}>
                     {item.title}
                   </Text>
+                  {item.priceText && (
+                    <View style={{backgroundColor: '#E8F5E9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, marginTop: 4}}>
+                      <Text style={{color: '#2E7D32', fontSize: 10, fontWeight: 'bold'}}>{item.priceText}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>

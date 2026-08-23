@@ -260,6 +260,8 @@ const Sign_up = ({navigation}) => {
         lname: form.lname.trim(),
         is_intern: selectedRole === 'intern',
         is_tl: selectedRole === 'tl',
+        tlAccessCode: tlAccessCode,
+        department: selectedDepartment || 'Tech',
       });
     }
   };

@@ -21,7 +21,7 @@ import useApi from '../../Components/Api/Api';
 import Screen from '../../Components/Screen/Screen';
 import Text from '../../Components/Input/Text';
 
-const PRICE = 99;
+const PRICE = 149;
 const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
@@ -102,6 +102,41 @@ const Careers = () => {
     } catch (err) {
       Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
       setResumePaying(false);
+    }
+  };
+
+  const openPaidCareerFeature = async (title, url, price = 499) => {
+    try {
+      const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v';
+      const options = {
+        description: `${title} Access`,
+        image: 'https://www.studifysuccess.com/images/logo.png',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: price * 100,
+        name: 'StudifySuccess',
+        prefill: {
+          email: user?.email || '',
+          contact: user?.phone ? String(user.phone) : '',
+          name: `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'User',
+        },
+        theme: { color: '#3F51B5' },
+      };
+
+      const data = await RazorpayCheckout.open(options);
+      await post('/payment/unlock-item', {
+        item_key: `career_${title.toLowerCase().replace(/\s+/g, '_')}`,
+        title: title,
+        amount: price,
+        payment_id: data.razorpay_payment_id,
+      });
+
+      Alert.alert('Payment Successful! 🎉', `Successfully unlocked ${title}!`);
+      openLink(url, title);
+    } catch (err) {
+      if (err?.code !== 2) {
+        Alert.alert('Payment Cancelled/Failed', err?.description || err?.message || 'The checkout sheet closed.');
+      }
     }
   };
 
@@ -352,7 +387,7 @@ const Careers = () => {
                   }}
                   style={[styles.heroPillBtn, {backgroundColor: '#3b82f6'}]}>
                   <Text size="small" style={styles.heroBtnText}>
-                    {resumeUnlocked ? 'Resume ❯' : '🔒 Resume ₹99'}
+                    {resumeUnlocked ? 'Resume ❯' : '🔒 Resume ₹149'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -375,9 +410,10 @@ const Careers = () => {
           <View style={styles.bannerBottomLinks}>
             <TouchableOpacity
               onPress={() =>
-                openLink(
-                  'https://careers.studifysuccess.com/placement-guidance',
+                openPaidCareerFeature(
                   'Placement Guidance',
+                  'https://careers.studifysuccess.com/placement-guidance',
+                  499,
                 )
               }
               style={styles.bottomLinkItem}>
@@ -389,14 +425,15 @@ const Careers = () => {
               <Text
                 size="small"
                 style={[styles.bottomLinkText, {color: colors.onSurface}]}>
-                Placement
+                Placement (₹499)
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() =>
-                openLink(
+                openPaidCareerFeature(
+                  'Mock Interviews',
                   'https://careers.studifysuccess.com/mock-interview',
-                  'Mock Interview',
+                  499,
                 )
               }
               style={styles.bottomLinkItem}>
@@ -404,7 +441,7 @@ const Careers = () => {
               <Text
                 size="small"
                 style={[styles.bottomLinkText, {color: colors.onSurface}]}>
-                Mock Interviews
+                Mock Interviews (₹499)
               </Text>
             </TouchableOpacity>
           </View>
@@ -738,14 +775,15 @@ const Careers = () => {
             </Text>
             <TouchableOpacity
               onPress={() =>
-                openLink(
-                  'https://careers.studifysuccess.com/placement-guidance',
+                openPaidCareerFeature(
                   'Placement Guidance',
+                  'https://careers.studifysuccess.com/placement-guidance',
+                  499,
                 )
               }
               style={[styles.placementBtn, {backgroundColor: colors.primary}]}>
               <Text size="small" style={styles.placementBtnText}>
-                Register Now
+                Register Now (₹499)
               </Text>
             </TouchableOpacity>
           </Card>
@@ -793,7 +831,7 @@ const Careers = () => {
             <Text style={{fontSize: 20, fontWeight: 'bold', color: '#1a1d1d', marginBottom: 10, textAlign: 'center'}}>Resume Builder</Text>
             <Text style={{fontSize: 13, color: '#546e7a', textAlign: 'center', lineHeight: 20, marginBottom: 20}}>Build a professional resume that stands out. Unlock lifetime access with a one-time payment.</Text>
             <View style={{flexDirection: 'row', alignItems: 'baseline', marginBottom: 22}}>
-              <Text style={{fontSize: 36, fontWeight: 'bold', color: '#1a1d1d'}}>₹99</Text>
+              <Text style={{fontSize: 36, fontWeight: 'bold', color: '#1a1d1d'}}>₹149</Text>
               <Text style={{fontSize: 14, color: '#546e7a'}}>  One-time</Text>
             </View>
             <TouchableOpacity
@@ -801,7 +839,7 @@ const Careers = () => {
               onPress={openResumeRazorPay}
               disabled={resumePaying}>
               <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
-              <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{resumePaying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+              <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{resumePaying ? 'Processing...' : 'Pay ₹149 & Unlock'}</Text>
             </TouchableOpacity>
             <Text style={{fontSize: 11, color: '#90a4ae', textAlign: 'center'}}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
           </View>

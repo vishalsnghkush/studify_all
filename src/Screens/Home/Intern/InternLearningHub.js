@@ -18,7 +18,7 @@ import {useNavigation} from '@react-navigation/native';
 import RazorpayCheckout from 'react-native-razorpay';
 import useApi from '../../../Components/Api/Api';
 
-const PRICE = 99;
+const PRICE = 149;
 const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
@@ -186,7 +186,7 @@ const InternLearningHub = () => {
               <Text style={{fontSize: 13, color: '#3949AB', fontWeight: 'bold', marginBottom: 4}}>RECORDED TRAINING VIDEOS</Text>
               <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1A237E', marginBottom: 8}}>Training Modules</Text>
               <View style={[styles.navButton, {backgroundColor: trainingUnlocked ? '#3F51B5' : '#e91e63'}]}>
-                <Text style={styles.navButtonText}>{trainingUnlocked ? 'Watch Videos >' : '🔒 Unlock ₹99'}</Text>
+                <Text style={styles.navButtonText}>{trainingUnlocked ? 'Watch Videos >' : '🔒 Unlock ₹149'}</Text>
               </View>
             </View>
             <View style={[styles.navIconCont, {backgroundColor: '#E8EAF6'}]}>
@@ -421,7 +421,7 @@ const InternLearningHub = () => {
             <Text style={[styles.paywallItemName, {color: isDark ? colors.onSurface : '#1A237E'}]}>Training Modules</Text>
             <Text style={[styles.paywallDesc, {color: isDark ? colors.onSurfaceVariant : '#555'}]}>Unlock lifetime access to all recorded training videos with a one-time payment.</Text>
             <View style={styles.paywallPriceRow}>
-              <Text style={[styles.paywallPrice, {color: isDark ? colors.onSurface : '#1A237E'}]}>₹99</Text>
+              <Text style={[styles.paywallPrice, {color: isDark ? colors.onSurface : '#1A237E'}]}>₹149</Text>
               <Text style={[styles.paywallPriceLabel, {color: isDark ? colors.onSurfaceVariant : '#666'}]}>  One-time</Text>
             </View>
             <TouchableOpacity
@@ -429,7 +429,7 @@ const InternLearningHub = () => {
               onPress={openRazorPay}
               disabled={paying}>
               <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
-              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹99 & Unlock'}</Text>
+              <Text style={styles.paywallBtnText}>{paying ? 'Processing...' : 'Pay ₹149 & Unlock'}</Text>
             </TouchableOpacity>
             <Text style={[styles.paywallSecure, {color: isDark ? colors.outline : '#888'}]}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
           </View>

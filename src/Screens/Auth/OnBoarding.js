@@ -13,12 +13,10 @@ const Onboarding = ({navigation}) => {
   const theme = useTheme();
   const {isDark} = useSelector(state => state.initial);
   const flatListRef = useRef(null);
-  const [isSwitchOn, setIsSwitchOn] = useState(isDark);
   const dispatch = useDispatch();
   
   const onToggleSwitch = () => {
     dispatch(setTheme());
-    setIsSwitchOn(!isSwitchOn);
   };
 
   const data = [
@@ -36,10 +34,10 @@ const Onboarding = ({navigation}) => {
     },
     {
       id: '3',
-      title: isSwitchOn ? 'Dark Mode' : 'Light Mode',
+      title: isDark ? 'Dark Mode' : 'Light Mode',
       component: 'Switch between light and dark themes to ease your eyes.',
       img: require('../../Assets/Images/darkmode.png'),
-      icon: <Switch value={isSwitchOn} onValueChange={onToggleSwitch} color="#D81B60" />,
+      icon: <Switch value={isDark} onValueChange={onToggleSwitch} color={isDark ? '#E91E63' : '#008b8b'} />,
     },
   ];
 
@@ -47,7 +45,7 @@ const Onboarding = ({navigation}) => {
     <View style={styles.slideContainer}>
       <Image
         source={require('../../Assets/Images/name.png')}
-        style={styles.logo}
+        style={[styles.logo, isDark && {tintColor: '#FFFFFF'}]}
       />
       <View style={styles.imageContainer}>
         <Image
@@ -56,9 +54,17 @@ const Onboarding = ({navigation}) => {
         />
       </View>
       
-      <View style={styles.glassCard}>
-        <Text style={styles.titleText}>{item?.title}</Text>
-        <Text style={styles.descText}>{item.component}</Text>
+      <View style={[
+        styles.glassCard,
+        isDark && {
+          backgroundColor: '#1E293B',
+          borderColor: '#334155',
+          borderWidth: 1,
+          shadowColor: '#000000',
+        }
+      ]}>
+        <Text style={[styles.titleText, isDark && {color: '#FFFFFF'}]}>{item?.title}</Text>
+        <Text style={[styles.descText, isDark && {color: '#94A3B8'}]}>{item.component}</Text>
         
         {item?.icon && <View style={styles.switchContainer}>{item.icon}</View>}
         
@@ -84,7 +90,7 @@ const Onboarding = ({navigation}) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && {backgroundColor: '#0F172A'}]}>
       <AnimatedBackground />
       <FlatList
         ref={flatListRef}

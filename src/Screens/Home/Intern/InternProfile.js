@@ -32,7 +32,7 @@ try {
 const DEPT_KEY = '@studify_chat_department';
 
 const InternProfile = () => {
-  const {colors} = useTheme();
+  const {colors, dark} = useTheme();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -70,6 +70,8 @@ const InternProfile = () => {
   const [joinedDate, setJoinedDate] = useState('');
   const [durationDropdown, setDurationDropdown] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('Pending');
+  const [totalStars, setTotalStars] = useState(0);
+  const [starHistory, setStarHistory] = useState([]);
 
   // Department state
   const [selectedDept, setSelectedDept] = useState(user?.department || 'Tech');
@@ -150,20 +152,23 @@ const InternProfile = () => {
     if (savedGithub) setGithub(savedGithub);
 
     try {
-      const res = await get('/interns/profile', {skipErrorFlash: true});
+      const activeDeptQuery = savedDept || selectedDept || user?.department || 'Tech';
+      const res = await get(`/interns/profile?department=${activeDeptQuery}`, {skipErrorFlash: true});
       if (res && res.data) {
         setLetterName(res.data.offer_letter_name || '');
         if (res.data.duration) setInternDuration(res.data.duration);
         if (res.data.joined_date) setJoinedDate(res.data.joined_date);
         setVerificationStatus(res.data.status || 'Pending');
+        if (res.data.total_stars !== undefined) setTotalStars(res.data.total_stars || 0);
+        if (res.data.star_history) setStarHistory(res.data.star_history || []);
         if (res.data.tl_details) {
           setTlDetails(res.data.tl_details);
         } else {
           setTlDetails({
             name: 'Vishal Kushwaha',
             email: 'vishalsnghkush31@ce.du.ac.in',
-            role: `${res.data.department || selectedDept} Lead / Supervisor`,
-            department: res.data.department || selectedDept,
+            role: `${res.data.department || activeDeptQuery} Lead / Supervisor`,
+            department: res.data.department || activeDeptQuery,
           });
         }
       }
@@ -182,7 +187,13 @@ const InternProfile = () => {
     setSelectedDept(dept);
     await AsyncStorage.setItem(DEPT_KEY, dept);
     dispatch(setUser({...user, department: dept}));
+    try {
+      await post('/interns/update-department', { userId: user?.user_id, department: dept });
+    } catch(e) {
+      console.log('Error updating backend department:', e);
+    }
     Alert.alert('Department Updated', `Your department has been set to ${dept}. Chat channels updated.`);
+    loadDeptAndResume();
   };
 
   const handleAddSkill = () => {
@@ -490,6 +501,43 @@ const InternProfile = () => {
           </Card>
         )}
 
+        {/* Performance Stars & Accolades Card */}
+        {user?.is_intern && (
+          <Card style={[styles.card, {backgroundColor: dark ? '#262626' : '#FFF8E1', borderWidth: 1.5, borderColor: '#FFB300'}]}>
+            <Card.Content>
+              <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8}}>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Icon name="star-circle" size={26} color="#FFB300" style={{marginRight: 8}} />
+                  <Text style={{fontSize: 16, fontWeight: 'bold', color: dark ? '#FFD54F' : '#F57F17'}}>
+                    Performance Accolades
+                  </Text>
+                </View>
+                <View style={{backgroundColor: '#FFB300', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20}}>
+                  <Text style={{color: '#000', fontWeight: 'bold', fontSize: 13}}>⭐ {totalStars} Stars</Text>
+                </View>
+              </View>
+
+              {starHistory && starHistory.length > 0 ? (
+                <View style={{marginTop: 8}}>
+                  {starHistory.slice(0, 3).map((item, idx) => (
+                    <View key={idx} style={{backgroundColor: dark ? '#333' : '#FFF', padding: 10, borderRadius: 8, marginTop: 6, borderWidth: 1, borderColor: '#FFE082'}}>
+                      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <Text style={{fontSize: 13, fontWeight: 'bold', color: '#F57F17'}}>⭐ Awarded {item.rating || 1} Star(s)</Text>
+                        <Text style={{fontSize: 11, color: '#888'}}>{item.date ? String(item.date).split('T')[0] : 'Recently'}</Text>
+                      </View>
+                      <Text style={{fontSize: 12, color: dark ? '#CCC' : '#555', marginTop: 4}}>{item.note || item.comments || item.message || 'Great performance & initiative!'}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={{fontSize: 12, color: dark ? '#AAA' : '#666', fontStyle: 'italic', marginTop: 4}}>
+                  Keep up the good work! Team Leaders award performance stars based on your daily check-ins & completed tasks.
+                </Text>
+              )}
+            </Card.Content>
+          </Card>
+        )}
+
         {/* Skills Management — intern only */}
         {!user?.is_tl && (
         <Card style={styles.card}>
@@ -725,7 +773,7 @@ const InternProfile = () => {
             rightIcon={
               <View pointerEvents="none">
                 <Switch
-                  value={isSwitchOn}
+                  value={isDark}
                   trackColor={{false: '#afafaf81'}}
                 />
               </View>

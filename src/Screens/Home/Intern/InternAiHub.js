@@ -22,7 +22,7 @@ import {saveInternInterview, getInternDb} from '../../../Utils/MockInternDb';
 import useApi from '../../../Components/Api/Api';
 import RazorpayCheckout from 'react-native-razorpay';
 
-const PRICE = 99;
+const PRICE = 149;
 const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
@@ -491,7 +491,7 @@ const InternAiHub = () => {
           <Text style={{fontSize: 22, fontWeight: 'bold', color: '#1a1d1d', marginBottom: 8, textAlign: 'center'}}>AI Productivity Hub</Text>
           <Text style={{fontSize: 13, color: '#546e7a', textAlign: 'center', lineHeight: 20, marginBottom: 24}}>Supercharge your internship tasks with 8 powerful AI tools — Task Explainer, Code Reviewer, Resume Analyzer, Mock Interview & more.</Text>
           <View style={{flexDirection: 'row', alignItems: 'baseline', marginBottom: 24}}>
-            <Text style={{fontSize: 40, fontWeight: 'bold', color: '#1a1d1d'}}>₹99</Text>
+            <Text style={{fontSize: 40, fontWeight: 'bold', color: '#1a1d1d'}}>₹149</Text>
             <Text style={{fontSize: 14, color: '#546e7a'}}>  One-time</Text>
           </View>
           <TouchableOpacity
@@ -499,7 +499,7 @@ const InternAiHub = () => {
             onPress={openAiHubRazorPay}
             disabled={aiPaying}>
             <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
-            <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{aiPaying ? 'Processing...' : 'Pay ₹99 & Unlock All Tools'}</Text>
+            <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{aiPaying ? 'Processing...' : 'Pay ₹149 & Unlock All Tools'}</Text>
           </TouchableOpacity>
           <Text style={{fontSize: 11, color: '#90a4ae', textAlign: 'center'}}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
         </View>

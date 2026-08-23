@@ -145,11 +145,11 @@ const Sign_in = ({navigation}) => {
       }
       const cleanEmail = (form.email || res.data?.user?.email || '').trim().toLowerCase();
       
-      // The role tab the user explicitly selected ALWAYS wins at login time.
-      // Only fall back to AsyncStorage if user left the default 'student' tab AND has a saved role.
-      let finalRole = selectedRole;
+      // Trust backend verified user role flags
+      const isTl = res.data?.user?.is_tl === true;
+      const isIntern = res.data?.user?.is_intern === true;
+      const finalRole = isTl ? 'tl' : (isIntern ? 'intern' : 'student');
       
-      // Always save the definitive role
       if (cleanEmail) {
         await AsyncStorage.setItem(`@studify_role_${cleanEmail}`, finalRole);
       }
@@ -188,10 +188,11 @@ const Sign_in = ({navigation}) => {
         mutate({
           email: form.email.trim().toLowerCase(),
           password: form.password,
+          role: selectedRole,
         });
       } catch (error) {}
     }
-  }, [form, mutate]);
+  }, [form, mutate, selectedRole]);
 
   const buttonScale = useRef(new Animated.Value(1)).current;
   const handlePressIn = () => {
@@ -342,9 +343,11 @@ const Sign_in = ({navigation}) => {
               </Animated.View>
             </StaggeredEntrance>
             
-            <StaggeredEntrance delay={100} index={6}>
-              <Google selectedRole={selectedRole} />
-            </StaggeredEntrance>
+            {selectedRole !== 'tl' && (
+              <StaggeredEntrance delay={100} index={6}>
+                <Google selectedRole={selectedRole} />
+              </StaggeredEntrance>
+            )}
 
             <StaggeredEntrance delay={100} index={7}>
               <View style={styles.signupContainer}>

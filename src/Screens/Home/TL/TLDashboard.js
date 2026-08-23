@@ -1056,6 +1056,46 @@ const TLDashboard = () => {
     );
   };
 
+  const handleDeleteTask = (taskId) => {
+    Alert.alert(
+      'Delete Task',
+      'Are you sure you want to delete this task?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Remove from local db state immediately so UI updates instantly
+            setDb(prev => {
+              if (!prev) return prev;
+              const updatedTasks = (prev.tasks || []).filter(t => String(t.id) !== String(taskId) && String(t.title) !== String(taskId));
+              const updatedDeptTasks = { ...(prev.departmentTasks || {}) };
+              Object.keys(updatedDeptTasks).forEach(deptKey => {
+                if (Array.isArray(updatedDeptTasks[deptKey])) {
+                  updatedDeptTasks[deptKey] = updatedDeptTasks[deptKey].filter(t => String(t.id) !== String(taskId) && String(t.title) !== String(taskId));
+                }
+              });
+              return {
+                ...prev,
+                tasks: updatedTasks,
+                departmentTasks: updatedDeptTasks,
+              };
+            });
+
+            // Call backend delete endpoints
+            try {
+              await post('/interns/tasks/delete', { taskId: String(taskId) });
+            } catch (e) {}
+            try {
+              await remove(`/interns/tasks/${taskId}`);
+            } catch (e) {}
+          }
+        }
+      ]
+    );
+  };
+
   // Meeting Handler (Module 4)
   const handleScheduleMeet = async () => {
     if (!meetTitle.trim()) {
@@ -1575,9 +1615,14 @@ const TLDashboard = () => {
                             {task.priority || 'Medium'} Priority
                           </Text>
                         </View>
-                        <Text style={{fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#666', fontWeight: '500'}}>
-                          Due: {task.dueDate || 'Today'}
-                        </Text>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                          <Text style={{fontSize: 12, color: isDark ? colors.onSurfaceVariant : '#666', fontWeight: '500'}}>
+                            Due: {task.dueDate || 'Today'}
+                          </Text>
+                          <TouchableOpacity onPress={() => handleDeleteTask(task.id || task.title)} style={{padding: 4}}>
+                            <Icon name="delete-outline" size={18} color="#E57373" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       {/* Row 2: Full Task Title */}

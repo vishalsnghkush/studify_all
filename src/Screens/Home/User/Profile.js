@@ -197,7 +197,7 @@ https://www.studifysuccess.com`;
           rightIcon={
             <View pointerEvents="none">
               <Switch
-                value={isSwitchOn}
+                value={isDark}
                 trackColor={{false: '#afafaf81'}}
               />
             </View>
