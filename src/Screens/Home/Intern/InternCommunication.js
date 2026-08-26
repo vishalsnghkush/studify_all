@@ -356,6 +356,43 @@ const InternCommunication = () => {
                       {item?.lastMessage || 'Real-time discussion channel'}
                     </Text>
                   </View>
+                  {user?.is_tl && (
+                    <IconButton
+                      icon="delete-outline"
+                      iconColor="#C62828"
+                      size={22}
+                      onPress={() => {
+                        Alert.alert(
+                          'Delete Group',
+                          `Are you sure you want to delete "${item?.display_name}"? This action cannot be undone.`,
+                          [
+                            {text: 'Cancel', style: 'cancel'},
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  const api = require('../../../Components/Api/Api').default();
+                                  await api.put(`/chat/groups/${item.chat_group_id}`, {
+                                    name: item.display_name,
+                                    is_deleted: 1,
+                                  });
+                                  const dept = selectedDept || user?.department || 'Tech';
+                                  dispatch(fetchChatGroups({
+                                    department: dept,
+                                    is_tl: user?.is_tl ? 'true' : 'false',
+                                  }));
+                                  Alert.alert('Deleted', `"${item.display_name}" has been deleted.`);
+                                } catch (e) {
+                                  Alert.alert('Error', 'Failed to delete group. Please try again.');
+                                }
+                              },
+                            },
+                          ],
+                        );
+                      }}
+                    />
+                  )}
                 </Card.Content>
               </Card>
             ))

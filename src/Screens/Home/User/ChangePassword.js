@@ -38,7 +38,7 @@ const ChangePassword = ({navigation}) => {
   const handleSubmit = async () => {
     const newErrors = {};
     Object.keys(form).forEach(key => {
-      if (!form[key].trim()) {
+      if (!form[key].trim() && key !== 'oldpassword') {
         newErrors[key] = true;
       } else {
         newErrors[key] = false;
@@ -67,7 +67,7 @@ const ChangePassword = ({navigation}) => {
         }}>
         <View>
           <TextInput
-            label="Current Password"
+            label="Current Password (Leave blank if Google login)"
             name="oldpassword"
             updateFormValue={updateFormValue}
             rightIcon={true}

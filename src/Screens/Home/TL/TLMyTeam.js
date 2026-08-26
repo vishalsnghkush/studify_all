@@ -631,9 +631,50 @@ const TLMyTeam = () => {
                       }
                       setSelectedStars(5);
                       setStarNote('');
-                      setStarDialog(true);
+                      setSelectedIntern(null);
+                      setTimeout(() => setStarDialog(true), 350);
                     }}>
                     ⭐ Award Stars to Intern
+                  </Button>
+
+                  {/* Promote to TL Button */}
+                  <Button
+                    mode="contained"
+                    buttonColor="#D81B60"
+                    textColor="#fff"
+                    icon="shield-star"
+                    style={{marginTop: 10, borderRadius: 8}}
+                    onPress={() => {
+                      if (!selectedIntern) return;
+                      Alert.alert(
+                        'Promote to TL',
+                        `Are you sure you want to promote ${selectedIntern.name} to Team Leader (TL)? This will change their role and permissions.`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Promote',
+                            onPress: async () => {
+                              try {
+                                const targetId = selectedIntern.id;
+                                const targetName = selectedIntern.name;
+                                const targetDept = selectedIntern.department;
+                                setSelectedIntern(null);
+                                await post('/interns/role-update', {
+                                  userId: targetId,
+                                  role: 'TL',
+                                  department: targetDept,
+                                });
+                                Alert.alert('Promotion Success 🎉', `${targetName} has been promoted to Team Leader!`);
+                                loadData();
+                              } catch (err) {
+                                Alert.alert('Error', 'Failed to promote intern.');
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }}>
+                    Promote to TL
                   </Button>
 
                   {/* Pure RN Line Graph (Productivity Trend) */}

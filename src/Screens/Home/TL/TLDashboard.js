@@ -951,12 +951,6 @@ const TLDashboard = () => {
         await post('/interns/tasks/sync', {tasks: [newTask]}, {skipSuccessFlash: true, skipErrorFlash: true});
       } catch (e) {}
 
-      Alert.alert(
-        'Task Created',
-        `Task "${taskTitle}" assigned to ${
-          bulkAssignAll ? 'all interns' : `${assignees.length} intern(s)`
-        }.`,
-      );
       setTaskModalVisible(false);
       setTaskTitle('');
       setTaskDesc('');

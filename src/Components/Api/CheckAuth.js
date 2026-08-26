@@ -10,7 +10,7 @@ import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const BASE_URL = 'https://www.api.studifysuccess.com/api/';
+const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
 
@@ -75,7 +75,7 @@ export default function CheckAuth() {
         savedRole = await AsyncStorage.getItem(`@studify_role_${email}`);
       }
       
-      const isTl = res.data?.is_tl === true || res.data?.role === 'TL' || email.endsWith('@ce.du.ac.in');
+      const isTl = res.data?.is_tl === 1 || res.data?.is_tl === true || res.data?.role === 'TL' || email.endsWith('@ce.du.ac.in');
       const isIntern = res.data?.is_intern === 1 || res.data?.is_intern === true || isTl;
       
       const savedDept = await AsyncStorage.getItem('@studify_department');

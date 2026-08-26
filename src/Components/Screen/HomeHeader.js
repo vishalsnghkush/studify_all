@@ -11,18 +11,7 @@ import {
 } from '../../Utils/GamificationSync';
 import {CopilotStep, walkthroughable} from 'react-native-copilot';
 
-var myDate = new Date();
-var hrs = myDate.getHours();
-var greet;
-if (hrs < 12) {
-  greet = 'Good Morning 👋';
-} else if (hrs >= 12 && hrs <= 17) {
-  greet = 'Good Afternoon 👋';
-} else if (hrs >= 17 && hrs <= 24) {
-  greet = 'Good Evening 👋';
-} else {
-  greet = 'Welcome 👋';
-}
+// Moved inside component to fix stale date
 
 const CopilotView = walkthroughable(View);
 
@@ -33,6 +22,12 @@ const HomeHeader = () => {
     state => state.gamification || {streak: 0, xp: 0, level: 1},
   );
   const theme = useTheme();
+
+  const hrs = new Date().getHours();
+  let greet = 'Welcome 👋';
+  if (hrs < 12) greet = 'Good Morning 👋';
+  else if (hrs >= 12 && hrs < 17) greet = 'Good Afternoon 👋';
+  else if (hrs >= 17 && hrs <= 24) greet = 'Good Evening 👋';
 
   // Dynamic user rank calculation from Firebase
   const [userRank, setUserRank] = useState(1);

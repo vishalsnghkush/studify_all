@@ -110,13 +110,15 @@ const StaggeredEntrance = ({ children, delay, index }) => {
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 };
 
-const Sign_up = ({navigation}) => {
+const Sign_up = ({navigation, route}) => {
   const {colors} = useTheme();
   const insets = useSafeAreaInsets();
   const [dropdown, setDropdown] = useState(false);
   const [selectedRole, setSelectedRole] = useState('student');
   const [tlAccessCode, setTlAccessCode] = useState('');
   const [tlAccessError, setTlAccessError] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('Tech');
+  const [deptDropdown, setDeptDropdown] = useState(false);
   const [form, setForm] = useState({
     fname: '',
     lname: '',
@@ -141,6 +143,15 @@ const Sign_up = ({navigation}) => {
   // Background floating shapes
   const blob1Y = useRef(new Animated.Value(0)).current;
   const blob2Y = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (route?.params?.role) {
+      setSelectedRole(route.params.role);
+    }
+    if (route?.params?.code) {
+      setTlAccessCode(route.params.code);
+    }
+  }, [route?.params]);
 
   useEffect(() => {
     Animated.loop(Animated.sequence([
@@ -383,6 +394,32 @@ const Sign_up = ({navigation}) => {
                   error={tlAccessError}
                   secureTextEntry
                 />
+              </StaggeredEntrance>
+            )}
+
+            {(selectedRole === 'intern' || selectedRole === 'tl') && (
+              <StaggeredEntrance delay={100} index={1.7}>
+                <View style={{marginBottom: 20}}>
+                  <DropDown
+                    label="Department"
+                    mode="outlined"
+                    visible={deptDropdown}
+                    showDropDown={() => setDeptDropdown(true)}
+                    onDismiss={() => setDeptDropdown(false)}
+                    value={selectedDepartment}
+                    setValue={value => {
+                      setSelectedDepartment(value);
+                    }}
+                    list={[
+                      {label: 'Tech', value: 'Tech'},
+                      {label: 'HR', value: 'HR'},
+                      {label: 'Marketing', value: 'Marketing'},
+                      {label: 'Sales', value: 'Sales'},
+                      {label: 'Design', value: 'Design'},
+                    ]}
+                    dropDownItemTextStyle={{color: colors.onBackground}}
+                  />
+                </View>
               </StaggeredEntrance>
             )}
             <StaggeredEntrance delay={100} index={2}>

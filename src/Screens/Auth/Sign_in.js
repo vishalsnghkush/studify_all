@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Google from './Google';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
+import FlashMessage from '../../Components/Screen/FlashMessage';
 
 const {width, height} = Dimensions.get('window');
 
@@ -103,6 +104,8 @@ const Sign_in = ({navigation}) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const [selectedRole, setSelectedRole] = useState('student');
+  const [tlAccessCode, setTlAccessCode] = useState('');
+  const [tlAccessError, setTlAccessError] = useState(false);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -128,13 +131,10 @@ const Sign_in = ({navigation}) => {
     ])).start();
   }, []);
 
-  const updateFormValue = useCallback(
-    (name, value) => {
-      setForm({...form, [name]: value});
-      setErrors({...errors, [name]: false});
-    },
-    [form, errors],
-  );
+  const updateFormValue = useCallback((name, value) => {
+    setForm(prev => ({...prev, [name]: value}));
+    setErrors(prev => ({...prev, [name]: false}));
+  }, []);
 
   const {mutate, isPending} = useMutation({
     mutationFn: data => useApi().post('/auth', data),
@@ -146,8 +146,8 @@ const Sign_in = ({navigation}) => {
       const cleanEmail = (form.email || res.data?.user?.email || '').trim().toLowerCase();
       
       // Trust backend verified user role flags
-      const isTl = res.data?.user?.is_tl === true;
-      const isIntern = res.data?.user?.is_intern === true;
+      const isTl = res.data?.user?.is_tl === 1 || res.data?.user?.is_tl === true;
+      const isIntern = res.data?.user?.is_intern === 1 || res.data?.user?.is_intern === true;
       const finalRole = isTl ? 'tl' : (isIntern ? 'intern' : 'student');
       
       if (cleanEmail) {
@@ -166,6 +166,13 @@ const Sign_in = ({navigation}) => {
         }),
       );
     },
+    onError: error => {
+      const errorMsg = error?.response?.data?.message || error?.message || 'Something went wrong during sign-in';
+      FlashMessage({
+        message: errorMsg,
+        type: 'danger',
+      });
+    }
   });
 
   const handleSubmit = useCallback(async () => {
@@ -299,64 +306,92 @@ const Sign_in = ({navigation}) => {
           </StaggeredEntrance>
 
           <View style={styles.formContainer}>
-            <StaggeredEntrance delay={100} index={2}>
-              <MinimalInput 
-                label="Email Address" 
-                icon="mail" 
-                value={form.email} 
-                onChangeText={(text) => updateFormValue('email', text)} 
-                error={errors.email}
-                keyboardType="email-address"
-              />
-            </StaggeredEntrance>
-
-            <StaggeredEntrance delay={100} index={3}>
-              <MinimalInput 
-                label="Password" 
-                icon="lock" 
-                secureTextEntry 
-                value={form.password} 
-                onChangeText={(text) => updateFormValue('password', text)} 
-                error={errors.password}
-              />
-            </StaggeredEntrance>
-
-            <StaggeredEntrance delay={100} index={4}>
-              <View style={styles.forgotPasswordContainer}>
-                <Pressable onPress={() => navigation.navigate('ForgetPassword')}>
-                  <Text style={styles.linkText}>Forgot Password?</Text>
-                </Pressable>
-              </View>
-            </StaggeredEntrance>
-            
-            <StaggeredEntrance delay={100} index={5}>
-              <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-                <Pressable 
-                  onPressIn={handlePressIn} 
-                  onPressOut={handlePressOut}
-                  onPress={handleSubmit} 
-                  style={styles.pillButton}
-                >
-                  <Text style={styles.pillButtonText}>{isPending ? 'Signing in...' : 'Sign In'}</Text>
-                  <Icon name="arrow-right" size={24} color="#FFF" />
-                </Pressable>
-              </Animated.View>
-            </StaggeredEntrance>
-            
-            {selectedRole !== 'tl' && (
-              <StaggeredEntrance delay={100} index={6}>
-                <Google selectedRole={selectedRole} />
+            {selectedRole === 'tl' && (
+              <StaggeredEntrance delay={100} index={1.6}>
+                <MinimalInput 
+                  label="TL Access Security Code" 
+                  icon="lock" 
+                  value={tlAccessCode} 
+                  onChangeText={(text) => {
+                    setTlAccessCode(text);
+                    if (text === 'TL@STUDIFY2026') {
+                      setTlAccessError(false);
+                    } else if (text.length >= 'TL@STUDIFY2026'.length) {
+                      setTlAccessError(true);
+                    }
+                  }} 
+                  error={tlAccessError}
+                  secureTextEntry
+                />
               </StaggeredEntrance>
             )}
 
-            <StaggeredEntrance delay={100} index={7}>
-              <View style={styles.signupContainer}>
-                <Pressable style={styles.signupPressable} onPress={() => navigation.navigate('Signup')}>
-                  <Text style={styles.signupText}>Don't have an account? </Text>
-                  <Text style={styles.signupTextBold}>Sign up</Text>
-                </Pressable>
-              </View>
-            </StaggeredEntrance>
+            {(selectedRole !== 'tl' || tlAccessCode === 'TL@STUDIFY2026') ? (
+              <>
+                <StaggeredEntrance delay={100} index={2}>
+                  <MinimalInput 
+                    label="Email Address" 
+                    icon="mail" 
+                    value={form.email} 
+                    onChangeText={(text) => updateFormValue('email', text)} 
+                    error={errors.email}
+                    keyboardType="email-address"
+                  />
+                </StaggeredEntrance>
+
+                <StaggeredEntrance delay={100} index={3}>
+                  <MinimalInput 
+                    label="Password" 
+                    icon="lock" 
+                    secureTextEntry 
+                    value={form.password} 
+                    onChangeText={(text) => updateFormValue('password', text)} 
+                    error={errors.password}
+                  />
+                </StaggeredEntrance>
+
+                <StaggeredEntrance delay={100} index={4}>
+                  <View style={styles.forgotPasswordContainer}>
+                    <Pressable onPress={() => navigation.navigate('ForgetPassword')}>
+                      <Text style={styles.linkText}>Forgot Password?</Text>
+                    </Pressable>
+                  </View>
+                </StaggeredEntrance>
+                
+                <StaggeredEntrance delay={100} index={5}>
+                  <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                    <Pressable 
+                      onPressIn={handlePressIn} 
+                      onPressOut={handlePressOut}
+                      onPress={handleSubmit} 
+                      style={styles.pillButton}
+                    >
+                      <Text style={styles.pillButtonText}>{isPending ? 'Signing in...' : 'Sign In'}</Text>
+                      <Icon name="arrow-right" size={24} color="#FFF" />
+                    </Pressable>
+                  </Animated.View>
+                </StaggeredEntrance>
+                
+                <StaggeredEntrance delay={100} index={6}>
+                  <Google selectedRole={selectedRole} />
+                </StaggeredEntrance>
+
+                <StaggeredEntrance delay={100} index={7}>
+                  <View style={styles.signupContainer}>
+                    <Pressable style={styles.signupPressable} onPress={() => navigation.navigate('Signup', {role: selectedRole, code: tlAccessCode})}>
+                      <Text style={styles.signupText}>Don't have an account? </Text>
+                      <Text style={styles.signupTextBold}>Sign up</Text>
+                    </Pressable>
+                  </View>
+                </StaggeredEntrance>
+              </>
+            ) : (
+              selectedRole === 'tl' && tlAccessCode.length > 0 && tlAccessCode !== 'TL@STUDIFY2026' && (
+                <Text style={{color: '#FF3B30', textAlign: 'center', marginTop: 10, fontWeight: '600'}}>
+                  Please enter the correct TL Access Code to proceed
+                </Text>
+              )
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

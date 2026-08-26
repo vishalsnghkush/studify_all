@@ -8,7 +8,7 @@ const useApi = () => {
     const skipErrorFlash = params?.skipErrorFlash;
     const skipSuccessFlash = params?.skipSuccessFlash;
     try {
-      const BASE_URL = 'https://www.api.studifysuccess.com/api';
+      const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api';
       const state = Store.getState();
       const token = state.initial?.token;
       
@@ -42,12 +42,12 @@ const useApi = () => {
         params: axiosParams,
         headers: reqHeaders,
       });
-      if (response.data.message && !skipSuccessFlash) {
-        FlashMessage({
-          message: response.data.message,
-          type: 'success',
-        });
-      }
+      // if (response.data.message && !skipSuccessFlash) {
+      //   FlashMessage({
+      //     message: response.data.message,
+      //     type: 'success',
+      //   });
+      // }
       return response.data;
     } catch (error) {
       if (!skipErrorFlash) {

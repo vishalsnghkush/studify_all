@@ -12,7 +12,7 @@ import DropDown from 'react-native-paper-dropdown';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const BASE_URL = 'https://www.api.studifysuccess.com/api';
+const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api';
 
 const EditProfile = ({navigation}) => {
   const {colors} = useTheme();
@@ -130,9 +130,8 @@ const EditProfile = ({navigation}) => {
         setIsUploadingAvatar(true);
         try {
           // useApi reads token from Redux + uses correct baseURL path
-          await post('/user/avatar', {avatar: base64Data});
+          await post('/user/avatar', {avatar: base64Data}, {skipSuccessFlash: true});
           dispatch(setUser({...reduxUser, avatar: base64Data}));
-          Alert.alert('✅ Avatar Updated', 'Your profile photo has been saved!');
         } catch (err) {
           console.log('Avatar upload error:', err?.response?.status, err?.response?.data);
           if (err?.response?.status !== 401) {
@@ -149,7 +148,7 @@ const EditProfile = ({navigation}) => {
   const {mutate, isPending} = useMutation({
     mutationFn: async data => {
       // useApi reads token from Redux + uses correct baseURL path
-      const res = await put('/user/update', data);
+      const res = await put('/user/update', data, {skipSuccessFlash: true});
       return res;
     },
     onSuccess: res => {
@@ -163,9 +162,7 @@ const EditProfile = ({navigation}) => {
         class: form.class,
       };
       dispatch(setUser(updatedUser));
-      Alert.alert('Success', 'Profile updated successfully!', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
+      navigation.goBack();
     },
     onError: err => {
       Alert.alert('Error', err.response?.data?.message || err.message || 'Update failed');

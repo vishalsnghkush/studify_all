@@ -1609,7 +1609,7 @@ const styles = StyleSheet.create({
   helpButton: {
     position: 'absolute',
     top: 55,
-    right: 16,
+    right: 60,
     zIndex: 99999,
     width: 34,
     height: 34,
