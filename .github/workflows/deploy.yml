@@ -41,7 +41,9 @@ jobs:
           bundler-cache: true
 
       - name: Install JS dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          npm install --legacy-peer-deps
+          npx patch-package
 
       - name: Run Fastlane Build & Deploy
         working-directory: android
