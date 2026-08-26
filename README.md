@@ -433,16 +433,16 @@ MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/chatbotDB"
 - **Request Body**:
   ```json
   {
-    "fname": "Aditi",
-    "lname": "Malviya",
-    "email": "aditi@example.com",
+    "fname": "Test",
+    "lname": "Test",
+    "email": "Test@example.com",
     "phone": "9876543210",
     "password": "Password@123",
     "dob": "2000-05-15",
     "gender": "Female",
     "is_tl": 1,
     "department": "Tech",
-    "tlAccessCode": "TL@STUDIFY2026"
+    "tlAccessCode": ".."
   }
   ```
 - **Success Response (`200 OK`)**:
@@ -503,32 +503,17 @@ MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/chatbotDB"
 
 ## 6. Known Issues & Limitations
 
-1. **Android Time Formatting Unicode Non-Breaking Spaces**:
-   - *Behavior*: Some Android devices generate unicode narrow non-breaking spaces (`\u202f`) when formatting AM/PM time strings.
-   - *Resolution*: Implemented regex sanitation (`/[\u202f\u00a0?]/g, ' '`) on both client and server before MySQL insertion.
-2. **Android 14 / SDK 35 Background Alarms**:
-   - *Behavior*: Strict background process battery optimization on newer Android versions.
-   - *Resolution*: Integrated Notifee foreground service handlers for long-running focus timers and chat polling.
-3. **Multi-Database Query Isolation**:
-   - *Behavior*: LMS, WBB, and Course databases operate under separate connection pools. Cross-database queries must be routed through explicit controller helpers.
+
 
 ---
 
 ## 7. Future Scope & Upgrades
 
-1. **In-App Video Conferencing**:
-   - Direct WebRTC / Agora integration for 1-on-1 and department video mentorship calls inside the app without external Google Meet links.
-2. **Automated Coding Sandbox & Evaluator**:
-   - Automated grading and test execution for Tech Department task submissions.
-3. **Advanced AI Performance Analytics**:
-   - LLM-powered intern productivity summarization and automated weekly progress report generation for Team Leaders and Founders.
-4. **Offline-First Architecture**:
-   - WatermelonDB / SQLite local caching with bi-directional sync for seamless offline learning and task management.
 
 ---
 
 ## 👨‍💻 Project Maintainers & Handover Contacts
 
-- **Project**: Studify Success Mobile Ecosystem
+- **Project**: Studify Success Mobile 
 - **Handover Date**: August 2026
 - **Submission Target**: Team Leaders (Suyash & Shreya)
