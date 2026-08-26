@@ -5,24 +5,31 @@ import BouncyButton from './BouncyButton';
 
 export default function CardHorizontal({title, leftIcon, onPress, rightIcon}) {
   const {colors, dark} = useTheme();
-  
+
   return (
-    <BouncyButton 
-      onPress={onPress} 
+    <BouncyButton
+      onPress={onPress}
       style={[
         styles.button,
         {
           backgroundColor: dark ? colors.elevation.level2 : '#FFFFFF',
           borderColor: dark ? colors.outlineVariant : '#ECEFF1',
-        }
-      ]}
-    >
+        },
+      ]}>
       <View style={styles.wrapper}>
         <View style={styles.left}>
           <Icon source={leftIcon} size={24} color={colors.primary} />
           <Text style={[styles.text, {color: colors.onSurface}]}>{title}</Text>
         </View>
-        {rightIcon ? rightIcon : <Icon source="chevron-right" size={24} color={colors.onSurfaceVariant} />}
+        {rightIcon ? (
+          rightIcon
+        ) : (
+          <Icon
+            source="chevron-right"
+            size={24}
+            color={colors.onSurfaceVariant}
+          />
+        )}
       </View>
     </BouncyButton>
   );
@@ -31,7 +38,6 @@ export default function CardHorizontal({title, leftIcon, onPress, rightIcon}) {
 const styles = StyleSheet.create({
   button: {
     marginVertical: 6,
-    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     elevation: 1,

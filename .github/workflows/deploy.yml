@@ -1,0 +1,56 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Fastlane lane to run (internal | beta | production)'
+        required: true
+        default: 'internal'
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Android — Play Store
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Run Fastlane
+        working-directory: android
+        run: bundle exec fastlane ${{ github.event.inputs.lane || 'internal' }}
+
+      - name: Upload AAB artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: ignore

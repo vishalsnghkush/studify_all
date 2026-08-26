@@ -1,32 +1,36 @@
 buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 35
+        targetSdkVersion = 35
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.0.21"
+        googlePlayServicesAuthVersion = "20.7.0"
+    }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
         classpath("com.google.gms:google-services:4.4.2")
-        classpath("com.android.tools.build:gradle:8.2.1")
+        classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
     }
 }
 
-ext {
-    buildToolsVersion = "35.0.0"
-    minSdkVersion = 23
-    compileSdkVersion = 35
-    targetSdkVersion = 35
-    ndkVersion = "25.1.8937393"
-    kotlinVersion = "1.8.0"
-    googlePlayServicesAuthVersion = "20.7.0"
-}
-
 apply plugin: "com.facebook.react.rootproject"
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+// Propagate 16KB page-size alignment to every subproject's native build.
+// Required so third-party libraries (reanimated, firebase, screens, etc.)
+// produce .so files aligned to 16KB — Google Play requirement (Nov 2025).
+def apply16KBAlignment = { project ->
+    project.android.defaultConfig.externalNativeBuild.cmake {
+        arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
+    }
+    project.android.defaultConfig.externalNativeBuild.ndkBuild {
+        arguments "APP_LDFLAGS=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
     }
     // Remove Sonatype snapshot repositories to avoid 504 Gateway Timeouts safely
     if (state.executed) {
@@ -49,31 +53,7 @@ allprojects {
         }
     }
 }
-
-subprojects { prj ->
-    def configAction = { p ->
-        if (p.hasProperty("android")) {
-            p.android {
-                try {
-                    externalNativeBuild {
-                        cmake {
-                            arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
-                        }
-                        ndkBuild {
-                            arguments "APP_LDFLAGS=-Wl,-z,max-page-size=16384"
-                        }
-                    }
-                } catch (Exception e) {
-                    // Ignore if externalNativeBuild block does not exist or isn't configurable
-                }
-            }
-        }
-    }
-    if (prj.state.executed) {
-        configAction(prj)
-    } else {
-        prj.afterEvaluate {
-            configAction(prj)
-        }
-    }
+subprojects { subproject ->
+    subproject.plugins.withId("com.android.library") { apply16KBAlignment(subproject) }
+    subproject.plugins.withId("com.android.application") { apply16KBAlignment(subproject) }
 }
