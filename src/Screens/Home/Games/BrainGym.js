@@ -1412,7 +1412,7 @@ export default function BrainGym() {
             <Micon name="chevron-right" size={24} color={color} />
           ) : (
             <View style={styles.comingSoonTag}>
-              <Text style={styles.comingSoonText}>LOCKED</Text>
+              <Text style={styles.comingSoonText}>COMING SOON</Text>
             </View>
           )}
         </View>
@@ -1518,11 +1518,11 @@ export default function BrainGym() {
           {renderGameCard(
             'zip',
             'Constellation Path (Zip)',
-            'Connect numbers in a sequence to light up the cosmic grid.',
+            'Coming Soon',
             'transit-connection-variant',
             '#8b5cf6',
-            true,
-            () => setScreenMode('zip_intro'),
+            false,
+            () => {},
           )}
 
           {/* {renderGameCard(
@@ -1538,11 +1538,11 @@ export default function BrainGym() {
           {renderGameCard(
             'wend',
             'Wend (Word Path)',
-            'Trace hidden word paths across colored grid territories.',
+            'Coming Soon',
             'crosshairs-gps',
             '#6366f1',
-            true,
-            () => setScreenMode('wend_intro'),
+            false,
+            () => {},
           )}
 
           {renderGameCard(

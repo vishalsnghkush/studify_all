@@ -12,7 +12,7 @@ import DropDown from 'react-native-paper-dropdown';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api';
+const BASE_URL = 'https://www.api.studifysuccess.com/api';
 
 const EditProfile = ({navigation}) => {
   const {colors} = useTheme();

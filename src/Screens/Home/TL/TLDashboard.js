@@ -372,10 +372,12 @@ const TLDashboard = () => {
       is24Hour: false,
       onChange: (event, time) => {
         if (event.type === 'set' && time) {
-          const formatted = time.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
+          let hours = time.getHours();
+          const minutes = String(time.getMinutes()).padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          const formatted = `${hours}:${minutes} ${ampm}`;
           setMeetTime(formatted);
         }
       },
@@ -908,8 +910,8 @@ const TLDashboard = () => {
     }
     try {
       const assignees = bulkAssignAll
-        ? approvedInterns.map(i => i.id)
-        : selectedAssignees;
+        ? []
+        : selectedAssignees.map(id => String(id));
       const newTask = {
         id: `task_${Date.now()}`,
         title: taskTitle,
@@ -1515,7 +1517,7 @@ const TLDashboard = () => {
                   elevation: 1,
                 }}>
                 <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Review' ? '#E65100' : '#777777'}}>
-                  ⏳ Review ({activeDeptTasks.filter(t => (Boolean(t.submissionProof) || t.submissionStatus === 'Submitted' || (t.completed && t.submissionStatus !== 'Approved')) && t.submissionStatus !== 'Approved').length})
+                  ⏳ Review ({activeDeptTasks.filter(t => (Boolean(t.submissionProof) || t.submissionStatus === 'Submitted') && t.submissionStatus !== 'Approved').length})
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1531,7 +1533,7 @@ const TLDashboard = () => {
                   elevation: 1,
                 }}>
                 <Text style={{fontWeight: 'bold', fontSize: 12, color: taskTab === 'Completed' ? '#2E7D32' : '#777777'}}>
-                  ✅ Done ({activeDeptTasks.filter(t => t.submissionStatus === 'Approved' || (t.completed && !t.submissionProof && t.submissionStatus !== 'Submitted')).length})
+                  ✅ Done ({activeDeptTasks.filter(t => t.submissionStatus === 'Approved' || (t.completed && t.submissionStatus !== 'Submitted')).length})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1539,7 +1541,7 @@ const TLDashboard = () => {
             {/* Department Tasks List filtered by tab */}
             {(() => {
               const filteredList = activeDeptTasks.filter(t => {
-                const isSubmitted = Boolean(t.submissionProof) || t.submissionStatus === 'Submitted' || (t.completed && t.submissionStatus !== 'Approved');
+                const isSubmitted = (Boolean(t.submissionProof) || t.submissionStatus === 'Submitted') && t.submissionStatus !== 'Approved';
                 const isApproved = t.submissionStatus === 'Approved';
                 if (taskTab === 'Active') return !t.completed && !isSubmitted && !isApproved;
                 if (taskTab === 'Review') return isSubmitted && !isApproved;

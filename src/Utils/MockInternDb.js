@@ -109,28 +109,43 @@ export const isAttendanceCheckedIn = (record) => {
 
 export const isMeetingExpired = (dateStr, timeStr) => {
   if (!dateStr) return false;
-  if (dateStr.toLowerCase() === 'daily') return false; // Daily standups don't expire
+  if (String(dateStr).toLowerCase() === 'daily') return false;
+
+  const cleanDateStr = String(dateStr).replace(/[\u202f\u00a0?]/g, ' ').trim();
+  const cleanTimeStr = timeStr ? String(timeStr).replace(/[\u202f\u00a0?]/g, ' ').trim() : '';
 
   const now = new Date();
   let meetDate = null;
 
-  if (dateStr.includes('-')) {
-    // Format YYYY-MM-DD
-    const parts = dateStr.split('-');
+  let datePart = cleanDateStr;
+  let timePart = cleanTimeStr;
+
+  if (cleanDateStr.includes(' at ')) {
+    const split = cleanDateStr.split(' at ');
+    datePart = split[0].trim();
+    if (!timePart) timePart = split[1]?.trim() || '';
+  }
+
+  if (datePart.toLowerCase() === 'today') {
+    meetDate = new Date();
+  } else if (datePart.toLowerCase() === 'tomorrow') {
+    meetDate = new Date();
+    meetDate.setDate(meetDate.getDate() + 1);
+  } else if (datePart.includes('-')) {
+    const parts = datePart.split('-');
     if (parts.length === 3) {
       meetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     }
   } else {
-    // Format "July 28" or "August 14"
     const currentYear = now.getFullYear();
-    meetDate = new Date(`${dateStr}, ${currentYear}`);
+    meetDate = new Date(`${datePart}, ${currentYear}`);
   }
 
   if (!meetDate || isNaN(meetDate.getTime())) return false;
 
-  // Add time if available
-  if (timeStr) {
-    const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (timePart) {
+    // Match hours, minutes, and AM/PM safely even if separated by spaces or special chars
+    const timeMatch = timePart.match(/(\d+):(\d+)[^a-zA-Z0-9]*(AM|PM)?/i);
     if (timeMatch) {
       let hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);

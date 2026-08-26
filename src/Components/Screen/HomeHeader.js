@@ -15,7 +15,7 @@ import {CopilotStep, walkthroughable} from 'react-native-copilot';
 
 const CopilotView = walkthroughable(View);
 
-const HomeHeader = () => {
+const HomeHeader = ({onHelpPress}) => {
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
   const {streak, xp, level} = useSelector(
@@ -78,18 +78,41 @@ const HomeHeader = () => {
             </Text>
           </View>
         </View>
-        <CopilotStep text="📣 All your updates, reminders & alerts land here. Never miss a beat!" order={1} name="bellIcon">
-        <CopilotView>
-          <IconButton
-            icon="bell"
-            color="white"
-            size={23}
-            onPress={() => {
-              navigation.navigate('Notifications');
-            }}
-          />
-        </CopilotView>
-        </CopilotStep>
+
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          {onHelpPress && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onHelpPress}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : '#f0f4f4',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 2,
+              }}>
+              <Micon
+                name="help-circle-outline"
+                size={22}
+                color={theme.dark ? '#ffffff' : theme.colors.primary}
+              />
+            </TouchableOpacity>
+          )}
+          <CopilotStep text="📣 All your updates, reminders & alerts land here. Never miss a beat!" order={1} name="bellIcon">
+          <CopilotView>
+            <IconButton
+              icon="bell"
+              color="white"
+              size={23}
+              onPress={() => {
+                navigation.navigate('Notifications');
+              }}
+            />
+          </CopilotView>
+          </CopilotStep>
+        </View>
       </View>
 
       {/* Gamification Mini-Stats Bar */}

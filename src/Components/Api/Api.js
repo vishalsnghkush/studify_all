@@ -8,7 +8,7 @@ const useApi = () => {
     const skipErrorFlash = params?.skipErrorFlash;
     const skipSuccessFlash = params?.skipSuccessFlash;
     try {
-      const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api';
+      const BASE_URL = 'https://www.api.studifysuccess.com/api';
       const state = Store.getState();
       const token = state.initial?.token;
       

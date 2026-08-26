@@ -228,26 +228,28 @@ export default function InternTasks() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    if (task.assignedTo.includes(activeId)) {
+    const isAssignedToUser = (task.assignedTo || []).some(id => String(id) === String(activeId));
+
+    if (isAssignedToUser) {
       // Leave
       const updated = tasks.map(t =>
         t.id === taskId
-          ? {...t, assignedTo: t.assignedTo.filter(id => id !== activeId), helpNeeded: t.assignedTo.length <= 1 ? false : t.helpNeeded}
+          ? {...t, assignedTo: (t.assignedTo || []).filter(id => String(id) !== String(activeId)), helpNeeded: (t.assignedTo || []).length <= 1 ? false : t.helpNeeded}
           : t,
       );
       await saveTasks(updated);
     } else {
       // Join check: max 3 ongoing tasks
-      const ongoing = tasks.filter(t => !t.completed && t.assignedTo.includes(activeId)).length;
+      const ongoing = tasks.filter(t => !t.completed && (t.assignedTo || []).some(id => String(id) === String(activeId))).length;
       if (ongoing >= 3) {
         return Alert.alert('Limit Reached', 'You cannot work on more than 3 ongoing tasks at once.');
       }
       // Check if task is taken but help not needed
-      if (task.assignedTo.length > 0 && !task.helpNeeded) {
+      if ((task.assignedTo || []).length > 0 && !task.helpNeeded) {
         return Alert.alert('Claimed', 'This task is already being worked on. You can only join if "Help Needed" is marked.');
       }
       const updated = tasks.map(t =>
-        t.id === taskId ? {...t, assignedTo: [...t.assignedTo, activeId]} : t,
+        t.id === taskId ? {...t, assignedTo: [...(t.assignedTo || []).map(id => String(id)), String(activeId)]} : t,
       );
       await saveTasks(updated);
     }
@@ -256,7 +258,7 @@ export default function InternTasks() {
   const handleToggleHelp = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    if (!task.assignedTo.includes(activeId)) {
+    if (!(task.assignedTo || []).some(id => String(id) === String(activeId))) {
       return Alert.alert('Access Denied', 'Only interns working on this task can toggle help.');
     }
     const updated = tasks.map(t =>
@@ -274,7 +276,7 @@ export default function InternTasks() {
   const handleOpenSubmitModal = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    if (!task.assignedTo.includes(activeId)) {
+    if (!(task.assignedTo || []).some(id => String(id) === String(activeId))) {
       return Alert.alert('Access Denied', 'Only interns working on this task can submit work proof.');
     }
     setSelectedSubmitTaskId(taskId);
@@ -353,7 +355,11 @@ export default function InternTasks() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await saveTasks(tasks.filter(t => t.id !== taskId));
+          const updated = tasks.filter(t => t.id !== taskId && String(t.id) !== String(taskId));
+          await saveTasks(updated);
+          try {
+            await post('/interns/tasks/delete', { taskId }, { skipSuccessFlash: true, skipErrorFlash: true });
+          } catch (e) {}
         },
       },
     ]);
@@ -444,9 +450,9 @@ export default function InternTasks() {
   };
 
   const renderTask = ({item}) => {
-    const isWorking = item.assignedTo.includes(activeId);
-    const isTaken = item.assignedTo.length > 0;
-    const canJoin = !isTaken || item.helpNeeded;
+    const isWorking = (item.assignedTo || []).some(id => String(id) === String(activeId));
+    const isTaken = (item.assignedTo || []).length > 0;
+    const canJoin = !isTaken || item.helpNeeded || isWorking;
 
     return (
       <Card

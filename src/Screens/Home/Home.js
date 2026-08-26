@@ -905,20 +905,10 @@ const Home = () => {
   return (
     <CopilotProvider overlay="view" tooltipStyle={{borderRadius: 17}}>
       <TourStarter />
-      <TouchableOpacity
-        onPress={() => {
-          copilotStartRef.current && copilotStartRef.current();
-        }}
-        style={[
-          styles.helpButton,
-          dark && {backgroundColor: colors.surface, borderColor: colors.outlineVariant},
-        ]}>
-        <Icon name="help-circle-outline" size={20} color={colors.primary} />
-      </TouchableOpacity>
       <View style={[styles.mainContainer, {backgroundColor: colors.background}]}>
       <Screen NoHeader style={styles.screenContainer}>
-        {/* 1. Header component */}
-        <HomeHeader />
+        {/* 1. Header component with integrated Help/Tour button */}
+        <HomeHeader onHelpPress={() => copilotStartRef.current && copilotStartRef.current()} />
 
         {/* Dynamic Weakness Targeting Widget */}
         {weakTopic && (

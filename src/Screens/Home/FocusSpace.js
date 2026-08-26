@@ -498,9 +498,20 @@ function updateDots() {
 }
 
 function toggleAudio(type) {
+  var otherType = type === 'lofi' ? 'rain' : 'lofi';
+  var otherBtn = document.getElementById('a-' + otherType);
+  var otherPlayer = document.getElementById('p-' + otherType);
+
   var btn = document.getElementById('a-' + type);
   var player = document.getElementById('p-' + type);
+
   if (player.paused) {
+    // Pause other playing sound first
+    if (otherPlayer && !otherPlayer.paused) {
+      otherPlayer.pause();
+      otherPlayer.currentTime = 0;
+      if (otherBtn) otherBtn.classList.remove('on');
+    }
     player.volume = 0; player.play(); btn.classList.add('on');
     var v = 0; var fi = setInterval(function() { if (v < 0.3) { v += 0.04; player.volume = v; } else clearInterval(fi); }, 35);
   } else {

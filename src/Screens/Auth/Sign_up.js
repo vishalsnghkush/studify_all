@@ -411,11 +411,28 @@ const Sign_up = ({navigation, route}) => {
                       setSelectedDepartment(value);
                     }}
                     list={[
+                      {label: 'Academics', value: 'Academics'},
+                      {label: 'Campus Ambassador', value: 'Campus Ambassador'},
+                      {label: 'Career Counsellor', value: 'Career Counsellor'},
+                      {label: 'Communication And Engagement', value: 'Communication And Engagement'},
+                      {label: 'Content Writing', value: 'Content Writing'},
+                      {label: 'Customer Support', value: 'Customer Support'},
+                      {label: 'Data Analysis', value: 'Data Analysis'},
+                      {label: 'Digital Marketing', value: 'Digital Marketing'},
+                      {label: 'Finance', value: 'Finance'},
+                      {label: 'Graphics Design', value: 'Graphics Design'},
+                      {label: 'Human Resource', value: 'Human Resource'},
+                      {label: 'Operations And Growth', value: 'Operations And Growth'},
+                      {label: 'Project Management', value: 'Project Management'},
+                      {label: 'Public Relations', value: 'Public Relations'},
+                      {label: 'Research And Dev', value: 'Research And Dev'},
+                      {label: 'Sales And Marketing', value: 'Sales And Marketing'},
+                      {label: 'Social Media Management', value: 'Social Media Management'},
+                      {label: 'Teaching', value: 'Teaching'},
                       {label: 'Tech', value: 'Tech'},
-                      {label: 'HR', value: 'HR'},
-                      {label: 'Marketing', value: 'Marketing'},
-                      {label: 'Sales', value: 'Sales'},
-                      {label: 'Design', value: 'Design'},
+                      {label: 'Video Editing', value: 'Video Editing'},
+                      {label: 'TL Program', value: 'TL Program'},
+                      {label: 'Partner Program', value: 'Partner Program'},
                     ]}
                     dropDownItemTextStyle={{color: colors.onBackground}}
                   />

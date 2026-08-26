@@ -346,13 +346,13 @@ const InternHome = () => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const isAssigned = task.assignedTo.includes(activeId);
+    const isAssigned = (task.assignedTo || []).some(id => String(id) === String(activeId));
 
     if (isAssigned) {
       // Opt-out / Stop working
       const updatedTasks = tasks.map(t => {
         if (t.id === taskId) {
-          const nextAssigned = t.assignedTo.filter(id => id !== activeId);
+          const nextAssigned = (t.assignedTo || []).filter(id => String(id) !== String(activeId));
           return {
             ...t,
             assignedTo: nextAssigned,
@@ -364,18 +364,18 @@ const InternHome = () => {
       setTasks(updatedTasks);
       await saveInternTasks(activeId, updatedTasks);
       
-      const completedCount = updatedTasks.filter(t => t.completed && (t.assignedTo?.includes(activeId) || t.completedBy === activeId)).length;
+      const completedCount = updatedTasks.filter(t => t.completed && ((t.assignedTo || []).some(id => String(id) === String(activeId)) || String(t.completedBy) === String(activeId))).length;
       setTasksDone(completedCount);
     } else {
       // Opt-in / Start working
       // Rule: cannot work on more than 3 ongoing tasks
-      const ongoingCount = tasks.filter(t => !t.completed && t.assignedTo.includes(activeId)).length;
+      const ongoingCount = tasks.filter(t => !t.completed && (t.assignedTo || []).some(id => String(id) === String(activeId))).length;
       if (ongoingCount >= 3) {
         return Alert.alert('Limit Reached', 'You cannot work on more than 3 ongoing tasks at the same time.');
       }
 
       // Rule: can only join if unassigned, OR if assigned to someone else but helpNeeded is checked
-      const isTaken = task.assignedTo.length > 0;
+      const isTaken = (task.assignedTo || []).length > 0;
       if (isTaken && !task.helpNeeded) {
         return Alert.alert('Claimed', 'This task is already claimed. You can only join if "Help Needed" is checked.');
       }
@@ -384,7 +384,7 @@ const InternHome = () => {
         if (t.id === taskId) {
           return {
             ...t,
-            assignedTo: [...t.assignedTo, activeId]
+            assignedTo: [...(t.assignedTo || []).map(id => String(id)), String(activeId)]
           };
         }
         return t;
@@ -392,7 +392,7 @@ const InternHome = () => {
       setTasks(updatedTasks);
       await saveInternTasks(activeId, updatedTasks);
       
-      const completedCount = updatedTasks.filter(t => t.completed && (t.assignedTo?.includes(activeId) || t.completedBy === activeId)).length;
+      const completedCount = updatedTasks.filter(t => t.completed && ((t.assignedTo || []).some(id => String(id) === String(activeId)) || String(t.completedBy) === String(activeId))).length;
       setTasksDone(completedCount);
     }
   };

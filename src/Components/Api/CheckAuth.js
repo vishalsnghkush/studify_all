@@ -10,7 +10,7 @@ import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const BASE_URL = 'https://studify-dev-tunnel.loca.lt/api/';
+const BASE_URL = 'https://www.api.studifysuccess.com/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
 
