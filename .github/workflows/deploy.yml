@@ -1,10 +1,12 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       lane:
-        description: 'Fastlane lane to run (internal | beta | production)'
+        description: 'Fastlane lane to run (build_aab | internal | beta | production)'
         required: true
         default: 'internal'
 
@@ -14,7 +16,7 @@ concurrency:
 
 jobs:
   android:
-    name: Android — Play Store
+    name: Android — Build & Deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,9 +43,17 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Run Fastlane
+      - name: Run Fastlane Build & Deploy
         working-directory: android
-        run: bundle exec fastlane ${{ github.event.inputs.lane || 'internal' }}
+        env:
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.SUPPLY_JSON_KEY_DATA }}
+        run: |
+          if [ -n "$SUPPLY_JSON_KEY_DATA" ]; then
+            bundle exec fastlane ${{ github.event.inputs.lane || 'internal' }}
+          else
+            echo "Play Store API secret not detected. Compiling Release AAB bundle..."
+            bundle exec fastlane build_aab
+          fi
 
       - name: Upload AAB artifact
         if: always()
