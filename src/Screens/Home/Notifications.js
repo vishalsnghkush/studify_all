@@ -102,6 +102,18 @@ const Notifications = () => {
     return {bg: dark ? 'rgba(156, 39, 176, 0.15)' : '#f3e5f5', text: '#9c27b0'};
   };
 
+  const getNotificationIcon = (title = '') => {
+    const text = title.toLowerCase();
+    if (text.includes('task') || text.includes('assign')) return 'clipboard-check-outline';
+    if (text.includes('module') || text.includes('content') || text.includes('upload')) return 'book-open-variant';
+    if (text.includes('note') || text.includes('study')) return 'notebook-outline';
+    if (text.includes('chat') || text.includes('message')) return 'chat-outline';
+    if (text.includes('attend') || text.includes('check')) return 'calendar-check-outline';
+    if (text.includes('leave')) return 'calendar-remove-outline';
+    if (text.includes('alert') || text.includes('warn')) return 'alert-circle-outline';
+    return 'bell-outline';
+  };
+
   const renderItem = ({item}) => {
     const colorsTag = getCategoryColor(item.title);
     return (
@@ -116,12 +128,22 @@ const Notifications = () => {
           !item.read && {borderLeftWidth: 4, borderLeftColor: colors.primary},
         ]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.badge, {backgroundColor: colorsTag.bg}]}>
+          <View style={[styles.notifIconBg, {backgroundColor: colorsTag.bg}]}>
+            <Icon
+              name={getNotificationIcon(item.title)}
+              size={20}
+              color={colorsTag.text}
+            />
+          </View>
+          <View style={[styles.badge, {backgroundColor: colorsTag.bg, marginLeft: 8}]}>
             <Text style={[styles.badgeText, {color: colorsTag.text}]}>
-              {item.title.toLowerCase().includes('note') ? 'NOTES' : 'UPDATE'}
+              {item.title.toLowerCase().includes('note') ? 'NOTES' :
+               item.title.toLowerCase().includes('task') ? 'TASK' :
+               item.title.toLowerCase().includes('module') || item.title.toLowerCase().includes('content') ? 'MODULE' :
+               'UPDATE'}
             </Text>
           </View>
-          <Text style={styles.timeText}>{formatTimeElapsed(item.timestamp)}</Text>
+          <Text style={[styles.timeText, {marginLeft: 'auto'}]}>{formatTimeElapsed(item.timestamp)}</Text>
         </View>
         <Text
           size="medium"
@@ -232,6 +254,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  notifIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     paddingHorizontal: 8,

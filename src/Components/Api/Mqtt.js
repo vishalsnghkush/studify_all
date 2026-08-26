@@ -40,7 +40,7 @@ const Mqtt = () => {
       navigateToScreen(remoteMessage.data);
     });
 
-    if (!user || !user?.is_intern) return;
+    if (!user) return;
     dispatch(fetchChatGroups());
     init({
       size: 10000,

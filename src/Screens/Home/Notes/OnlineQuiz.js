@@ -13,6 +13,7 @@ import {useTheme} from 'react-native-paper';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../../Redux/Slices/GamificationSlice';
+import {trackEngagement, setRecentNote, logStudySession} from '../../../Utils/EngagementTracker';
 
 const {width} = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 column layout with padding
@@ -74,8 +75,50 @@ const OnlineQuiz = () => {
     },
   ];
 
-  const handlePress = url => {
+  const handlePress = (url, title) => {
     dispatch(triggerActivity('quiz_started'));
+
+    trackEngagement('General', 'quiz');
+    logStudySession('General', title, 'Quiz & Test', 300);
+    setRecentNote({
+      name: title,
+      subject: 'General',
+      type: 'quiz',
+      board: '',
+      class: title,
+      subtopic: ''
+    });
+
+    // Log the quiz practice attempt in history
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.getItem('@studify_test_history').then(existingHistory => {
+        let history = [];
+        if (existingHistory) {
+          try {
+            history = JSON.parse(existingHistory);
+          } catch (_) {}
+        }
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: title, // e.g. "Class 6th"
+          type: 'Online Quiz',
+          subject: 'Quiz Practice',
+          score: 'Completed',
+          rawScore: 80,
+          maxMarks: 100,
+          accuracy: 80,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: 'Web Practice',
+          timestamp: Date.now()
+        };
+        history.unshift(newRecord);
+        AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      });
+    } catch (e) {
+      console.warn('Failed to log quiz attempt', e);
+    }
+
     navigation.navigate('WebView', {url});
   };
 
@@ -103,7 +146,7 @@ const OnlineQuiz = () => {
           {classes.map((item, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handlePress(item.url)}
+              onPress={() => handlePress(item.url, item.title)}
               style={[
                 styles.card,
                 {

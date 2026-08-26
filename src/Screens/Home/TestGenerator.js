@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   ScrollView,
@@ -6,17 +6,76 @@ import {
   TouchableOpacity,
   Alert,
   Text as RNText,
+  TextInput as RNTextInput,
+  Image,
 } from 'react-native';
 import {useTheme, ActivityIndicator, Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // App Custom Components
+import { PremiumLoader } from '../../Components/PremiumLoader';
 import {Screen} from '../../Components/Screen';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
 import {Text, TextInput, Button} from '../../Components/Input';
+import {CurriculumSelector} from '../../Components/CurriculumSelector';
+import {normalizeSubject, normalizeClass, normalizeStream} from '../../Utils/CurriculumConfig';
+import GlassButton from '../../Components/Input/GlassButton';
+import GlassDropdown from '../../Components/Input/GlassDropdown';
+import GlassTextInput from '../../Components/Input/GlassTextInput';
+import {useNavigation} from '@react-navigation/native';
 import Dropdown from '../../Components/Input/Dropdown';
 import {Confetti} from '../../Components/Screen/Confetti';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {trackEngagement, getTopEngagedSubjects, logStudySession} from '../../Utils/EngagementTracker';
+
+// Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
+// Handwritten notes mapping for the "Read Related Note" bridge feature (Idea 3)
+const NOTE_FILES = [
+  { title: 'Class 8 Science Chapter 4 (Materials: Metals and Non-Metals)', subject: 'Science', class: 8, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%208%20science%20ch%204%20part%201.pdf' },
+  { title: 'Class 8 Science Chapter 5 (Coal and Petroleum)', subject: 'Science', class: 8, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%208%20science%20ch%205%20part%201.pdf' },
+  { title: 'Class 9 Science Chapter 8 (Motion)', subject: 'Science', class: 9, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%209%20science%20ch%208%20part%201.pdf' },
+  { title: 'Class 9 Mathematics Polynomials (Part 1)', subject: 'Mathematics', class: 9, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%209%20maths%20polynomials%20part%201.pdf' },
+  { title: 'Class 10 Mathematics Real Numbers', subject: 'Mathematics', class: 10, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2010%20maths%20ch%201%20part%201.pdf' },
+  { title: 'Class 11 Physics Units and Measurements', subject: 'Physics', class: 11, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2011%20science%20unit%201.pdf' },
+  { title: 'Class 12 Economics Money and Banking', subject: 'Economics', class: 12, url: 'https://raw.githubusercontent.com/aditi-malviya666/studify-notes/main/notes%20ss/class%2012%20economics%20unit%202%20part%201.pdf' },
+];
+
+const getMatchingNoteForQuestion = (qText, sub, examName) => {
+  const query = (qText + ' ' + (sub || '')).toLowerCase();
+  
+  // Extract class number from examName context (e.g. "NCERT Class 6" -> 6)
+  let classNum = null;
+  if (examName) {
+    const match = examName.match(/Class\s+(\d+)/i);
+    if (match) classNum = parseInt(match[1]);
+  }
+
+  // Filter candidates if class context matches
+  let candidateNotes = NOTE_FILES;
+  if (classNum) {
+    const classNotes = NOTE_FILES.filter(n => n.class === classNum);
+    if (classNotes.length > 0) {
+      candidateNotes = classNotes;
+    }
+  }
+
+  // Check matching words in candidates
+  for (const note of candidateNotes) {
+    const titleWords = note.title.toLowerCase().split(/[ :(),]+/);
+    const matchesKeyword = titleWords.some(w => w.length > 3 && query.includes(w));
+    if (matchesKeyword) return note;
+  }
+  
+  // Fallback to first matching subject in candidates
+  const subMatch = candidateNotes.find(n => n.subject.toLowerCase() === (sub || '').toLowerCase());
+  if (subMatch) return subMatch;
+
+  // Global subject fallback
+  const globalSubMatch = NOTE_FILES.find(n => n.subject.toLowerCase() === (sub || '').toLowerCase());
+  return globalSubMatch || NOTE_FILES[0];
+};
 
 // ── API Key ── hardcoded so it is always correct, never stale
 const OPENROUTER_API_KEY =
@@ -189,17 +248,25 @@ const getSubjectsList = exam => {
   return [];
 };
 
-export default function TestGenerator() {
+export default function TestGenerator({ route }) {
   const theme = useTheme();
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   // Form State
-  const [examName, setExamName] = useState('JEE');
-  const [generationType, setGenerationType] = useState('Topic Wise');
+  const [board, setBoard] = useState('CBSE');
+  const [studentClass, setStudentClass] = useState('Class 10');
+  const [stream, setStream] = useState('');
   const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
+  const [subtopic, setSubtopic] = useState('');
+  
+  const [generationType, setGenerationType] = useState('Topic Wise');
   const [difficulty, setDifficulty] = useState(
     'actual experience as in actual paper',
   );
   const [numQuestions, setNumQuestions] = useState('5');
+
+  const examName = board === 'Competitive' ? 'JEE/NEET' : `${board} ${studentClass}`;
 
   // App Lifecycle States: 'setup' | 'generating' | 'ready' | 'testing' | 'results'
   const [appState, setAppState] = useState('setup');
@@ -218,27 +285,63 @@ export default function TestGenerator() {
   const [displayedScore, setDisplayedScore] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Advanced Practical Features States (Ideas 1, 2, 4)
+  const [flaggedQuestions, setFlaggedQuestions] = useState({});
+  const [questionTimes, setQuestionTimes] = useState({});
+  const [lastActiveIdx, setLastActiveIdx] = useState(0);
+  const [weakestSubject, setWeakestSubject] = useState('');
+  const [weakestTopic, setWeakestTopic] = useState('');
+
+  // Subjective / Written Evaluator States
+  const [testFormat, setTestFormat] = useState('Objective'); // 'Objective' | 'Subjective'
+  const [userSubjectiveTexts, setUserSubjectiveTexts] = useState({});
+  const [userSubjectiveImages, setUserSubjectiveImages] = useState({});
+  const [gradedAnswers, setGradedAnswers] = useState({});
+  const [isGrading, setIsGrading] = useState(false);
+
+  // Blueprint (Custom Topic Weightage) States
+  const [blueprintList, setBlueprintList] = useState([]);
+  const [blueprintChapter, setBlueprintChapter] = useState('');
+  const [blueprintCount, setBlueprintCount] = useState('');
+
+  useEffect(() => {
+    if (appState === 'testing') {
+      const startTime = Date.now();
+      return () => {
+        const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+        if (durationSeconds >= 2) {
+          logStudySession(
+            subject || 'General',
+            topic || 'AI Test',
+            'Mock Test',
+            durationSeconds
+          );
+        }
+      };
+    }
+  }, [appState, subject, topic]);
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
   useEffect(() => {
     if (appState === 'results') {
       setDisplayedScore(0);
-      const start = 0;
       const end = Number(scoreData.marks) || 0;
       const maxMarks = Number(scoreData.maxMarks) || 0;
-
-      const duration = 1200; // 1.2 seconds
+      const duration = 1200;
       const startTime = Date.now();
-
+      let cancelled = false; // ← prevents setState after reset
       let animationId;
+
       const animate = () => {
+        if (cancelled) return; // ← stop immediately on reset
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-
-        // Easing: easeOutQuad
         const easeProgress = progress * (2 - progress);
-        let currentScore = start + (end - start) * easeProgress;
-        if (isNaN(currentScore)) {
-          currentScore = 0;
-        }
+        let currentScore = (end) * easeProgress;
+        if (isNaN(currentScore)) currentScore = 0;
 
         if (examName === 'GATE') {
           setDisplayedScore(parseFloat(currentScore.toFixed(2)));
@@ -250,7 +353,6 @@ export default function TestGenerator() {
           animationId = requestAnimationFrame(animate);
         } else {
           setDisplayedScore(end);
-          // Trigger confetti burst if user scored >= 80%
           if (end >= maxMarks * 0.8) {
             setShowConfetti(true);
           }
@@ -258,24 +360,232 @@ export default function TestGenerator() {
       };
 
       animationId = requestAnimationFrame(animate);
-      return () => cancelAnimationFrame(animationId);
+      return () => {
+        cancelled = true; // ← cancel animation on cleanup
+        cancelAnimationFrame(animationId);
+      };
     }
   }, [appState, scoreData.marks, scoreData.maxMarks, examName]);
 
-  // Update subject dropdown choices when class/exam changes
+
+
+  const [topSubject, setTopSubject] = useState('');
+
   useEffect(() => {
-    const list = getSubjectsList(examName);
-    if (list.length > 0) {
-      if (!list.some(s => s.value === subject)) {
-        setSubject(list[0].value);
+    const fetchRecommendation = async () => {
+      try {
+        const top = await getTopEngagedSubjects(1);
+        if (top && top.length > 0) {
+          setTopSubject(top[0]);
+        }
+      } catch (e) {
+        console.log('Error loading recommendations in quiz generator', e);
       }
-    } else {
-      setSubject('');
+    };
+    if (appState === 'setup') {
+      fetchRecommendation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examName, generationType]);
+  }, [appState]);
+
+  useEffect(() => {
+    let normSub = '';
+    let normClass = '';
+    const normBoard = route?.params?.board || 'CBSE';
+    setBoard(normBoard);
+    if (route?.params?.subject) {
+      normSub = normalizeSubject(route.params.subject);
+      setSubject(normSub);
+      setGenerationType('Subject Wise');
+    }
+    if (route?.params?.studentClass || route?.params?.class) {
+      normClass = normalizeClass(route?.params?.studentClass || route?.params?.class);
+      setStudentClass(normClass);
+    }
+    if (normSub && normClass) {
+      const normStream = normalizeStream(normSub, normClass, normBoard);
+      setStream(normStream);
+    }
+    if (route?.params?.topic) {
+      setTopic(route.params.topic);
+    }
+    if (route?.params?.subtopic) {
+      setSubtopic(route.params.subtopic);
+    }
+  }, [route?.params]);
+
+  const submitSubjectiveTest = async () => {
+    setIsGrading(true);
+    setAppState('generating');
+
+    try {
+      const gradingPromises = questions.map(async (q, idx) => {
+        const studentText = userSubjectiveTexts[idx] || 'None';
+        const studentImage = userSubjectiveImages[idx]?.base64;
+
+        const systemPrompt = 
+          'You are an expert academic examiner. Grade the student\'s subjective written response.\n\n' +
+          'RESPONSE FORMAT: You MUST return ONLY a valid JSON object. Do not wrap in markdown or code blocks. Nothing else.\n' +
+          'Format: {"marksAwarded": number, "corrections": "string details of errors/correct steps", "feedback": "overall brief comment"}\n\n' +
+          'CRITICAL RULES:\n' +
+          '- Evaluate correctness, diagram labels, or derivations strictly.\n' +
+          '- marksAwarded must be a number between 0 and ' + (q.maxMarks || 10) + '.\n' +
+          '- Output raw JSON starting with { and ending with }';
+
+        const userPrompt = 
+          'Question: ' + q.question + '\n' +
+          'Max Marks: ' + (q.maxMarks || 10) + '\n' +
+          'Ideal Solution: ' + (q.idealAnswer || '') + '\n' +
+          'Grading Rubric: ' + (q.rubric || '') + '\n\n' +
+          'Student\'s Typed Response: ' + studentText + '\n\n' +
+          'Evaluate this work. If there is an uploaded image, check it for diagram labels, mathematical steps, and derivations.';
+
+        const messages = [
+          { role: 'user', content: [
+            { type: 'text', text: userPrompt }
+          ]}
+        ];
+
+        if (studentImage) {
+          messages[0].content.push({
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${studentImage}`
+            }
+          });
+        }
+
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer ' + OPENROUTER_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'openrouter/free',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messages
+            ],
+            temperature: 0.1
+          })
+        });
+
+        if (!res.ok) throw new Error('API failed');
+        const json = await res.json();
+        const rawText = json.choices?.[0]?.message?.content || '{}';
+        
+        // Robust regex to extract JSON object between the outer braces
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        const cleanJsonText = jsonMatch ? jsonMatch[0] : '{}';
+        return JSON.parse(cleanJsonText);
+      });
+
+      const results = await Promise.all(gradingPromises);
+      
+      let totalMarks = 0;
+      let maxPossibleMarks = 0;
+      const gradesMap = {};
+
+      results.forEach((res, idx) => {
+        const q = questions[idx];
+        const max = q.maxMarks || 10;
+        
+        // Sanitize scoreVal to prevent NaN from breaking animation intervals
+        const scoreRaw = res ? parseFloat(res.marksAwarded) : 0;
+        const scoreVal = isNaN(scoreRaw) ? 0 : scoreRaw;
+        
+        totalMarks += scoreVal;
+        maxPossibleMarks += max;
+
+        gradesMap[idx] = {
+          marksAwarded: scoreVal,
+          maxMarks: max,
+          corrections: (res && res.corrections) || 'No specific errors found.',
+          feedback: (res && res.feedback) || 'Good attempt.'
+        };
+      });
+
+      setGradedAnswers(gradesMap);
+
+      const calculatedScoreData = {
+        marks: totalMarks,
+        correct: results.filter(r => {
+          const m = r ? parseFloat(r.marksAwarded) : 0;
+          return (isNaN(m) ? 0 : m) >= (questions[0]?.maxMarks || 10) * 0.75;
+        }).length,
+        incorrect: results.filter(r => {
+          const m = r ? parseFloat(r.marksAwarded) : 0;
+          return (isNaN(m) ? 0 : m) < (questions[0]?.maxMarks || 10) * 0.75;
+        }).length,
+        unattempted: 0,
+        maxMarks: maxPossibleMarks,
+      };
+
+      setScoreData(calculatedScoreData);
+
+      // Find weak subjective topics
+      const wrongSubjectiveList = results.map((r, idx) => ({ ...r, idx })).filter(item => {
+        const m = item ? parseFloat(item.marksAwarded) : 0;
+        return (isNaN(m) ? 0 : m) < (questions[item.idx]?.maxMarks || 10) * 0.75;
+      });
+      if (calculatedScoreData.incorrect > 0 && wrongSubjectiveList.length > 0) {
+        const weakSub = questions[wrongSubjectiveList[0].idx]?.subject || subject;
+        const weakTop = questions[wrongSubjectiveList[0].idx]?.topic || questions[0]?.topic || topic || '';
+        setWeakestSubject(weakSub);
+        setWeakestTopic(weakTop);
+        
+        // Save failed topic for Context-Aware AI Tutor
+        if (weakTop) {
+          AsyncStorage.setItem('@studify_last_failed_topic', JSON.stringify({ 
+            subject: weakSub, 
+            topic: weakTop,
+            studentClass: studentClass,
+            board: board,
+            stream: stream
+          }));
+        }
+      } else {
+        setWeakestSubject('');
+        setWeakestTopic('');
+      }
+
+      // Save to local test history
+      try {
+        const existing = await AsyncStorage.getItem('@studify_test_history');
+        let history = existing ? JSON.parse(existing) : [];
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: examName,
+          type: 'Subjective AI Test',
+          subject: subject || 'General',
+          score: `${totalMarks}/${maxPossibleMarks}`,
+          rawScore: totalMarks,
+          maxMarks: maxPossibleMarks,
+          accuracy: maxPossibleMarks > 0 ? Math.round((totalMarks / maxPossibleMarks) * 100) : 0,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: 'Subjective Attempt',
+          timestamp: Date.now(),
+          questionTimes: questionTimes
+        };
+        history.unshift(newRecord);
+        await AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      } catch (_) {}
+
+      setIsGrading(false);
+      setAppState('results');
+    } catch (e) {
+      console.warn('Failed subjective grading', e);
+      Alert.alert('Grading Error', 'AI Examiner failed to parse your written work. Please retry.');
+      setIsGrading(false);
+      setAppState('testing');
+    }
+  };
 
   const submitTest = useCallback(() => {
+    if (testFormat === 'Subjective') {
+      submitSubjectiveTest();
+      return;
+    }
     console.log('ST_DEBUG: submitTest called');
     console.log('ST_DEBUG: questions count:', questions.length);
     console.log('ST_DEBUG: userAnswers:', JSON.stringify(userAnswers));
@@ -329,16 +639,84 @@ export default function TestGenerator() {
       JSON.stringify(calculatedScoreData),
     );
 
+    // Save test result to AsyncStorage for real-time Analysis tracking
+    try {
+      AsyncStorage.getItem('@studify_test_history').then(existingHistory => {
+        let history = [];
+        if (existingHistory) {
+          try {
+            history = JSON.parse(existingHistory);
+          } catch (_) {}
+        }
+        const totalDuration = Object.values(questionTimes).reduce((a, b) => a + b, 0);
+        const minutes = Math.floor(totalDuration / 60);
+        const seconds = totalDuration % 60;
+        const durationStr = `${minutes}m ${seconds}s`;
+
+        const newRecord = {
+          id: 'Session-' + (100 + history.length + 1),
+          exam: examName,
+          type: 'AI Test',
+          subject: subject || 'General',
+          score: `${marks}/${questions.length * correctMark}`,
+          rawScore: marks,
+          maxMarks: questions.length * correctMark,
+          accuracy: questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: durationStr,
+          timestamp: Date.now(),
+          questionTimes: questionTimes
+        };
+        history.unshift(newRecord);
+        AsyncStorage.setItem('@studify_test_history', JSON.stringify(history));
+      });
+    } catch (e) {
+      console.warn('Failed to save score to history', e);
+    }
+
+    // Find weak objective topics
+    const wrongObjectiveList = questions.map((q, idx) => ({ q, idx })).filter(item => {
+      const uA = userAnswers[item.idx];
+      return uA !== undefined && uA !== null && uA !== '' && !isAnswerCorrect(item.q, uA);
+    });
+
+    if (calculatedScoreData.incorrect > 0 && wrongObjectiveList.length > 0) {
+      const weakSub = wrongObjectiveList[0].q.subject || subject;
+      const weakTop = wrongObjectiveList[0].q.topic || topic || '';
+      setWeakestSubject(weakSub);
+      setWeakestTopic(weakTop);
+      
+      // Save failed topic for Context-Aware AI Tutor
+      if (weakTop) {
+        AsyncStorage.setItem('@studify_last_failed_topic', JSON.stringify({ 
+          subject: weakSub, 
+          topic: weakTop,
+          studentClass: studentClass,
+          board: board,
+          stream: stream
+        }));
+      }
+    } else {
+      setWeakestSubject('');
+      setWeakestTopic('');
+    }
+
     setScoreData(calculatedScoreData);
     setAppState('results');
     setTimeLeft(null);
-  }, [examName, questions, userAnswers]);
+  }, [examName, questions, userAnswers, subject]);
 
-  // Handle countdown timer
+  // Handle countdown timer & time per question analytics
   useEffect(() => {
     if (appState === 'testing' && timeLeft !== null && timeLeft > 0) {
       const timerId = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
+
+        // Pacing Tracker: Track seconds spent on the last active question
+        setQuestionTimes(prev => ({
+          ...prev,
+          [lastActiveIdx]: (prev[lastActiveIdx] || 0) + 1
+        }));
       }, 1000);
       return () => clearTimeout(timerId);
     } else if (appState === 'testing' && timeLeft === 0) {
@@ -347,12 +725,10 @@ export default function TestGenerator() {
       ]);
       submitTest();
     }
-  }, [timeLeft, appState, submitTest]);
+  }, [timeLeft, appState, submitTest, lastActiveIdx]);
 
   const handleFormChange = ({name, value}) => {
-    if (name === 'examName') {
-      setExamName(value);
-    } else if (name === 'generationType') {
+    if (name === 'generationType') {
       setGenerationType(value);
     } else if (name === 'subject') {
       setSubject(value);
@@ -363,13 +739,29 @@ export default function TestGenerator() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrideParams = null) => {
     setAppState('generating');
     setError('');
     setQuestions([]);
     setUserAnswers({});
 
-    let finalNumQuestions = parseInt(numQuestions) || 5;
+    let activeNumQuestions = overrideParams ? overrideParams.numQuestions : (parseInt(numQuestions) || 5);
+    let activeSubject = overrideParams ? overrideParams.subject : subject;
+    trackEngagement(activeSubject || 'General', 'quiz');
+
+    let activeGenerationType = overrideParams ? overrideParams.generationType : generationType;
+    let activeExamName = overrideParams ? overrideParams.examName : (board === 'Competitive' ? 'JEE/NEET' : `${board} ${studentClass}`);
+    let activeTestFormat = overrideParams ? overrideParams.testFormat : testFormat;
+
+    let finalNumQuestions = activeNumQuestions;
+    let blueprintInstruction = '';
+
+    if (overrideParams && overrideParams.blueprintList && overrideParams.blueprintList.length > 0 && activeGenerationType !== 'Complete Paper') {
+      finalNumQuestions = overrideParams.blueprintList.reduce((acc, bp) => acc + bp.count, 0);
+      blueprintInstruction = '\n- Custom Topic Blueprint Weightage: ' + 
+        overrideParams.blueprintList.map(bp => `Generate exactly ${bp.count} questions on the specific topic/chapter "${bp.chapter}"`).join(', ') + '.';
+    }
+
     if (finalNumQuestions > 50) {
       finalNumQuestions = 50;
     }
@@ -377,80 +769,114 @@ export default function TestGenerator() {
       finalNumQuestions = 1;
     }
 
-    let finalSubject = subject;
-    if (generationType === 'Complete Paper') {
+    let finalSubject = activeSubject;
+    if (activeGenerationType === 'Complete Paper') {
       finalSubject = 'Complete Syllabus';
-      if (examName === 'JEE') {
-        finalNumQuestions = 75;
-      } else if (examName === 'NEET') {
-        finalNumQuestions = 200;
-      } else if (examName === 'CUET') {
-        finalNumQuestions = 50;
-      } else if (examName === 'GATE') {
-        finalNumQuestions = 65;
-      } else if (examName.startsWith('NCERT')) {
-        finalNumQuestions = 40;
-      }
+      finalNumQuestions = 30; // default for complete paper if custom logic isn't used
     }
 
-    // ── Exact same prompts as the working web API route ──
-    const systemPrompt =
-      'You are an expert academic test creator. Create high-quality MCQ questions.\n\n' +
-      'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
-      'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string"}\n\n' +
-      'CRITICAL RULES:\n' +
-      '- Exactly ' +
-      finalNumQuestions +
-      ' question objects in the array.\n' +
-      '- Exactly 4 options per question. Never 3, never 5.\n' +
-      '- correctAnswer must exactly match one of the 4 options.\n' +
-      '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
-      '- DO NOT wrap the response in code fences or markdown.\n' +
-      '- Output ONLY the raw JSON array starting with [ and ending with ].';
+    // ── Optimized prompts to support next level questions, paragraph passages, and explanations ──
+    const systemPrompt = activeTestFormat === 'Subjective'
+      ? 'You are an expert academic test creator. Create high-quality Subjective (Written/Derivation/Diagram) questions.\n\n' +
+        'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no code fences.\n\n' +
+        'Each element must be: {"question": "string", "idealAnswer": "string", "maxMarks": number, "rubric": "string", "topic": "string"}\n\n' +
+        'CRITICAL RULES:\n' +
+        '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
+        '- maxMarks should be a reasonable integer (e.g. 5 or 10) depending on complexity.\n' +
+        '- idealAnswer must provide a detailed step-by-step textbook standard correct derivation, numerical steps, or diagram description.\n' +
+        '- rubric must detail exactly how to award marks (e.g. "3 marks for thylakoid diagram, 2 marks for labels").\n' +
+        '- topic must specify the clean chapter or sub-topic name (e.g., "Cell Membrane", "Quadratic Equations").\n' +
+        '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
+        '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
+        '- Output ONLY the raw JSON array starting with [ and ending with ].'
+      : 'You are an expert academic test creator. Create high-quality MCQ questions.\n\n' +
+        'RESPONSE FORMAT: Your ENTIRE response must be a valid JSON array. Nothing else. No markdown, no explanation, no code fences.\n\n' +
+        'Each element must be: {"question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string", "explanation": "string", "topic": "string"}\n\n' +
+        'CRITICAL RULES:\n' +
+        '- Exactly ' + finalNumQuestions + ' question objects in the array.\n' +
+        '- Exactly 4 options per question. Never 3, never 5.\n' +
+        '- correctAnswer must exactly match one of the 4 options.\n' +
+        '- explanation must provide a detailed step-by-step reasoning explaining why the correctAnswer is correct and how to solve it.\n' +
+        '- topic must specify the clean chapter or sub-topic name (e.g., "Cell Membrane", "Quadratic Equations").\n' +
+        '- For exams that contain paragraph/passage-based questions (like reading comprehension in English/CUET, or passage-based problems in JEE/NEET/GATE), prepend the paragraph passage to the question string. Format it exactly as: "Passage: [Common Passage Text]\\n\\nQuestion: [Specific question based on the passage]". This ensures it renders correctly.\n' +
+        '- DO NOT use LaTeX, backslashes, or math symbols. Write math in plain text (e.g. "x^2 + 3x + 2 = 0", "sqrt(3)/2").\n' +
+        '- DO NOT wrap the response in code fences or markdown.\n' +
+        '- Output ONLY the raw JSON array starting with [ and ending with ].';
 
-    const userPrompt =
-      'Create EXACTLY ' +
-      finalNumQuestions +
-      ' MCQ questions:\n' +
-      '- Exam: ' +
-      examName +
-      '\n' +
-      '- Type: ' +
-      generationType +
-      '\n' +
-      '- Subject: ' +
-      (finalSubject || 'General') +
-      '\n' +
-      '- Difficulty: ' +
-      difficulty +
-      '\n\n' +
-      'Remember: plain text only, no LaTeX. Output raw JSON array only.';
+    let topicInstruction = '';
+    if (topic && typeof topic === 'string' && topic.trim()) {
+      const safeSubtopic = Array.isArray(subtopic)
+        ? subtopic.join(', ')
+        : (typeof subtopic === 'string' ? subtopic.trim() : '');
+
+      topicInstruction = '\n- Specific Topic/Chapter: "' + topic.trim() + '"' + 
+        (safeSubtopic ? ' (Subtopic: "' + safeSubtopic + '")' : '') + 
+        '. Ensure all questions are strictly focused on this topic.';
+    }
+
+    const userPrompt = activeTestFormat === 'Subjective'
+      ? 'Create EXACTLY ' + finalNumQuestions + ' Subjective written/derivation/diagram questions:\n' +
+        '- Exam: ' + activeExamName + '\n' +
+        '- Type: ' + activeGenerationType + '\n' +
+        '- Subject: ' + (finalSubject || 'General') + '\n' +
+        topicInstruction + '\n' +
+        '- Difficulty: ' + difficulty + '\n' +
+        blueprintInstruction + '\n\n' +
+        'Remember: Include complex subjective problems, derivations, drawing/sketching requests, or paragraph analyses matching the exam syllabus. Output raw JSON array only.'
+      : 'Create EXACTLY ' + finalNumQuestions + ' MCQ questions:\n' +
+        '- Exam: ' + activeExamName + '\n' +
+        '- Type: ' + activeGenerationType + '\n' +
+        '- Subject: ' + (finalSubject || 'General') + '\n' +
+        topicInstruction + '\n' +
+        '- Difficulty: ' + difficulty + '\n' +
+        blueprintInstruction + '\n\n' +
+        'Remember: Make the questions highly academic, rigorous, and matching next-level expectations for prestigious exams like JEE Advanced, NEET, GATE, and CUET. Plain text only, no LaTeX. Output raw JSON array only.';
 
     try {
-      const response = await fetch(
-        'https://openrouter.ai/api/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + OPENROUTER_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openrouter/free',
-            messages: [
-              {role: 'system', content: systemPrompt},
-              {role: 'user', content: userPrompt},
-            ],
-          }),
-        },
-      );
+      const models = [
+        'openrouter/free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+        'google/gemini-2.0-flash-lite-001',
+        'qwen/qwen-2.5-coder-32b-instruct:free',
+      ];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error('OpenRouter API error: ' + errorText);
+      let data = null;
+      for (const modelName of models) {
+        try {
+          const response = await fetch(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + OPENROUTER_API_KEY,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: modelName,
+                messages: [
+                  {role: 'system', content: systemPrompt},
+                  {role: 'user', content: userPrompt},
+                ],
+              }),
+            },
+          );
+
+          if (response.ok) {
+            const json = await response.json();
+            if (json?.choices?.[0]?.message?.content) {
+              data = json;
+              break;
+            }
+          }
+        } catch (err) {
+          console.log(`Model ${modelName} failed in TestGenerator, trying next...`, err);
+        }
       }
 
-      const data = await response.json();
+      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('All AI test generation models were unable to respond. Please try again.');
+      }
+
       let content =
         (data.choices &&
           data.choices[0] &&
@@ -504,41 +930,77 @@ export default function TestGenerator() {
       try {
         parsedQuestions = JSON.parse(content);
         parsedQuestions = parsedQuestions.map(function (q) {
-          if (!Array.isArray(q.options)) {
-            q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
-          }
-          while (q.options.length < 4) {
-            q.options.push('None of the above');
-          }
-          if (q.options.length > 4) {
-            q.options = q.options.slice(0, 4);
-            if (!q.options.includes(q.correctAnswer)) {
+          if (activeTestFormat !== 'Subjective') {
+            if (!Array.isArray(q.options)) {
+              q.options = ['Option A', 'Option B', 'Option C', 'Option D'];
+            }
+            while (q.options.length < 4) {
+              q.options.push('None of the above');
+            }
+            if (q.options.length > 4) {
+              q.options = q.options.slice(0, 4);
+              if (!q.options.includes(q.correctAnswer)) {
+                q.correctAnswer = q.options[0];
+              }
+            }
+            if (!q.correctAnswer) {
               q.correctAnswer = q.options[0];
             }
-          }
-          if (!q.correctAnswer) {
-            q.correctAnswer = q.options[0];
+          } else {
+            // Ensure subjective fields are initialized
+            if (!q.maxMarks) q.maxMarks = 10;
+            if (!q.idealAnswer) {
+              q.idealAnswer = q.ideal_answer || q.solution || q.answer || '';
+            }
+            if (!q.rubric) {
+              q.rubric = q.marking_scheme || q.markingScheme || '';
+            }
           }
           return q;
         });
       } catch (_e) {
-        // Regex fallback — same as web app
-        var questionRegex =
-          /\{"question"\s*:\s*"([^"]*?)"\s*,\s*"options"\s*:\s*\[([^\]]*?)\]\s*,\s*"correctAnswer"\s*:\s*"([^"]*?)"\}/g;
-        var m;
-        while ((m = questionRegex.exec(content)) !== null) {
-          var opts = m[2].split(',').map(function (s) {
-            return s.trim().replace(/^"|"$/g, '');
+        var objectBlocks = content.match(/\{[\s\S]*?\}/g) || [];
+        
+        if (activeTestFormat === 'Subjective') {
+          objectBlocks.forEach(function (block) {
+            var qMatch = block.match(/"question"\s*:\s*"([^"]*?)"/);
+            if (qMatch) {
+              var aMatch = block.match(/"(?:idealAnswer|ideal_answer|solution|answer)"\s*:\s*"([^"]*?)"/);
+              var mMatch = block.match(/"maxMarks"\s*:\s*(\d+)/);
+              var rMatch = block.match(/"(?:rubric|marking_scheme|markingScheme)"\s*:\s*"([^"]*?)"/);
+              
+              parsedQuestions.push({
+                question: qMatch[1],
+                idealAnswer: aMatch ? aMatch[1] : 'Solution details not available.',
+                maxMarks: mMatch ? parseInt(mMatch[1]) : 10,
+                rubric: rMatch ? rMatch[1] : 'Marking scheme not available.'
+              });
+            }
           });
-          parsedQuestions.push({
-            question: m[1],
-            options:
-              opts.length >= 4
-                ? opts.slice(0, 4)
-                : opts.concat(Array(4 - opts.length).fill('None of the above')),
-            correctAnswer: m[3],
+        } else {
+          objectBlocks.forEach(function (block) {
+            var qMatch = block.match(/"question"\s*:\s*"([^"]*?)"/);
+            if (qMatch) {
+              var optMatch = block.match(/"options"\s*:\s*\[([^\]]*?)\]/);
+              var opts = [];
+              if (optMatch) {
+                opts = optMatch[1].split(',').map(function (s) {
+                  return s.trim().replace(/^"|"$/g, '');
+                });
+              }
+              var cMatch = block.match(/"correctAnswer"\s*:\s*"([^"]*?)"/);
+              var eMatch = block.match(/"explanation"\s*:\s*"([^"]*?)"/);
+              
+              parsedQuestions.push({
+                question: qMatch[1],
+                options: opts.length >= 4 ? opts.slice(0, 4) : opts.concat(Array(4 - opts.length).fill('None of the above')),
+                correctAnswer: cMatch ? cMatch[1] : (opts[0] || ''),
+                explanation: eMatch ? eMatch[1] : 'Explanation not available.'
+              });
+            }
           });
         }
+        
         if (parsedQuestions.length === 0) {
           throw new Error('AI returned malformed content. Please try again.');
         }
@@ -557,6 +1019,53 @@ export default function TestGenerator() {
       setAppState('setup');
     }
   };
+
+  const hasAutoStartedRef = useRef(false);
+
+  // Handle autoStart parameters passed from AI Study Notes Generator
+  useEffect(() => {
+    if (route?.params?.autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      const { board, subject: paramSub, topic, subtopic } = route.params;
+      
+      let matchedExamName = 'NCERT Class 12';
+      if (board) {
+        const boardLower = String(board).toLowerCase();
+        if (boardLower.includes('jee')) matchedExamName = 'JEE';
+        else if (boardLower.includes('neet')) matchedExamName = 'NEET';
+        else if (boardLower.includes('cuet')) matchedExamName = 'CUET';
+        else if (boardLower.includes('gate')) matchedExamName = 'GATE';
+        else if (boardLower.includes('10')) matchedExamName = 'NCERT Class 10';
+        else if (boardLower.includes('11')) matchedExamName = 'NCERT Class 11';
+        else if (boardLower.includes('9')) matchedExamName = 'NCERT Class 9';
+        else if (boardLower.includes('8')) matchedExamName = 'NCERT Class 8';
+        else if (boardLower.includes('7')) matchedExamName = 'NCERT Class 7';
+        else if (boardLower.includes('6')) matchedExamName = 'NCERT Class 6';
+      }
+
+      setGenerationType('Topic Wise');
+
+      let finalSub = normalizeSubject(paramSub, topic);
+      setSubject(finalSub);
+
+      const subStr = Array.isArray(subtopic) ? subtopic.join(', ') : (typeof subtopic === 'string' ? subtopic : '');
+      const chapterName = subStr ? `${topic || ''} - ${subStr}` : (topic || 'General');
+      const countVal = 5;
+      const bpList = [{ chapter: chapterName, count: countVal }];
+
+      setNumQuestions('5');
+      setTestFormat('Objective'); // Notes quick quiz is MCQ by default
+
+      handleGenerate({
+        examName: matchedExamName,
+        subject: finalSub,
+        generationType: 'Topic Wise',
+        blueprintList: bpList,
+        numQuestions: 5,
+        testFormat: 'Objective'
+      });
+    }
+  }, [route?.params]);
 
   const startTest = () => {
     setAppState('testing');
@@ -585,6 +1094,14 @@ export default function TestGenerator() {
 
   const handleSelectOption = (qIndex, optionValue) => {
     setUserAnswers(prev => ({...prev, [qIndex]: optionValue}));
+    setLastActiveIdx(qIndex);
+  };
+
+  const toggleFlag = idx => {
+    setFlaggedQuestions(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
   };
 
   const formatTime = seconds => {
@@ -604,11 +1121,70 @@ export default function TestGenerator() {
     return parts.join(':');
   };
 
+  const handleTypeSubjective = (idx, text) => {
+    setUserSubjectiveTexts(prev => ({
+      ...prev,
+      [idx]: text
+    }));
+    setLastActiveIdx(idx);
+  };
+
+  const handleSelectImage = (idx, method) => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.5,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    };
+    const callback = (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Failed to select image');
+        return;
+      }
+      const asset = response.assets?.[0];
+      if (asset) {
+        setUserSubjectiveImages(prev => ({
+          ...prev,
+          [idx]: {
+            uri: asset.uri,
+            base64: asset.base64
+          }
+        }));
+        setLastActiveIdx(idx);
+      }
+    };
+    if (method === 'camera') {
+      launchCamera(options, callback);
+    } else {
+      launchImageLibrary(options, callback);
+    }
+  };
+
   const resetGenerator = () => {
-    setAppState('setup');
+    // Reset appState LAST so render switches only after all state is clean
     setQuestions([]);
     setUserAnswers({});
     setTimeLeft(null);
+    setFlaggedQuestions({});
+    setQuestionTimes({});
+    setLastActiveIdx(0);
+    setBlueprintList([]);
+    setBlueprintChapter('');
+    setBlueprintCount('');
+    setUserSubjectiveTexts({});
+    setUserSubjectiveImages({});
+    setGradedAnswers({});
+    setIsGrading(false);
+    setScoreData({marks: 0, correct: 0, incorrect: 0, unattempted: 0, maxMarks: 0});
+    setDisplayedScore(0);
+    setShowConfetti(false);
+    setWeakestSubject('');
+    setWeakestTopic('');
+    setError('');
+    // Switch state last — ensures all data is clean before setup screen renders
+    setAppState('setup');
   };
 
   // State setup render
@@ -617,105 +1193,147 @@ export default function TestGenerator() {
       <Screen style={{paddingBottom: 40}}>
         <View style={styles.headerBanner}>
           <Icon name="robot-excited-outline" size={48} color={theme.colors.primary} style={{alignSelf: 'center', marginBottom: 8}} />
-          <Text
-            style={[styles.title, {color: theme.colors.primary, textAlign: 'center'}]}
-            size="large">
-            AI Test Generator
-          </Text>
+
           <Text style={[styles.subtitle, {color: theme.colors.onSurfaceVariant, textAlign: 'center'}]}>
             Configure your test options to generate a custom, AI-powered test
             based on your exam syllabus.
           </Text>
         </View>
 
-        <Card
-          style={[
-            styles.formCard,
-            theme.dark ? {
-              backgroundColor: theme.colors.elevation.level1,
-              borderColor: theme.colors.outlineVariant,
-              borderWidth: 1,
-            } : {
-              backgroundColor: '#ffffff',
-              elevation: 2,
-              shadowColor: '#000',
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              shadowOffset: {width: 0, height: 1},
-            },
-          ]}>
-          <Card.Content style={{paddingVertical: 10}}>
-            <View style={{marginTop: 5}}>
-              <Dropdown
-                label="Target Exam"
-                name="examName"
-                value={examName}
-                updateFormValue={handleFormChange}
-                list={classList}
-              />
-            </View>
+        {(() => {
+          const displaySub = subject || (topSubject && topSubject.toLowerCase() !== 'general' ? topSubject : '');
+          const formattedSub = displaySub ? (displaySub.charAt(0).toUpperCase() + displaySub.slice(1)) : '';
+          const classInfo = studentClass ? ` (${studentClass})` : '';
 
-            <View style={{marginTop: 15}}>
-              <Dropdown
-                label="Generation Type"
-                name="generationType"
-                value={generationType}
-                updateFormValue={handleFormChange}
-                list={generationTypeList}
-              />
+          return (
+            <View style={{gap: 12, marginBottom: 16}}>
+              <Card
+                onPress={() => {
+                  if (formattedSub) {
+                    setSubject(formattedSub);
+                    setGenerationType('Subject Wise');
+                  }
+                }}
+                style={{
+                  marginHorizontal: 16,
+                  backgroundColor: theme.dark ? 'rgba(0, 113, 113, 0.15)' : '#e0f2f1',
+                  borderWidth: 1.5,
+                  borderColor: theme.dark ? '#007171' : '#007171',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                  <Icon name="brain" size={26} color={theme.dark ? '#a3e635' : '#007171'} style={{marginRight: 12}} />
+                  <View style={{flex: 1}}>
+                    <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#004d40'}}>
+                      💡 Suggested Quiz: {formattedSub ? `${formattedSub}${classInfo}` : 'NCERT Syllabus Test'}
+                    </Text>
+                    <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#007171', marginTop: 2}}>
+                      {formattedSub 
+                        ? `Practice custom AI test questions tailored for ${formattedSub}${classInfo}!`
+                        : 'Select your class and subject below to generate a tailored NCERT test!'}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#004d40'} />
+                </Card.Content>
+              </Card>
+
+              <Card
+                onPress={() => {
+                  navigation.navigate('Notes');
+                }}
+                style={{
+                  marginHorizontal: 16,
+                  backgroundColor: theme.dark ? 'rgba(103, 58, 183, 0.15)' : '#f3e5f5',
+                  borderWidth: 1.2,
+                  borderColor: theme.dark ? '#673ab7' : '#d1c4e9',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content style={{flexDirection: 'row', alignItems: 'center', padding: 12}}>
+                  <Icon name="book-open-page-variant" size={24} color={theme.dark ? '#d946ef' : '#673ab7'} style={{marginRight: 12}} />
+                  <View style={{flex: 1}}>
+                    <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#4a148c'}}>
+                      📚 Review notes before the test!
+                    </Text>
+                    <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#7b1fa2', marginTop: 2}}>
+                      {formattedSub 
+                        ? `Read handwritten summary PDFs and NCERT Solutions for ${formattedSub} first.`
+                        : 'Read handwritten summary PDFs and NCERT Solutions for your syllabus first.'}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={theme.dark ? 'white' : '#673ab7'} />
+                </Card.Content>
+              </Card>
             </View>
+          );
+        })()}
+        <View style={styles.formContainer}>
+          <CurriculumSelector
+            board={board} setBoard={setBoard}
+            studentClass={studentClass} setStudentClass={setStudentClass}
+            stream={stream} setStream={setStream}
+            subject={subject} setSubject={setSubject}
+            topic={topic} setTopic={setTopic}
+            subtopic={subtopic} setSubtopic={setSubtopic}
+          />
+
+          <View style={{
+            backgroundColor: theme.dark ? '#064e3b' : '#eefbf6',
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOpacity: 0.05,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+          }}>
+            <RNText style={{
+              fontSize: 18,
+              fontWeight: '700',
+              marginBottom: 16,
+              color: theme.dark ? '#ecfdf5' : '#064e3b'
+            }}>Test Configuration</RNText>
+
+            <GlassDropdown
+              label="Test Format"
+              value={testFormat}
+              options={[
+                {label: 'Objective (MCQs)', value: 'Objective'},
+                {label: 'Subjective (Written / Diagrams) — Paid', value: 'Subjective', disabled: true}
+              ]}
+              onSelect={setTestFormat}
+            />
+
+            <View style={{marginTop: 5}} />
+            <GlassDropdown
+              label="Generation Type"
+              value={generationType}
+              options={generationTypeList}
+              onSelect={(val) => handleFormChange({name: 'generationType', value: val})}
+            />
+
+            <View style={{marginTop: 5}} />
+            <GlassDropdown
+              label="Difficulty Level"
+              value={difficulty}
+              options={difficultyList}
+              onSelect={(val) => handleFormChange({name: 'difficulty', value: val})}
+            />
 
             {generationType !== 'Complete Paper' && (
-              <View style={{marginTop: 15}}>
-                {generationType === 'Subject Wise' &&
-                getSubjectsList(examName).length > 0 ? (
-                  <Dropdown
-                    label="Select Subject"
-                    name="subject"
-                    value={subject}
-                    updateFormValue={({value}) => setSubject(value)}
-                    list={getSubjectsList(examName)}
-                  />
-                ) : (
-                  <TextInput
-                    label={
-                      generationType === 'Subject Wise'
-                        ? 'Subject Focus'
-                        : 'Topic Focus'
-                    }
-                    name="subject"
-                    defaultValue={subject}
-                    updateFormValue={handleFormChange}
-                    placeholder="e.g. Kinematics, Algebra, Nutrition"
-                  />
-                )}
-              </View>
-            )}
-
-            <View style={{marginTop: 15}}>
-              <Dropdown
-                label="Difficulty Level"
-                name="difficulty"
-                value={difficulty}
-                updateFormValue={handleFormChange}
-                list={difficultyList}
-              />
-            </View>
-
-            {generationType !== 'Complete Paper' && (
-              <View style={{marginTop: 15}}>
-                <TextInput
+              <View style={{marginTop: 5}}>
+                <GlassTextInput
                   label="Number of Questions"
-                  name="numQuestions"
-                  defaultValue={numQuestions}
-                  updateFormValue={handleFormChange}
-                  keyboard="numeric"
+                  value={numQuestions}
+                  onChangeText={(val) => handleFormChange({name: 'numQuestions', value: val})}
+                  keyboardType="numeric"
                   placeholder="5"
                 />
               </View>
             )}
-          </Card.Content>
-        </Card>
+          </View>
 
         {error ? (
           <View style={styles.errorContainer}>
@@ -724,12 +1342,14 @@ export default function TestGenerator() {
           </View>
         ) : null}
 
-        <Button
-          name="Generate Live Test"
+        <GlassButton
+          label="Generate Live Test"
           icon="flash"
-          onPress={handleGenerate}
-          style={styles.actionButton}
+          color="#3b82f6"
+          onPress={() => handleGenerate()}
+          disabled={!board || !studentClass}
         />
+        </View>
       </Screen>
     );
   }
@@ -737,19 +1357,16 @@ export default function TestGenerator() {
   // Loading State
   if (appState === 'generating') {
     return (
-      <Screen style={styles.centered}>
-        <ActivityIndicator size={60} color={theme.colors.primary} />
-        <Text
-          style={[styles.loadingText, {color: theme.colors.primary}]}
-          size="medium">
-          Creating your bespoke test...
-        </Text>
-        <Text
-          style={[styles.loadingSub, {color: theme.colors.onSurfaceVariant}]}>
-          Connecting to OpenRouter to build exam-specific questions. This can
-          take up to 20 seconds.
-        </Text>
-      </Screen>
+      <PremiumLoader 
+         title="Creating your bespoke test..." 
+         accentColor={theme.colors.primary} 
+         tips={[
+           "Connecting to OpenRouter AI...",
+           "Building exam-specific questions...",
+           "Generating difficulty curve...",
+           "Finalizing multiple-choice options..."
+         ]}
+      />
     );
   }
 
@@ -792,7 +1409,7 @@ export default function TestGenerator() {
   // Testing State
   if (appState === 'testing') {
     return (
-      <Screen list style={{flex: 1, paddingBottom: 40}}>
+      <Screen list NoHeader style={{flex: 1, paddingBottom: 40}}>
         {/* Sticky Timer Header */}
         <View
           style={[
@@ -844,6 +1461,13 @@ export default function TestGenerator() {
                         MCQ
                       </Text>
                     </View>
+                    <TouchableOpacity onPress={() => toggleFlag(idx)} style={{padding: 4}}>
+                      <Icon
+                        name={flaggedQuestions[idx] ? 'bookmark' : 'bookmark-outline'}
+                        size={24}
+                        color={flaggedQuestions[idx] ? '#ff9800' : '#888'}
+                      />
+                    </TouchableOpacity>
                   </View>
 
                   <Text
@@ -855,62 +1479,160 @@ export default function TestGenerator() {
                     {q.question}
                   </Text>
 
-                  <View style={styles.optionsList}>
-                    {q.options?.map((opt, optIdx) => {
-                      const letter = String.fromCharCode(65 + optIdx);
-                      const isSelected = uAnswer === opt;
+                  {testFormat === 'Subjective' ? (
+                    <View style={{marginTop: 15, gap: 12}}>
+                      <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.colors.onSurfaceVariant}}>
+                        Your Written Work (Max Marks: {q.maxMarks || 10})
+                      </Text>
 
-                      return (
+                      {/* Multiline TextInput for subjective typing */}
+                      <RNTextInput
+                        multiline
+                        numberOfLines={4}
+                        placeholder="Type your explanation, numerical steps, or derivation summary..."
+                        value={userSubjectiveTexts[idx] || ''}
+                        onChangeText={(text) => handleTypeSubjective(idx, text)}
+                        placeholderTextColor="#999"
+                        style={{
+                          minHeight: 100,
+                          borderColor: '#ccc',
+                          borderWidth: 1,
+                          borderRadius: 10,
+                          padding: 12,
+                          textAlignVertical: 'top',
+                          color: theme.colors.onSurface,
+                          backgroundColor: theme.dark ? theme.colors.elevation.level1 : '#fafafa'
+                        }}
+                      />
+
+                      {/* Photo uploads row */}
+                      <View style={{flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 5}}>
                         <TouchableOpacity
-                          key={optIdx}
-                          onPress={() => handleSelectOption(idx, opt)}
-                          style={[
-                            styles.optionButton,
-                            theme.dark && {
-                              backgroundColor: theme.colors.surface,
-                              borderColor: theme.colors.outlineVariant,
-                            },
-                            isSelected && {
-                              borderColor: theme.colors.primary,
-                              backgroundColor: theme.dark
-                                ? 'rgba(0, 113, 113, 0.15)'
-                                : '#e0f2f1',
-                            },
-                          ]}>
-                          <View style={styles.optionContent}>
-                            <View
-                              style={[
-                                styles.letterCircle,
-                                theme.dark && {
-                                  backgroundColor:
-                                    theme.colors.elevation.level3,
-                                },
-                                isSelected && {
-                                  backgroundColor: theme.colors.primary,
-                                },
-                              ]}>
+                          onPress={() => handleSelectImage(idx, 'camera')}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#eef6f5',
+                            paddingVertical: 10,
+                            borderRadius: 8,
+                            borderColor: '#007171',
+                            borderWidth: 1,
+                            gap: 6
+                          }}>
+                          <Icon name="camera-outline" size={18} color="#007171" />
+                          <Text style={{color: '#007171', fontWeight: 'bold', fontSize: 11}}>Camera Work</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleSelectImage(idx, 'gallery')}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#eef6f5',
+                            paddingVertical: 10,
+                            borderRadius: 8,
+                            borderColor: '#007171',
+                            borderWidth: 1,
+                            gap: 6
+                          }}>
+                          <Icon name="image-outline" size={18} color="#007171" />
+                          <Text style={{color: '#007171', fontWeight: 'bold', fontSize: 11}}>Upload Work</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Uploaded photo thumbnail preview */}
+                      {userSubjectiveImages[idx]?.uri && (
+                        <View style={{marginTop: 10, position: 'relative', width: 100, height: 100}}>
+                          <Image
+                            source={{uri: userSubjectiveImages[idx].uri}}
+                            style={{width: 100, height: 100, borderRadius: 8, resizeMode: 'cover'}}
+                          />
+                          <TouchableOpacity
+                            onPress={() => {
+                              setUserSubjectiveImages(prev => {
+                                const updated = {...prev};
+                                delete updated[idx];
+                                return updated;
+                              });
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: -5,
+                              right: -5,
+                              backgroundColor: '#c62828',
+                              borderRadius: 10,
+                              width: 20,
+                              height: 20,
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <Icon name="close" size={14} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                  ) : (
+                    <View style={styles.optionsList}>
+                      {q.options?.map((opt, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        const isSelected = uAnswer === opt;
+
+                        return (
+                          <TouchableOpacity
+                            key={optIdx}
+                            onPress={() => handleSelectOption(idx, opt)}
+                            style={[
+                              styles.optionButton,
+                              theme.dark && {
+                                backgroundColor: theme.colors.surface,
+                                borderColor: theme.colors.outlineVariant,
+                              },
+                              isSelected && {
+                                borderColor: theme.colors.primary,
+                                backgroundColor: theme.dark
+                                  ? 'rgba(0, 113, 113, 0.15)'
+                                  : '#e0f2f1',
+                              },
+                            ]}>
+                            <View style={styles.optionContent}>
+                              <View
+                                style={[
+                                  styles.letterCircle,
+                                  theme.dark && {
+                                    backgroundColor:
+                                      theme.colors.elevation.level3,
+                                  },
+                                  isSelected && {
+                                    backgroundColor: theme.colors.primary,
+                                  },
+                                ]}>
+                                <Text
+                                  style={{
+                                    color: isSelected
+                                      ? 'white'
+                                      : theme.colors.onSurfaceVariant,
+                                    fontWeight: 'bold',
+                                  }}>
+                                  {letter}
+                                </Text>
+                              </View>
                               <Text
-                                style={{
-                                  color: isSelected
-                                    ? 'white'
-                                    : theme.colors.onSurfaceVariant,
-                                  fontWeight: 'bold',
-                                }}>
-                                {letter}
+                                style={[
+                                  styles.optionText,
+                                  {color: theme.colors.onSurface},
+                                ]}>
+                                {opt}
                               </Text>
                             </View>
-                            <Text
-                              style={[
-                                styles.optionText,
-                                {color: theme.colors.onSurface},
-                              ]}>
-                              {opt}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </Card.Content>
               </Card>
             );
@@ -938,7 +1660,7 @@ export default function TestGenerator() {
         showConfetti,
       );
       return (
-        <Screen list style={{flex: 1, paddingBottom: 40}}>
+        <Screen list NoHeader style={{flex: 1, paddingBottom: 40}}>
           <ScrollView
             style={{flex: 1}}
             contentContainerStyle={{paddingBottom: 40}}
@@ -1077,6 +1799,110 @@ export default function TestGenerator() {
               </Card.Content>
             </Card>
 
+            {weakestSubject || weakestTopic ? (
+              <Card
+                style={{
+                  marginHorizontal: 16,
+                  marginTop: 16,
+                  backgroundColor: theme.dark ? 'rgba(198, 40, 40, 0.12)' : '#fff3e0',
+                  borderWidth: 1.2,
+                  borderColor: theme.dark ? '#c62828' : '#ff9800',
+                  borderRadius: 12,
+                  elevation: 1,
+                }}>
+                <Card.Content>
+                  <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
+                    <Icon name="bullseye-arrow" size={24} color={theme.dark ? '#ef5350' : '#e65100'} style={{marginRight: 10}} />
+                    <View style={{flex: 1}}>
+                      <Text style={{fontWeight: 'bold', fontSize: 13, color: theme.dark ? 'white' : '#e65100'}}>
+                        ⚠️ Focus Booster: Weak Topic Detected
+                      </Text>
+                      <Text style={{fontSize: 11, color: theme.dark ? '#cccccc' : '#5d4037', marginTop: 2, lineHeight: 16}}>
+                        You got questions wrong in {weakestTopic || weakestSubject}. Study these recommended modules next!
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{gap: 8, marginTop: 4}}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('AiNotesGenerator', {
+                          subject: weakestSubject,
+                          topic: weakestTopic,
+                          studentClass: studentClass,
+                          board: board,
+                          stream: stream,
+                        });
+                      }}
+                      style={{
+                        backgroundColor: theme.colors.primary,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="book-open-page-variant" size={14} color="white" />
+                      <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
+                        Generate AI Notes
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('AiLecturePlayer', {
+                          subject: weakestSubject,
+                          topic: weakestTopic,
+                          studentClass: studentClass,
+                          board: board,
+                          stream: stream,
+                        });
+                      }}
+                      style={{
+                        backgroundColor: '#007171',
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="play-circle-outline" size={14} color="white" />
+                      <Text style={{color: 'white', fontWeight: 'bold', fontSize: 11}}>
+                        Listen to AI Lecture
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        navigation.navigate('FreeNotes', {
+                          subject: weakestSubject,
+                        });
+                      }}
+                      style={{
+                        borderColor: theme.colors.primary,
+                        borderWidth: 1.2,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}>
+                      <Icon name="file-document-outline" size={14} color={theme.colors.primary} />
+                      <Text style={{color: theme.colors.primary, fontWeight: 'bold', fontSize: 11}}>
+                        Study Handwritten Notes
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
+
             <Text
               style={[styles.reviewHeader, {color: theme.colors.onBackground}]}
               size="medium">
@@ -1120,6 +1946,24 @@ export default function TestGenerator() {
                           ]}>
                           MCQ
                         </Text>
+                        <Text
+                          style={[
+                            styles.typeBadge,
+                            {
+                              backgroundColor: '#e0f2f1',
+                              color: '#007171',
+                              fontWeight: 'bold',
+                              marginLeft: 6
+                            },
+                          ]}>
+                          ⏱️ {questionTimes[idx] || 0}s
+                        </Text>
+                        {flaggedQuestions[idx] && (
+                          <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6, gap: 2}}>
+                            <Icon name="bookmark" size={10} color="#ff9800" />
+                            <Text style={{color: '#ff9800', fontSize: 9, fontWeight: 'bold'}}>For Revision</Text>
+                          </View>
+                        )}
                       </View>
                       <Icon
                         name={isCorrect ? 'check-circle' : 'close-circle'}
@@ -1137,82 +1981,164 @@ export default function TestGenerator() {
                       {q.question}
                     </Text>
 
-                    <View style={styles.optionsList}>
-                      {q.options?.map((opt, optIdx) => {
-                        const letter = String.fromCharCode(65 + optIdx);
-                        const isSelected = uA === opt;
-                        const isActualCorrect = isAnswerCorrect(q, opt);
+                    {testFormat === 'Subjective' ? (
+                      <View style={{marginTop: 10, gap: 10}}>
+                        
+                        {/* Student response summary */}
+                        <View style={{backgroundColor: theme.colors.elevation.level1, padding: 10, borderRadius: 8}}>
+                          <Text style={{fontWeight: 'bold', fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            Your Submitted Response:
+                          </Text>
+                          <Text style={{fontSize: 13, marginTop: 4, color: theme.colors.onSurface}}>
+                            {userSubjectiveTexts[idx] || "No text answer typed."}
+                          </Text>
+                          {userSubjectiveImages[idx]?.uri && (
+                            <Image
+                              source={{uri: userSubjectiveImages[idx].uri}}
+                              style={{width: '100%', height: 180, borderRadius: 8, marginTop: 8, resizeMode: 'contain'}}
+                            />
+                          )}
+                        </View>
 
-                        let borderClr = theme.dark
-                          ? theme.colors.outlineVariant
-                          : '#ccc';
-                        let bgClr = theme.dark ? theme.colors.surface : '#fff';
+                        {/* AI grading report */}
+                        <View style={{borderColor: '#007171', borderWidth: 1, padding: 12, borderRadius: 8, backgroundColor: theme.dark ? 'rgba(0,113,113,0.1)' : '#f0fbfb', gap: 6}}>
+                          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <Text style={{fontWeight: 'bold', fontSize: 13, color: '#007171'}}>AI Examiner Evaluation:</Text>
+                            <Text style={{fontWeight: 'bold', fontSize: 14, color: '#007171'}}>
+                              Marks: {gradedAnswers[idx]?.marksAwarded || 0} / {gradedAnswers[idx]?.maxMarks || 10}
+                            </Text>
+                          </View>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface, marginTop: 4}}>
+                            Comments:
+                          </Text>
+                          <Text style={{fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            {gradedAnswers[idx]?.feedback || 'No comments provided.'}
+                          </Text>
+                          <Text style={{fontSize: 12, fontWeight: 'bold', color: theme.colors.onSurface, marginTop: 4}}>
+                            Correction details:
+                          </Text>
+                          <Text style={{fontSize: 12, color: theme.colors.onSurfaceVariant}}>
+                            {gradedAnswers[idx]?.corrections || 'No specific errors noted.'}
+                          </Text>
+                        </View>
 
-                        if (isActualCorrect) {
-                          borderClr = '#2e7d32';
-                          bgClr = theme.dark
-                            ? 'rgba(46, 125, 50, 0.15)'
-                            : '#e8f5e9';
-                        } else if (isSelected && !isCorrect) {
-                          borderClr = '#c62828';
-                          bgClr = theme.dark
-                            ? 'rgba(198, 40, 40, 0.15)'
-                            : '#ffebee';
-                        }
+                        {/* Ideal textbook standard response */}
+                        <View style={{backgroundColor: '#e8f5e9', padding: 12, borderRadius: 8, borderColor: '#2e7d32', borderWidth: 1, gap: 4}}>
+                          <Text style={{fontWeight: 'bold', fontSize: 12, color: '#2e7d32'}}>Model Textbook Solution:</Text>
+                          <Text style={{fontSize: 12, color: '#1b5e20'}}>{q.idealAnswer || 'No solution provided.'}</Text>
+                          {q.rubric && (
+                            <>
+                              <Text style={{fontWeight: 'bold', fontSize: 11, color: '#2e7d32', marginTop: 4}}>Marking Scheme Rubric:</Text>
+                              <Text style={{fontSize: 11, color: '#1b5e20'}}>{q.rubric}</Text>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.optionsList}>
+                          {q.options?.map((opt, optIdx) => {
+                            const letter = String.fromCharCode(65 + optIdx);
+                            const isSelected = uA === opt;
+                            const isActualCorrect = isAnswerCorrect(q, opt);
 
-                        return (
-                          <View
-                            key={optIdx}
-                            style={[
-                              styles.optionButton,
-                              {borderColor: borderClr, backgroundColor: bgClr},
-                            ]}>
-                            <View style={styles.optionContent}>
+                            let borderClr = theme.dark
+                              ? theme.colors.outlineVariant
+                              : '#ccc';
+                            let bgClr = theme.dark ? theme.colors.surface : '#fff';
+
+                            if (isActualCorrect) {
+                              borderClr = '#2e7d32';
+                              bgClr = theme.dark
+                                ? 'rgba(46, 125, 50, 0.15)'
+                                : '#e8f5e9';
+                            } else if (isSelected && !isCorrect) {
+                              borderClr = '#c62828';
+                              bgClr = theme.dark
+                                ? 'rgba(198, 40, 40, 0.15)'
+                                : '#ffebee';
+                            }
+
+                            return (
                               <View
+                                key={optIdx}
                                 style={[
-                                  styles.letterCircle,
-                                  theme.dark && {
-                                    backgroundColor:
-                                      theme.colors.elevation.level3,
-                                  },
-                                  isActualCorrect
-                                    ? {backgroundColor: '#2e7d32'}
-                                    : isSelected
-                                    ? {backgroundColor: '#c62828'}
-                                    : {},
+                                  styles.optionButton,
+                                  {borderColor: borderClr, backgroundColor: bgClr},
                                 ]}>
-                                <Text
-                                  style={{
-                                    color:
-                                      isActualCorrect || isSelected
-                                        ? 'white'
-                                        : theme.colors.onSurfaceVariant,
-                                    fontWeight: 'bold',
-                                  }}>
-                                  {letter}
-                                </Text>
+                                <View style={styles.optionContent}>
+                                  <View
+                                    style={[
+                                      styles.letterCircle,
+                                      theme.dark && {
+                                        backgroundColor:
+                                          theme.colors.elevation.level3,
+                                      },
+                                      isActualCorrect
+                                        ? {backgroundColor: '#2e7d32'}
+                                        : isSelected
+                                        ? {backgroundColor: '#c62828'}
+                                        : {},
+                                    ]}>
+                                    <Text
+                                      style={{
+                                        color:
+                                          isActualCorrect || isSelected
+                                            ? 'white'
+                                            : theme.colors.onSurfaceVariant,
+                                        fontWeight: 'bold',
+                                      }}>
+                                      {letter}
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={[
+                                      styles.optionText,
+                                      {color: theme.colors.onSurface},
+                                      isActualCorrect && {
+                                        color: theme.dark ? '#81c784' : '#1b5e20',
+                                        fontWeight: 'bold',
+                                      },
+                                      isSelected &&
+                                        !isCorrect && {
+                                          color: theme.dark ? '#e57373' : '#b71c1c',
+                                          textDecorationLine: 'line-through',
+                                        },
+                                    ]}>
+                                    {opt}
+                                  </Text>
+                                </View>
                               </View>
-                              <Text
-                                style={[
-                                  styles.optionText,
-                                  {color: theme.colors.onSurface},
-                                  isActualCorrect && {
-                                    color: theme.dark ? '#81c784' : '#1b5e20',
-                                    fontWeight: 'bold',
-                                  },
-                                  isSelected &&
-                                    !isCorrect && {
-                                      color: theme.dark ? '#e57373' : '#b71c1c',
-                                      textDecorationLine: 'line-through',
-                                    },
-                                ]}>
-                                {opt}
+                            );
+                          })}
+                        </View>
+                        {q.explanation && (
+                          <View style={[
+                            styles.explanationContainer,
+                            {
+                              backgroundColor: theme.dark
+                                ? 'rgba(0, 113, 113, 0.08)'
+                                : '#f0fbfb',
+                              borderColor: theme.dark
+                                ? 'rgba(0, 113, 113, 0.25)'
+                                : '#b2dfdf',
+                            }
+                          ]}>
+                            <View style={styles.explanationHeader}>
+                              <Icon name="information-outline" size={16} color={theme.dark ? '#80cbc4' : '#007171'} />
+                              <Text style={[styles.explanationTitle, {color: theme.dark ? '#80cbc4' : '#007171'}]}>
+                                Explanation:
                               </Text>
                             </View>
+                            <Text style={[styles.explanationText, {color: theme.colors.onSurface}]}>
+                              {q.explanation}
+                            </Text>
                           </View>
-                        );
-                      })}
-                    </View>
+                        )}
+                      </>
+                    )}
+
+                    {/* Review Related Notes button removed as requested */}
                   </Card.Content>
                 </Card>
               );
@@ -1276,6 +2202,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
     paddingVertical: 4,
+  },
+  formContainer: {
+    paddingHorizontal: 16,
   },
   hint: {
     fontSize: 11,
@@ -1511,5 +2440,25 @@ const styles = StyleSheet.create({
     color: '#c62828',
     fontSize: 12,
     lineHeight: 16,
+  },
+  explanationContainer: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  explanationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  explanationTitle: {
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  explanationText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

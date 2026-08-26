@@ -3,9 +3,9 @@ import useApi from '../../Components/Api/Api';
 
 export const fetchChatGroups = createAsyncThunk(
   'mqtt/fetchChatGroups',
-  async (_, {rejectWithValue}) => {
+  async (params, {rejectWithValue}) => {
     try {
-      const res = await useApi().get('/chat/groups');
+      const res = await useApi().get('/chat/groups', params);
       // console.log('Fetched chat groups:', res);
       const groups = res?.data;
       if (!Array.isArray(groups))

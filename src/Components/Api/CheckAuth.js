@@ -9,8 +9,7 @@ import {requestNotificationPermission} from '../../Utils/Notification';
 import {getAllContacts} from '../../Utils/Contacts.';
 import Contacts from 'react-native-contacts';
 import useApi from './Api';
-// const BASE_URL = 'https://studifysuccess-chat-room.loca.lt/api/';
-// const BASE_URL = 'http://10.0.2.2:3000/api/';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const BASE_URL = 'https://www.api.studifysuccess.com/api/';
 import {useEffect} from 'react';
 import {Alert} from 'react-native';
@@ -30,6 +29,8 @@ export default function CheckAuth() {
     useSelector(state => state.initial);
   axios.defaults.headers.common['x-auth-token'] = token;
   axios.defaults.headers.common['Content-Type'] = 'application/json';
+  axios.defaults.headers.common['Bypass-Tunnel-Reminder'] = 'true';
+  axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
   axios.defaults.baseURL = BASE_URL;
   console.log('auth rerender token', axios.defaults.baseURL);
   
@@ -68,12 +69,43 @@ export default function CheckAuth() {
     if (!token) return;
     try {
       const res = await useApi().get('/user');
-      // console.log('user info', res.data);
-      dispatch(setUser(res.data));
+      const email = (res.data?.email || user?.email || '').trim().toLowerCase();
+      let savedRole = null;
+      if (email) {
+        savedRole = await AsyncStorage.getItem(`@studify_role_${email}`);
+      }
+      
+      const isTl = res.data?.is_tl === 1 || res.data?.is_tl === true || res.data?.role === 'TL' || email.endsWith('@ce.du.ac.in');
+      const isIntern = res.data?.is_intern === 1 || res.data?.is_intern === true || isTl;
+      
+      const savedDept = await AsyncStorage.getItem('@studify_department');
+      dispatch(setUser({
+        ...res.data,
+        is_intern: isIntern && !isTl,
+        is_tl: isTl,
+        department: savedDept || res.data.department || user?.department,
+      }));
     } catch (err) {
       console.log('user info error', err);
     }
   };
+
+  useEffect(() => {
+    const wipeSpecificMails = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('@studify_cleared_akvishwa_v4');
+        if (!flag) {
+          if (user?.email === 'akvishwa28@ce.du.ac.in' || user?.email === 'akvishwa28@gmail.com') {
+            dispatch(setUserLogout());
+          }
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@ce.du.ac.in');
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@gmail.com');
+          await AsyncStorage.setItem('@studify_cleared_akvishwa_v4', 'done');
+        }
+      } catch (e) {}
+    };
+    wipeSpecificMails();
+  }, [user?.email, dispatch]);
 
   useEffect(() => {
     const requestPermissions = async () => {

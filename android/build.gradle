@@ -32,6 +32,26 @@ def apply16KBAlignment = { project ->
     project.android.defaultConfig.externalNativeBuild.ndkBuild {
         arguments "APP_LDFLAGS=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
     }
+    // Remove Sonatype snapshot repositories to avoid 504 Gateway Timeouts safely
+    if (state.executed) {
+        def toRemove = repositories.findAll { repo ->
+            repo instanceof MavenArtifactRepository && repo.url.toString().contains("sonatype")
+        }
+        toRemove.each { repo ->
+            println "Removing repository directly: ${repo.url}"
+            repositories.remove(repo)
+        }
+    } else {
+        afterEvaluate { prj ->
+            def toRemove = prj.repositories.findAll { repo ->
+                repo instanceof MavenArtifactRepository && repo.url.toString().contains("sonatype")
+            }
+            toRemove.each { repo ->
+                println "Removing repository afterEvaluate: ${repo.url}"
+                prj.repositories.remove(repo)
+            }
+        }
+    }
 }
 subprojects { subproject ->
     subproject.plugins.withId("com.android.library") { apply16KBAlignment(subproject) }

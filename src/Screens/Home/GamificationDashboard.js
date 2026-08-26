@@ -21,7 +21,10 @@ import {useNavigation} from '@react-navigation/native';
 import Micon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti} from '../../Components/Screen/Confetti';
 import FlashMessage from '../../Components/Screen/FlashMessage';
-import {claimReward} from '../../Redux/Slices/GamificationSlice';
+import {
+  claimReward,
+  getLocalDateString,
+} from '../../Redux/Slices/GamificationSlice';
 import {
   syncGamificationToFirebase,
   fetchGlobalLeaderboard,
@@ -144,18 +147,26 @@ export default function GamificationDashboard() {
   const theme = useTheme();
   const {colors} = theme;
 
-  const {xp, level, streak, streakHistory, badges, rewardsClaimed} =
-    useSelector(
-      state =>
-        state.gamification || {
-          xp: 0,
-          level: 1,
-          streak: 0,
-          streakHistory: [],
-          badges: [],
-          rewardsClaimed: [],
-        },
-    );
+  const {
+    xp,
+    level,
+    streak,
+    streakHistory,
+    badges,
+    rewardsClaimed,
+    lastBrainGymDate,
+  } = useSelector(
+    state =>
+      state.gamification || {
+        xp: 0,
+        level: 1,
+        streak: 0,
+        streakHistory: [],
+        badges: [],
+        rewardsClaimed: [],
+        lastBrainGymDate: null,
+      },
+  );
   const {user} = useSelector(state => state.initial);
   const gamificationState = useSelector(state => state.gamification);
 
@@ -220,15 +231,17 @@ export default function GamificationDashboard() {
             setGlobalLeaderboard(mapped);
           } else {
             // If API returns empty, just show current user
-            setGlobalLeaderboard([{
-              email: user.email,
-              name: user.fname ? `${user.fname} ${user.lname}` : 'You',
-              xp: xp,
-              avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
-              isUser: true,
-              level: level,
-              streak: streak,
-            }]);
+            setGlobalLeaderboard([
+              {
+                email: user.email,
+                name: user.fname ? `${user.fname} ${user.lname}` : 'You',
+                xp: xp,
+                avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
+                isUser: true,
+                level: level,
+                streak: streak,
+              },
+            ]);
           }
         } catch (err) {
           console.log('Error loading leaderboard:', err);
@@ -247,10 +260,10 @@ export default function GamificationDashboard() {
       ? globalLeaderboard
       : [
           {
-            email: user.email || 'you@studify.com',
-            name: user.fname ? `${user.fname} ${user.lname}` : 'You',
+            email: user?.email || 'you@studify.com',
+            name: user?.fname ? `${user.fname} ${user?.lname || ''}` : 'You',
             xp: xp,
-            avatar: (user.fname?.[0] || 'Y') + (user.lname?.[0] || ''),
+            avatar: (user?.fname?.[0] || 'Y') + (user?.lname?.[0] || ''),
             isUser: true,
             level: level,
             streak: streak,
@@ -566,6 +579,72 @@ export default function GamificationDashboard() {
               </Card.Content>
             </Card>
 
+            {/* Daily Brain Gym Card */}
+            <Card
+              style={[
+                styles.card,
+                {backgroundColor: theme.dark ? colors.surface : '#ffffff', opacity: 0.85},
+              ]}>
+              <Card.Content>
+                <View style={styles.streakHeader}>
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <View style={styles.streakHeadingCol}>
+                      <Micon name="brain" size={28} color="#008b8b" />
+                      <Text
+                        style={[
+                          styles.streakTitle,
+                          {color: colors.onSurface, marginLeft: 8},
+                        ]}>
+                        Daily Brain Gym
+                      </Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: 'rgba(16,185,129,0.15)',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                    }}>
+                      <Text style={{color: '#10b981', fontSize: 10, fontWeight: 'bold'}}>
+                        5 WORKOUT GAMES
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.streakDesc,
+                      {color: colors.onSurfaceVariant, marginTop: 4},
+                    ]}>
+                    Play Math Quest, Zip, Patches, Sudoku & Wend for daily XP rewards!
+                  </Text>
+                </View>
+
+                <View style={{marginTop: 15}}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('BrainGym')}
+                    style={[
+                      styles.claimBtn,
+                      {
+                        alignSelf: 'stretch',
+                        backgroundColor: '#008b8b',
+                        height: 48,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: 12,
+                        elevation: 2,
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.claimBtnText,
+                        {fontSize: 15, fontWeight: 'bold', color: '#ffffff'},
+                      ]}>
+                      Enter Brain Gym 🎮
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Card.Content>
+            </Card>
+
             {/* Consistency Rewards */}
             <View style={styles.sectionHeaderRow}>
               <Text style={[styles.sectionTitle, {color: colors.onBackground}]}>
@@ -749,7 +828,8 @@ export default function GamificationDashboard() {
                       styles.rankSummaryDesc,
                       {color: colors.onPrimaryContainer},
                     ]}>
-                    You are currently ranked #{userRank} globally. Keep learning to climb the ranks!
+                    You are currently ranked #{userRank} globally. Keep learning
+                    to climb the ranks!
                   </Text>
                 </View>
                 <View style={styles.rankBadgeCircle}>

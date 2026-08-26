@@ -8,12 +8,16 @@ const useApi = () => {
     const skipErrorFlash = params?.skipErrorFlash;
     const skipSuccessFlash = params?.skipSuccessFlash;
     try {
+      const BASE_URL = 'https://www.api.studifysuccess.com/api';
       const state = Store.getState();
       const token = state.initial?.token;
       
       let reqMethod = method;
       let reqHeaders = {
-        'bypass-tunnel-reminder': 'true'
+        'bypass-tunnel-reminder': 'true',
+        'ngrok-skip-browser-warning': 'true',
+        'zrok-skip-browser-warning': 'true',
+        'User-Agent': 'StudifyApp/1.0',
       };
       if (token) {
         reqHeaders['x-auth-token'] = token;
@@ -33,17 +37,17 @@ const useApi = () => {
       
       const response = await axios({
         method: reqMethod,
-        url: endpoint,
+        url: BASE_URL + endpoint,
         data: reqData,
         params: axiosParams,
         headers: reqHeaders,
       });
-      if (response.data.message && !skipSuccessFlash) {
-        FlashMessage({
-          message: response.data.message,
-          type: 'success',
-        });
-      }
+      // if (response.data.message && !skipSuccessFlash) {
+      //   FlashMessage({
+      //     message: response.data.message,
+      //     type: 'success',
+      //   });
+      // }
       return response.data;
     } catch (error) {
       if (!skipErrorFlash) {

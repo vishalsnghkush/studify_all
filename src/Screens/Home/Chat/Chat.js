@@ -8,6 +8,7 @@ import {
   Modal,
   StyleSheet,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {GiftedChat, Bubble, Send, InputToolbar} from 'react-native-gifted-chat';
@@ -23,7 +24,7 @@ import {
 } from '../../../Redux/Slices/ChatSlice';
 import Notifee from '@notifee/react-native';
 
-const Chat = ({route}) => {
+const Chat = ({route, navigation}) => {
   const {data} = route?.params || {};
   const {user} = useSelector(state => state.initial);
   const dispatch = useDispatch();
@@ -44,6 +45,21 @@ const Chat = ({route}) => {
   const unreadRef = useRef(data?.unread_count || 0);
 
   useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
+        <View style={{flexDirection: 'column', paddingLeft: 0, marginLeft: -10}}>
+          <Text style={{fontSize: 18, fontWeight: 'bold', color: '#100f0f'}}>
+            {data?.display_name || 'Chats'}
+          </Text>
+          {data?.is_group === 1 && data?.member_names ? (
+            <Text style={{fontSize: 12, color: '#666'}} numberOfLines={1}>
+              {data.member_names}
+            </Text>
+          ) : null}
+        </View>
+      ),
+    });
+    
     dispatch(onSelectGroup(data));
     Notifee.cancelDisplayedNotification(data?.chat_group_id?.toString());
     var newTopic;
@@ -151,8 +167,8 @@ const Chat = ({route}) => {
     );
 
     const mappedMessages = sortedChats.map(c => {
-      const senderId = c.sender_id;
-      const isCurrentUser = senderId === currentUserId;
+      const senderId = String(c.sender_id);
+      const isCurrentUser = senderId === String(currentUserId);
 
       let displayName = 'User';
       if (data?.is_group) {
@@ -174,7 +190,7 @@ const Chat = ({route}) => {
         },
         image:
           c.message_type === 'image' && c?.media_url
-            ? JSON.parse(c.media_url)
+            ? (() => { try { return JSON.parse(c.media_url); } catch { return []; } })()
             : [],
         video: c.message_type === 'video' ? c.media_url : undefined,
         docUrl: c.message_type === 'document' ? c.media_url : undefined,
@@ -202,10 +218,8 @@ const Chat = ({route}) => {
   const onSend = useCallback(
     async ({msgs = [], type, url}) => {
       try {
-        // if (!msgs.length) return;
         const {text} = msgs[0] || {};
         const trimmed = text?.trim() || null;
-        // if (!trimmed) return;
         const tempId = `temp-${Date.now()}`;
         let media = null;
         if (type === 'image') {
@@ -224,67 +238,103 @@ const Chat = ({route}) => {
         dispatch(addMessage(optimistic));
         messageIdsRef.current.add(tempId);
 
+        const msgText = text ? trimmed : ' ';
+        const msgMedia = text ? null : media;
+
+        // === Send via MQTT for real-time delivery (production broker also saves to DB) ===
         if (client?.isConnected()) {
-          const payload = JSON.stringify({
-            chat_group_id: data?.chat_group_id,
-            sender_id: currentUserId,
-            sender_name: user?.fname || user?.email || 'Intern',
-            receiver_id: data?.receiver_id,
-            message: text ? trimmed : ' ',
-            message_type: type,
-            media_url: text ? null : media,
-          });
-          const message = new Paho.MQTT.Message(payload);
-
-          if (data?.is_group) {
-            message.destinationName = `chat/${data?.chat_group_id}`;
-
-            Object.entries(members)?.forEach(([key, member]) => {
-              if (key !== user?.user_id) {
-                const notifi = new Paho.MQTT.Message(
-                  JSON.stringify({
-                    chat_group_id: `${data?.chat_group_id}`,
-                    receiver_id: `${key}`,
-                    message: trimmed || ' ',
-                    data: {
-                      chat_group_id: `${data?.chat_group_id}`,
-                      display_name: `${'group name'}` || 'New message',
-                      is_group: '1',
-                      receiver_id: `${key}`,
-                      screen: 'Chat',
-                    },
-                  }),
-                );
-                notifi.destinationName = `notification/${member?.user_id}`;
-                client.send(notifi);
-              }
+          try {
+            const payload = JSON.stringify({
+              chat_group_id: data?.chat_group_id,
+              sender_id: currentUserId,
+              sender_name: user?.fname || user?.email || 'Intern',
+              receiver_id: data?.receiver_id,
+              message: msgText,
+              message_type: type,
+              media_url: msgMedia,
+              created_at: new Date().toISOString(),
             });
-          } else {
-            message.destinationName = `chat/${[currentUserId, data?.receiver_id]
-              .sort()
-              .join('-')}`;
+            const message = new Paho.MQTT.Message(payload);
 
-            const notifi = new Paho.MQTT.Message(
-              JSON.stringify({
-                chat_group_id: `${data?.chat_group_id}`,
-                receiver_id: `${data.receiver_id}`,
-                message: trimmed || ' ',
-                data: {
+            if (data?.is_group) {
+              message.destinationName = `chat/${data?.chat_group_id}`;
+
+              // Send notifications to each group member
+              Object.entries(members)?.forEach(([key, memberName]) => {
+                if (String(key) !== String(user?.user_id)) {
+                  const notifi = new Paho.MQTT.Message(
+                    JSON.stringify({
+                      chat_group_id: `${data?.chat_group_id}`,
+                      receiver_id: `${key}`,
+                      message: trimmed || ' ',
+                      data: {
+                        chat_group_id: `${data?.chat_group_id}`,
+                        display_name: data?.display_name || 'Group',
+                        is_group: '1',
+                        receiver_id: `${key}`,
+                        screen: 'Chat',
+                      },
+                    }),
+                  );
+                  // FIX: key IS the user_id, not member.user_id
+                  notifi.destinationName = `notification/${key}`;
+                  client.send(notifi);
+                }
+              });
+            } else {
+              message.destinationName = `chat/${[currentUserId, data?.receiver_id]
+                .sort()
+                .join('-')}`;
+
+              const notifi = new Paho.MQTT.Message(
+                JSON.stringify({
                   chat_group_id: `${data?.chat_group_id}`,
-                  display_name: `${user?.fname}` || 'New message',
-                  is_group: '0',
-                  receiver_id: `${data?.receiver_id}`,
-                  screen: 'Chat',
-                },
-              }),
-            );
-            notifi.destinationName = `notification/${data?.receiver_id}`;
-            client.send(notifi);
+                  receiver_id: `${data.receiver_id}`,
+                  message: trimmed || ' ',
+                  data: {
+                    chat_group_id: `${data?.chat_group_id}`,
+                    display_name: `${user?.fname}` || 'New message',
+                    is_group: '0',
+                    receiver_id: `${data?.receiver_id}`,
+                    screen: 'Chat',
+                  },
+                }),
+              );
+              notifi.destinationName = `notification/${data?.receiver_id}`;
+              client.send(notifi);
+            }
+            client.send(message);
+          } catch (mqttErr) {
+            console.log('MQTT send failed, falling back to HTTP:', mqttErr);
+            // MQTT failed after we thought it was connected — save via HTTP
+            try {
+              await useApi().post('/chat/chats/send', {
+                chat_group_id: data?.chat_group_id,
+                receiver_id: data?.receiver_id,
+                message: msgText,
+                message_type: type,
+                media_url: msgMedia,
+              }, {skipSuccessFlash: true, skipErrorFlash: true});
+            } catch (httpErr) {
+              console.log('HTTP fallback also failed:', httpErr);
+            }
           }
-          client.send(message);
+        } else {
+          // === MQTT not connected — save to database via HTTP ===
+          try {
+            await useApi().post('/chat/chats/send', {
+              chat_group_id: data?.chat_group_id,
+              receiver_id: data?.receiver_id,
+              message: msgText,
+              message_type: type,
+              media_url: msgMedia,
+            }, {skipSuccessFlash: true, skipErrorFlash: true});
+          } catch (httpErr) {
+            console.log('HTTP send error:', httpErr);
+          }
         }
       } catch (e) {
-        console.log('MQTT send error', e);
+        console.log('onSend error', e);
       }
 
       setTimeout(() => {
@@ -293,7 +343,7 @@ const Chat = ({route}) => {
         } catch (e) {}
       }, 60);
     },
-    [client, data?.chat_group_id, dispatch],
+    [client, data, members, dispatch, currentUserId, user],
   );
 
   if (loading)
@@ -365,6 +415,33 @@ const Chat = ({route}) => {
               );
             }
             return null;
+          }}
+          onLongPress={(context, message) => {
+            // Only allow deleting own messages
+            if (String(message?.user?._id) === String(currentUserId) && message?._id !== 'unread-separator') {
+              Alert.alert(
+                'Delete Message',
+                'Do you want to delete this message?',
+                [
+                  {text: 'Cancel', style: 'cancel'},
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await useApi().remove(`/chat/chats/${message._id}`, {skipSuccessFlash: true});
+                        // Remove from local state
+                        const updated = messages.filter(m => m.id !== message._id);
+                        dispatch(setMessage(updated));
+                      } catch (err) {
+                        console.log('Delete message error:', err);
+                        Alert.alert('Error', 'Failed to delete message.');
+                      }
+                    },
+                  },
+                ],
+              );
+            }
           }}
           renderBubble={props => {
             const isLeft = props.position === 'left';

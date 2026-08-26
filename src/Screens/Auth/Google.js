@@ -38,12 +38,27 @@ const Google = ({ selectedRole }) => {
         brand: brand,
         model: model,
         androidVersion: androidVersion,
+        is_intern: selectedRole === 'intern',
+        is_tl: selectedRole === 'tl',
       });
       // console.log('profile updated', res);
       if (res.status == 200) {
+        const cleanEmail = (user.data?.user?.email || res.data?.user?.email || '').trim().toLowerCase();
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        let savedRole = await AsyncStorage.getItem(`@studify_role_${cleanEmail}`);
+
+        const isTl = res.data.user?.is_tl === 1 || res.data.user?.is_tl === true;
+        const isIntern = res.data.user?.is_intern === 1 || res.data.user?.is_intern === true;
+
+        if (cleanEmail) {
+          const finalRole = isTl ? 'tl' : isIntern ? 'intern' : 'student';
+          await AsyncStorage.setItem(`@studify_role_${cleanEmail}`, finalRole);
+        }
+
         const updatedUser = {
           ...res.data.user,
-          is_intern: selectedRole === 'intern',
+          is_intern: isIntern && !isTl,
+          is_tl: isTl,
         };
         dispatch(
           setUserLogin({

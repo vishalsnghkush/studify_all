@@ -1,5 +1,6 @@
 import React, {useRef, useEffect} from 'react';
 import {View, StyleSheet, Dimensions, Animated, Easing} from 'react-native';
+import {useSelector} from 'react-redux';
 
 const {width, height} = Dimensions.get('window');
 
@@ -57,7 +58,7 @@ const FloatingBlob = ({size, color, initialX, initialY, duration, delay}) => {
           backgroundColor: color,
           top: initialY,
           left: initialX,
-          opacity: 0.3,
+          opacity: 0.35,
           transform: [{translateY}, {translateX}, {scale}],
         },
       ]}
@@ -66,6 +67,18 @@ const FloatingBlob = ({size, color, initialX, initialY, duration, delay}) => {
 };
 
 const AnimatedBackground = () => {
+  const {isDark} = useSelector(state => state.initial);
+
+  if (isDark) {
+    return (
+      <View style={[styles.background, {backgroundColor: '#0F172A'}]}>
+        <FloatingBlob size={width * 1.2} color="#1E293B" initialX={-width * 0.4} initialY={-height * 0.2} duration={8000} delay={0} />
+        <FloatingBlob size={width} color="#0F766E" initialX={width * 0.3} initialY={height * 0.4} duration={7000} delay={1000} />
+        <FloatingBlob size={width * 1.1} color="#1E1B4B" initialX={-width * 0.2} initialY={height * 0.6} duration={9000} delay={500} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.background}>
       <FloatingBlob size={width * 1.2} color="#FFB6C1" initialX={-width * 0.4} initialY={-height * 0.2} duration={8000} delay={0} />
@@ -78,7 +91,7 @@ const AnimatedBackground = () => {
 const styles = StyleSheet.create({
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FFF5F7', // Very bright pinkish-white base
+    backgroundColor: '#FFF5F7',
     overflow: 'hidden',
   },
 });

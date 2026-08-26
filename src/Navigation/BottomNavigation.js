@@ -24,7 +24,9 @@ export default function BottomNavigation() {
   );
 
   useEffect(() => {
-    if (user?.is_intern || !user?.class) return;
+    if (user?.is_intern || !user?.class) {
+      return;
+    }
 
     const checkNewMessages = async () => {
       try {
@@ -97,7 +99,7 @@ export default function BottomNavigation() {
           name="GroupsOrForum"
           component={user?.is_intern ? Groups : DiscussionForum}
           options={{
-            title: user?.is_intern ? 'Chat' : 'Discussion',
+            title: 'Discussion',
             tabBarBadge: !user?.is_intern && hasUnreadDiscussion ? '•' : null,
             tabBarIcon: ({focused}) => (
               <Micon

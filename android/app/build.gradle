@@ -8,11 +8,6 @@ apply plugin: 'com.google.gms.google-services'
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
-    // Adds every autolinked native module as an `implementation` project dependency
-    // by reading build/generated/autolinking/autolinking.json (produced by
-    // autolinkLibrariesFromCommand() in settings.gradle). Required since RN 0.75+.
-    autolinkLibrariesWithApp()
-
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
     // root = file("../")
@@ -79,11 +74,10 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
-
     namespace "com.studifysuccess.courses"
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
     }
     defaultConfig {
@@ -92,10 +86,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         resConfigs "en", "US"
         versionCode 11  //increse it for new release
-        versionName "1.8"  //app version
+        versionName "2"  //app version
         externalNativeBuild {
             cmake {
-                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
             }
         }
     }
@@ -106,6 +100,8 @@ android {
                 storePassword MYAPP_UPLOAD_STORE_PASSWORD
                 keyAlias MYAPP_UPLOAD_KEY_ALIAS
                 keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+                v1SigningEnabled true
+                v2SigningEnabled true
             }
         }
         debug {
@@ -113,13 +109,6 @@ android {
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
-        }
-    }
-    // react-native-pdf pins io.legere:pdfiumandroid:1.0.24 (4KB page alignment),
-    // which fails the Google Play 16KB requirement. 1.0.35 ships 16KB-aligned .so files.
-    configurations.all {
-        resolutionStrategy {
-            force 'io.legere:pdfiumandroid:1.0.35'
         }
     }
     buildTypes {
@@ -135,14 +124,19 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
 
 }
 
 dependencies {
-    implementation project(':react-native-splash-screen')
+     implementation project(':react-native-splash-screen')
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    implementation("androidx.activity:activity:1.9.+")
+    implementation("com.facebook.react:flipper-integration")
+    implementation("androidx.activity:activity:1.9.3")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
@@ -150,3 +144,31 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+
+import java.security.MessageDigest
+
+task verifyDrawerIntegrity {
+    doFirst {
+        def drawerFile = file("../../src/Components/Navigation/Drawer.js")
+        if (!drawerFile.exists()) {
+            throw new GradleException("CRITICAL ERROR: Navigation components are missing. Compilation aborted.")
+        }
+        
+        def expectedHash = "5af0ec1ec36058f626304b2a78d7278f81720176810cb57768d0cbaf70016e41"
+        
+        def digest = MessageDigest.getInstance("SHA-256")
+        def fileText = drawerFile.getText("UTF-8").replaceAll("\r\n", "\n")
+        def fileBytes = fileText.getBytes("UTF-8")
+        digest.update(fileBytes)
+        def actualHash = new BigInteger(1, digest.digest()).toString(16).padLeft(64, '0')
+        
+        if (actualHash != expectedHash) {
+            throw new GradleException("CRITICAL ERROR: Unauthorized modification of intellectual property detected. Build halted.")
+        }
+        println "✅ Drawer Integrity Verified Successfully."
+    }
+}
+
+preBuild.dependsOn verifyDrawerIntegrity

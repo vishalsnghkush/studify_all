@@ -9,27 +9,25 @@ import {
   fetchGlobalLeaderboard,
   fetchUserRank,
 } from '../../Utils/GamificationSync';
+import {CopilotStep, walkthroughable} from 'react-native-copilot';
 
-var myDate = new Date();
-var hrs = myDate.getHours();
-var greet;
-if (hrs < 12) {
-  greet = 'Good Morning 👋';
-} else if (hrs >= 12 && hrs <= 17) {
-  greet = 'Good Afternoon 👋';
-} else if (hrs >= 17 && hrs <= 24) {
-  greet = 'Good Evening 👋';
-} else {
-  greet = 'Welcome 👋';
-}
+// Moved inside component to fix stale date
 
-const HomeHeader = () => {
+const CopilotView = walkthroughable(View);
+
+const HomeHeader = ({onHelpPress}) => {
   const navigation = useNavigation();
   const {user} = useSelector(state => state.initial);
   const {streak, xp, level} = useSelector(
     state => state.gamification || {streak: 0, xp: 0, level: 1},
   );
   const theme = useTheme();
+
+  const hrs = new Date().getHours();
+  let greet = 'Welcome 👋';
+  if (hrs < 12) greet = 'Good Morning 👋';
+  else if (hrs >= 12 && hrs < 17) greet = 'Good Afternoon 👋';
+  else if (hrs >= 17 && hrs <= 24) greet = 'Good Evening 👋';
 
   // Dynamic user rank calculation from Firebase
   const [userRank, setUserRank] = useState(1);
@@ -39,10 +37,14 @@ const HomeHeader = () => {
     const loadRank = async () => {
       try {
         const rank = await fetchUserRank(xp);
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setUserRank(rank);
       } catch (err) {
-        if (active) setUserRank(1);
+        if (active) {
+          setUserRank(1);
+        }
       }
     };
     loadRank();
@@ -76,20 +78,45 @@ const HomeHeader = () => {
             </Text>
           </View>
         </View>
-        <IconButton
-          icon="bell"
-          color="white"
-          size={23}
-          onPress={() => {
-            navigation.navigate('Notifications');
-          }}
-        />
+
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          {onHelpPress && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onHelpPress}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : '#f0f4f4',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 2,
+              }}>
+              <Micon
+                name="help-circle-outline"
+                size={22}
+                color={theme.dark ? '#ffffff' : theme.colors.primary}
+              />
+            </TouchableOpacity>
+          )}
+          <CopilotStep text="📣 All your updates, reminders & alerts land here. Never miss a beat!" order={1} name="bellIcon">
+          <CopilotView>
+            <IconButton
+              icon="bell"
+              color="white"
+              size={23}
+              onPress={() => {
+                navigation.navigate('Notifications');
+              }}
+            />
+          </CopilotView>
+          </CopilotStep>
+        </View>
       </View>
 
       {/* Gamification Mini-Stats Bar */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate('GamificationDashboard')}
+      <View
         style={[
           styles.statsBar,
           {
@@ -101,12 +128,15 @@ const HomeHeader = () => {
               : 'rgba(0,139,139,0.15)',
           },
         ]}>
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('GamificationDashboard')}
+          style={styles.statItem}>
           <Micon name="lightning-bolt" size={18} color="#eab308" />
           <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
             Lvl <Text style={styles.statVal}>{level || 1}</Text> ({xp || 0} XP)
           </Text>
-        </View>
+        </TouchableOpacity>
         <View
           style={[
             styles.separator,
@@ -117,22 +147,47 @@ const HomeHeader = () => {
             },
           ]}
         />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('GamificationDashboard')}
+          style={styles.statItem}>
           <Micon name="trophy" size={16} color="#fbbf24" />
           <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
             Rank: <Text style={styles.statVal}>#{userRank}</Text>
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <View
+          style={[
+            styles.separator,
+            {
+              backgroundColor: theme.dark
+                ? 'rgba(255,255,255,0.15)'
+                : 'rgba(0,0,0,0.1)',
+            },
+          ]}
+        />
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('FocusSpace')}
+          style={styles.statItem}>
+          <Micon name="timer-sand" size={16} color="#008b8b" />
+          <Text style={[styles.statText, {color: theme.colors.onSurface}]}>
+            Focus
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Search')}>
-        <View pointerEvents="none">
-          <Searchbar
-            placeholder="Search"
-            style={{marginTop: 8}}
-          />
-        </View>
-      </TouchableOpacity>
+      <CopilotStep text="🔍 Lost? Just search it. Notes, tests, topics: we've got you." order={2} name="searchBar">
+      <CopilotView>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Search')}>
+          <View pointerEvents="none">
+            <Searchbar placeholder="Search" style={{marginTop: 8}} />
+          </View>
+        </TouchableOpacity>
+      </CopilotView>
+      </CopilotStep>
     </View>
   );
 };

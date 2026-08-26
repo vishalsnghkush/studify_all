@@ -12,6 +12,9 @@ import {
 import {useTheme, Card, Checkbox} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import RazorpayCheckout from 'react-native-razorpay';
+import {useSelector} from 'react-redux';
+import useApi from '../../Components/Api/Api';
 
 // Core UI imports from the project
 import Screen from '../../Components/Screen/Screen';
@@ -57,13 +60,13 @@ const serviceItems = [
 ];
 
 const schoolClassList = [
-  {label: 'Class 6th', value: 'Class 6th'},
-  {label: 'Class 7th', value: 'Class 7th'},
-  {label: 'Class 8th', value: 'Class 8th'},
-  {label: 'Class 9th', value: 'Class 9th'},
-  {label: 'Class 10th', value: 'Class 10th'},
-  {label: 'Class 11th', value: 'Class 11th'},
-  {label: 'Class 12th', value: 'Class 12th'},
+  {label: 'Class 6th (Aster)', value: 'Class 6th (Aster)'},
+  {label: 'Class 7th (Aster)', value: 'Class 7th (Aster)'},
+  {label: 'Class 8th (Aster)', value: 'Class 8th (Aster)'},
+  {label: 'Class 9th (Nebula)', value: 'Class 9th (Nebula)'},
+  {label: 'Class 10th (Nebula)', value: 'Class 10th (Nebula)'},
+  {label: 'Class 11th (Nova)', value: 'Class 11th (Nova)'},
+  {label: 'Class 12th (Nova)', value: 'Class 12th (Nova)'},
   {label: 'After 10th (Stream Choose)', value: 'After 10th (Stream Choose)'},
   {label: 'After 12th (Career Choose)', value: 'After 12th (Career Choose)'},
 ];
@@ -114,7 +117,7 @@ const Counselling = () => {
     rcode: '',
   });
 
-  const updateFormValue = (name, value) => {
+  const updateFormValue = ({name, value}) => {
     setForm(prev => ({...prev, [name]: value}));
   };
 
@@ -160,7 +163,11 @@ const Counselling = () => {
     }
   };
 
-  const handleBookingSubmit = () => {
+  const user = useSelector(state => state.initial.user);
+  const { post } = useApi();
+  const [bookingPaying, setBookingPaying] = useState(false);
+
+  const handleBookingSubmit = async () => {
     const {classOrYear, fname, email, mobile, state, rcode} = form;
     if (!classOrYear || !fname || !mobile) {
       Alert.alert(
@@ -180,24 +187,61 @@ const Counselling = () => {
       return;
     }
 
-    const message = `Hi Studifysuccess! I want to book a Guided Counselling Session.\n\nHere are my details:\n👤 Name: ${fname}\n🎓 Category: ${studentType}\n📚 ${
-      studentType === 'School Student' ? 'Class' : 'Year'
-    }: ${classOrYear}\n📧 Email: ${
-      email || 'Not Provided'
-    }\n📞 Phone: ${mobile}\n📍 State: ${
-      state || 'Not Provided'
-    }\n🎟️ Referral Code: ${
-      rcode || 'None'
-    }\n\nPlease confirm my booking. Thanks!`;
-    const whatsappUrl = `https://wa.me/918447186881?text=${encodeURIComponent(
-      message,
-    )}`;
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert(
-        'Error',
-        'WhatsApp not found. Contact +91 8447186881 directly.',
-      );
-    });
+    setBookingPaying(true);
+    const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v';
+    const PRICE = 149;
+
+    const options = {
+      description: 'Career Counselling Booking',
+      image: 'https://www.studifysuccess.com/images/logo.png',
+      currency: 'INR',
+      key: RAZORPAY_KEY,
+      amount: PRICE * 100,
+      name: 'StudifySuccess',
+      prefill: {
+        email: email || user?.email || '',
+        contact: mobile || (user?.phone ? String(user.phone) : ''),
+        name: fname || `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'User',
+      },
+      theme: { color: '#3F51B5' },
+    };
+
+    try {
+      const data = await RazorpayCheckout.open(options);
+      await post('/payment/unlock-item', {
+        item_key: 'counselling_booking',
+        title: 'Career Counselling Session',
+        amount: PRICE,
+        payment_id: data.razorpay_payment_id,
+      });
+
+      Alert.alert('Payment Successful! 🎉', 'Your Guided Counselling Session has been booked!');
+
+      const message = `Hi Studifysuccess! I have paid ₹${PRICE} for Guided Counselling Session.\n\nPayment ID: ${data.razorpay_payment_id}\n\nDetails:\n👤 Name: ${fname}\n🎓 Category: ${studentType}\n📚 ${
+        studentType === 'School Student' ? 'Class' : 'Year'
+      }: ${classOrYear}\n📧 Email: ${
+        email || 'Not Provided'
+      }\n📞 Phone: ${mobile}\n📍 State: ${
+        state || 'Not Provided'
+      }\n🎟️ Referral Code: ${
+        rcode || 'None'
+      }`;
+      const whatsappUrl = `https://wa.me/918447186881?text=${encodeURIComponent(
+        message,
+      )}`;
+      Linking.openURL(whatsappUrl).catch(() => {
+        Alert.alert(
+          'Error',
+          'WhatsApp not found. Contact +91 8447186881 directly.',
+        );
+      });
+    } catch (err) {
+      if (err?.code !== 2) {
+        Alert.alert('Payment Cancelled/Failed', err?.description || err?.message || 'The checkout sheet closed.');
+      }
+    } finally {
+      setBookingPaying(false);
+    }
   };
 
   return (
@@ -402,7 +446,7 @@ const Counselling = () => {
                   ]}
                   onPress={() => {
                     setStudentType('School Student');
-                    updateFormValue('classOrYear', '');
+                    updateFormValue({name: 'classOrYear', value: ''});
                   }}>
                   <Text
                     size="small"
@@ -425,7 +469,7 @@ const Counselling = () => {
                   ]}
                   onPress={() => {
                     setStudentType('College Student');
-                    updateFormValue('classOrYear', '');
+                    updateFormValue({name: 'classOrYear', value: ''});
                   }}>
                   <Text
                     size="small"

@@ -22,6 +22,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Confetti, MiniBurst} from '../../Components/Screen/Confetti';
 import {useDispatch} from 'react-redux';
 import {triggerActivity} from '../../Redux/Slices/GamificationSlice';
+import Notifee, { TimestampTrigger, TriggerType } from '@notifee/react-native';
 
 // Helper: Format date key for storage (YYYY-MM-DD)
 const formatDateKey = date => {
@@ -110,6 +111,8 @@ const StudyPlanner = () => {
     return d;
   });
 
+  const [smartNudgeTopic, setSmartNudgeTopic] = useState(null);
+
   // Load Data
   const loadData = useCallback(async () => {
     try {
@@ -118,6 +121,13 @@ const StudyPlanner = () => {
         setSlots(JSON.parse(storedSlots));
       } else {
         setSlots([]);
+      }
+      
+      const failedTop = await AsyncStorage.getItem('@studify_last_failed_topic');
+      if (failedTop) {
+        setSmartNudgeTopic(JSON.parse(failedTop));
+      } else {
+        setSmartNudgeTopic(null);
       }
     } catch (e) {
       console.log('Failed to load study planner data', e);
@@ -210,6 +220,29 @@ const StudyPlanner = () => {
     const updated = [...slots, newSlot];
     setSlots(updated);
     saveSlots(updated);
+
+    const triggerDate = new Date(selectedDate);
+    triggerDate.setHours(slotStart.getHours());
+    triggerDate.setMinutes(slotStart.getMinutes());
+    triggerDate.setSeconds(0);
+    
+    // Only schedule if it's in the future
+    if (triggerDate.getTime() > Date.now()) {
+      Notifee.createTriggerNotification(
+        {
+          title: `Study Reminder: ${slotSubj.trim()}`,
+          body: `It's time to study ${slotTopic.trim()}! Let's go! 🚀`,
+          android: {
+            channelId: 'default',
+            smallIcon: 'ic_launcher',
+          },
+        },
+        {
+          type: TriggerType.TIMESTAMP,
+          timestamp: triggerDate.getTime(),
+        }
+      ).catch(err => console.log('Notification schedule error:', err));
+    }
 
     // Reset Form
     setSlotSubj('');
@@ -450,6 +483,44 @@ const StudyPlanner = () => {
       {/* Tab 1: Daily Scheduler Timeline */}
       {activeTab === 'planner' && (
         <ScrollView style={styles.contentContainer}>
+          {smartNudgeTopic && (
+            <View
+              style={{
+                backgroundColor: theme.dark ? 'rgba(103, 58, 183, 0.15)' : '#ede7f6',
+                borderLeftWidth: 4,
+                borderLeftColor: '#673ab7',
+                padding: 12,
+                borderRadius: 8,
+                marginBottom: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              <Icon name="brain" size={24} color="#673ab7" style={{marginRight: 12}} />
+              <View style={{flex: 1}}>
+                <Text style={{fontWeight: 'bold', fontSize: 13, color: '#673ab7'}}>Smart Suggestion</Text>
+                <Text style={{fontSize: 12, color: theme.colors.onSurface, marginTop: 2}}>
+                  You recently struggled with <Text style={{fontWeight: 'bold'}}>{smartNudgeTopic.topic}</Text>. Schedule a revision slot today!
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setSlotSubj(smartNudgeTopic.subject);
+                  setSlotTopic(smartNudgeTopic.topic);
+                  setSlotPriority('High');
+                  setSlotModalVisible(true);
+                }}
+                style={{
+                  backgroundColor: '#673ab7',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  marginLeft: 10,
+                }}>
+                <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.sectionHeader}>
             <View>
               <Text

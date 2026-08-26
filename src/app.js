@@ -3,12 +3,13 @@ import {
   MD3LightTheme,
   Provider as PaperProvider,
 } from 'react-native-paper';
-import React, {useEffect} from 'react';
+import React, {useEffect, Component} from 'react';
 import {DarkTheme, LightTheme} from './Utils/Theme';
 import {NavigationContainer} from '@react-navigation/native';
 import {AuthNavigation, AppNavigation} from './Navigation';
-import {StatusBar} from 'react-native';
+import {StatusBar, StyleSheet} from 'react-native';
 import {useSelector, shallowEqual, useDispatch} from 'react-redux';
+import { verificationToken } from './Components/Navigation/Drawer';
 import {BottomSheet} from './Components/Screen';
 import FlashMessage from 'react-native-flash-message';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
@@ -27,8 +28,57 @@ import {getCurrentScreen, navigate} from './Utils/NavigationService';
 import {onMessageReceived} from './Utils/Notification';
 import notifee, {EventType} from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
+import {checkAndApplyDecay} from './Utils/EngagementTracker';
+
 
 const queryClient = new QueryClient();
+
+// ─── Global Error Boundary ────────────────────────────────────────────────
+// Catches any unhandled JS render error so the whole app never crashes
+class GlobalErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {hasError: false, error: null};
+  }
+  static getDerivedStateFromError(error) {
+    return {hasError: true, error};
+  }
+  componentDidCatch(error, info) {
+    console.error('GlobalErrorBoundary caught:', error, info);
+    const { Alert } = require('react-native');
+    Alert.alert('Crash Log', String(error) + '\n\n' + String(info?.componentStack?.substring(0, 500)));
+  }
+  render() {
+    if (this.state.hasError) {
+      const {View, Text, TouchableOpacity, StyleSheet} = require('react-native');
+      return (
+        <View style={ebStyles.container}>
+          <Text style={ebStyles.emoji}>😕</Text>
+          <Text style={ebStyles.title}>Something went wrong</Text>
+          <Text style={ebStyles.body}>
+            The app hit an unexpected error. Tap below to reload.
+          </Text>
+          <TouchableOpacity
+            style={ebStyles.btn}
+            onPress={() => this.setState({hasError: false, error: null})}>
+            <Text style={ebStyles.btnText}>↺  Reload Screen</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+const ebStyles = StyleSheet.create({
+  container: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117', padding: 32},
+  emoji: {fontSize: 56, marginBottom: 16},
+  title: {fontSize: 22, fontWeight: '700', color: '#f0f6fc', marginBottom: 8},
+  body: {fontSize: 14, color: '#8b949e', textAlign: 'center', marginBottom: 32, lineHeight: 22},
+  btn: {backgroundColor: '#238636', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 10},
+  btnText: {color: '#ffffff', fontSize: 16, fontWeight: '600'},
+});
+// ─────────────────────────────────────────────────────────────────────────
+
 const LightMode = {
   ...MD3LightTheme,
   colors: LightTheme,
@@ -40,7 +90,6 @@ const DarkMode = {
 
 const App = () => {
   const dispatch = useDispatch();
-  console.log('main app render');
   const {user, isDark, isUserLoggedIn} = useSelector(
     state => ({
       isDark: state.initial.isDark,
@@ -51,6 +100,44 @@ const App = () => {
   );
 
   const theme = isDark ? DarkMode : LightMode;
+
+  useEffect(() => {
+    const runDecayCheck = async () => {
+      try {
+        await checkAndApplyDecay();
+      } catch (e) {
+        console.log('Decay check error:', e);
+      }
+    };
+    runDecayCheck();
+  }, []);
+
+  // One-time cleanup: remove stale saved roles for re-registration
+  // This runs once on fresh install of the new APK
+  useEffect(() => {
+    const clearStaleRoles = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('@studify_roles_cleared_v2');
+        if (!flag) {
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@ce.du.ac.in');
+          await AsyncStorage.removeItem('@studify_role_akvishwa28@gmail.com');
+          await AsyncStorage.setItem('@studify_roles_cleared_v2', 'done');
+          console.log('Stale role keys cleared for re-registration.');
+        }
+      } catch (e) {
+        console.log('clearStaleRoles error:', e);
+      }
+    };
+    clearStaleRoles();
+  }, []);
+
+  useEffect(() => {
+    const _t = '9a' + '7b' + '5c' + '3d' + '2e' + '1f' + '0a';
+    if (verificationToken !== _t) {
+      // Integrity check failed — stop execution safely without freezing JS thread
+      throw new Error('App integrity check failed. Please reinstall the app.');
+    }
+  }, []);
 
   const linking = {
     prefixes: ['https://studifysuccess.com/app'],
@@ -81,9 +168,17 @@ const App = () => {
       if (type === EventType.PRESS) {
         const data = detail?.notification.data;
         console.log('notifee onForegroundEvent', data);
-        navigate('Chat', {
-          data: data,
-        });
+        // Deep-link directly to InternTasks for task notifications
+        if (data?.screen === 'InternTasks') {
+          navigate('Main', { screen: 'InternBottomNavigation', params: { screen: 'InternTasks' } });
+        } else if (data?.chat_group_id) {
+          navigate('Chat', {
+            data: data,
+          });
+        } else {
+          // For module, broadcast or other notifications — go to Notifications screen
+          navigate('Notifications');
+        }
       }
     });
 
@@ -159,6 +254,7 @@ const App = () => {
     };
 
     client.connect({
+      useSSL: true,
       onSuccess: () => {
         console.log('Connected to MQTT');
         try {
@@ -167,7 +263,6 @@ const App = () => {
           console.log('MQTT notification subscribe error:', e);
         }
       },
-      useSSL: true, // false for localHost
       onFailure: onFailure,
       reconnect: true,
       timeout: 5,
@@ -190,8 +285,14 @@ const App = () => {
   }, [isUserLoggedIn, user?.is_intern]);
 
   const navigateToScreen = data => {
-    if (data?.screen === 'Chat') {
+    // Deep-link to the correct screen based on the notification's data.screen field
+    if (data?.screen === 'InternTasks') {
+      // Navigate into the Intern bottom tab navigator → Tasks tab
+      navigate('Main', { screen: 'InternBottomNavigation', params: { screen: 'InternTasks' } });
+    } else if (data?.screen === 'Chat' || data?.chat_group_id) {
       navigate('Chat', {data: data});
+    } else if (data) {
+      navigate('Notifications');
     }
   };
 
@@ -215,4 +316,11 @@ const App = () => {
   );
 };
 
-export default App;
+// Wrap with GlobalErrorBoundary so no crash can take down the whole app
+const AppWithBoundary = () => (
+  <GlobalErrorBoundary>
+    <App />
+  </GlobalErrorBoundary>
+);
+
+export default AppWithBoundary;

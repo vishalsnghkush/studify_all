@@ -1,6 +1,14 @@
 import {CardStyleInterpolators} from '@react-navigation/stack';
 import DrawerNavigation from './DrawerNavigation';
+import InternDrawerNavigation from './InternDrawerNavigation';
+import TLDrawerNavigation from './TLDrawerNavigation';
 import React, {lazy} from 'react';
+import {View, Text} from 'react-native';
+import {useSelector} from 'react-redux';
+import InternAiHub from '../Screens/Home/Intern/InternAiHub';
+import InternLearningHub from '../Screens/Home/Intern/InternLearningHub';
+import InternReports from '../Screens/Home/Intern/InternReports';
+import FounderDashboard from '../Screens/Home/Founder/FounderDashboard';
 import {
   Profile,
   EditProfile,
@@ -23,7 +31,14 @@ import {
   Careers,
   Activities,
   Counselling,
+  VoiceNotebook,
+  AiNotesGenerator,
+  AiFlashcards,
+  AiLecturePlayer,
+  BrainGym,
 } from '../Screens/Home';
+import FocusSpace from '../Screens/Home/FocusSpace';
+import Analysis from '../Screens/Home/Analysis';
 import Meet from '../Screens/Home/Meet';
 import Appreport from '../Screens/Home/Appreport';
 
@@ -31,18 +46,21 @@ import {AppBar} from '../Components/Navigation';
 import {createStackNavigator} from '@react-navigation/stack';
 import NoInternet from '../Screens/Home/NoInternet';
 import FreeNotes from '../Screens/Home/Notes/FreeNotes';
+import Lectures from '../Screens/Home/Notes/Lectures';
+import LecturePlayer from '../Screens/Home/Notes/LecturePlayer';
 import NcertSolutions from '../Screens/Home/Notes/NcertSolutions';
 import ImportantQuestions from '../Screens/Home/Notes/ImportantQuestions';
 import OnlineQuiz from '../Screens/Home/Notes/OnlineQuiz';
 import Keywords from '../Screens/Home/Notes/Keywords';
 import Pdf from '../Screens/Home/Notes/Pdf';
 import Internship from '../Screens/Home/User/Internship';
-const Groups = lazy(() => import('../Screens/Home/Chat/Groups'));
-const Chat = lazy(() => import('../Screens/Home/Chat/Chat'));
+import Groups from '../Screens/Home/Chat/Groups';
+import Chat from '../Screens/Home/Chat/Chat';
 
 const Stack = createStackNavigator();
 
 const AppNavigation = () => {
+  const {user} = useSelector(state => state.initial);
   return (
     <Stack.Navigator
       screenOptions={{
@@ -50,9 +68,43 @@ const AppNavigation = () => {
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
       }}>
       <Stack.Screen
+        key={user?.is_tl === true ? 'tl_stack' : user?.is_intern === true ? 'intern_stack' : 'student_stack'}
         options={{headerShown: false}}
         name="Main"
-        component={DrawerNavigation}
+        component={
+          user?.is_tl === true
+            ? TLDrawerNavigation
+            : user?.is_intern === true
+            ? InternDrawerNavigation
+            : DrawerNavigation
+        }
+      />
+      <Stack.Screen
+        name="InternAiHub"
+        component={InternAiHub}
+        options={{
+          title: 'AI Productivity Hub',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="InternLearningHub"
+        component={InternLearningHub}
+        options={{
+          title: 'Learning & Training',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="InternReports"
+        component={InternReports}
+        options={{
+          title: 'EOD & Reports',
+          headerStyle: { backgroundColor: '#007171' },
+          headerTintColor: '#ffffff',
+        }}
       />
       <Stack.Screen name="Profile" component={Profile} />
       <Stack.Screen
@@ -131,6 +183,16 @@ const AppNavigation = () => {
         options={{title: 'YouTube Notes'}}
       />
       <Stack.Screen
+        name="Lectures"
+        component={Lectures}
+        options={{title: 'Lectures'}}
+      />
+      <Stack.Screen
+        name="LecturePlayer"
+        component={LecturePlayer}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
         name="NcertSolutions"
         component={NcertSolutions}
         options={{headerShown: false}}
@@ -166,6 +228,12 @@ const AppNavigation = () => {
         component={StudyPlanner}
         options={{title: 'Study Planner & Tasks'}}
       />
+
+      <Stack.Screen
+        name="AiFlashcards"
+        component={AiFlashcards}
+        options={{headerShown: false}}
+      />
       <Stack.Screen
         name="ClassNotesSelector"
         component={ClassNotesSelector}
@@ -184,6 +252,11 @@ const AppNavigation = () => {
       <Stack.Screen
         name="GamificationDashboard"
         component={GamificationDashboard}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="FounderDashboard"
+        component={FounderDashboard}
         options={{headerShown: false}}
       />
       <Stack.Screen
@@ -213,6 +286,52 @@ const AppNavigation = () => {
         options={{
           title: 'Counselling System',
         }}
+      />
+      <Stack.Screen
+        name="VoiceNotebook"
+        component={VoiceNotebook}
+        options={{
+          title: 'Voice Notebook',
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="AiNotesGenerator"
+        component={AiNotesGenerator}
+        options={{
+          title: 'AI Study Notes Generator',
+          headerStyle: {
+            backgroundColor: '#007171',
+          },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <Stack.Screen
+        name="AiLecturePlayer"
+        component={AiLecturePlayer}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="FocusSpace"
+        component={FocusSpace}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Analysis"
+        component={Analysis}
+        options={{
+          title: 'Performance Analyzer',
+        }}
+      />
+      <Stack.Screen
+        name="BrainGym"
+        component={BrainGym}
+        options={{headerShown: false}}
       />
       <Stack.Screen
         name="Chat"

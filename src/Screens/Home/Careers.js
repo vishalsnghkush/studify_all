@@ -8,14 +8,21 @@ import {
   Image,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import {useTheme, Card} from 'react-native-paper';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {useSelector} from 'react-redux';
+import RazorpayCheckout from 'react-native-razorpay';
+import useApi from '../../Components/Api/Api';
 
 // Core UI imports from the project
 import Screen from '../../Components/Screen/Screen';
 import Text from '../../Components/Input/Text';
+
+const PRICE = 149;
+const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v'; // User's active test key
 
 const {width} = Dimensions.get('window');
 
@@ -29,9 +36,109 @@ const phrases = [
 const Careers = () => {
   const navigation = useNavigation();
   const {colors} = useTheme();
+  const {user} = useSelector(state => state.initial);
+  const {get, post} = useApi();
   const scrollViewRef = useRef(null);
   const categoriesGridRef = useRef(null);
   const [categoriesYPosition, setCategoriesYPosition] = useState(0);
+  const [resumeUnlocked, setResumeUnlocked] = useState(false);
+  const [showResumePaywall, setShowResumePaywall] = useState(false);
+  const [resumePaying, setResumePaying] = useState(false);
+
+  useEffect(() => {
+    // Check resume purchase
+    const checkPurchases = async () => {
+      try {
+        const res = await get('/payment/my-purchases', {skipSuccessFlash: true, skipErrorFlash: true});
+        if (res && res.data && res.data.unlockedKeys) {
+          setResumeUnlocked(res.data.unlockedKeys.includes('resume_builder'));
+        }
+      } catch (e) {}
+    };
+    checkPurchases();
+  }, []);
+
+  const openResumeRazorPay = () => {
+    if (!RazorpayCheckout || !RazorpayCheckout.open) {
+      Alert.alert('RazorPay Error', 'RazorPay SDK module is not linked or initialized correctly in the app build.');
+      return;
+    }
+    setResumePaying(true);
+    try {
+      const options = {
+        name: 'StudifySuccess',
+        description: 'Resume Builder Access',
+        image: 'https://www.studifysuccess.com/images//apple-touch-icon.webp',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: PRICE * 100,
+        prefill: {
+          email: (user && user.email) || '',
+          contact: (user && user.phone && user.phone.length === 10) ? user.phone : '',
+        },
+        theme: {color: '#3b82f6'},
+      };
+
+      RazorpayCheckout.open(options)
+      .then(async (e) => {
+        try {
+          await post('/payment/unlock-item', {
+            item_key: 'resume_builder',
+            title: 'Resume Builder',
+            amount: PRICE,
+            payment_id: e.razorpay_payment_id,
+          });
+          setResumeUnlocked(true);
+          setShowResumePaywall(false);
+          openLink('https://careers.studifysuccess.com/resume-builder', 'Resume Builder');
+        } catch (err) {
+          Alert.alert('Unlock Error', err.message || 'Payment succeeded but failed to unlock content in database.');
+        }
+      })
+      .catch((error) => {
+        Alert.alert('Payment Cancelled/Failed', error.description || error.message || 'The checkout sheet closed.');
+      })
+      .finally(() => setResumePaying(false));
+    } catch (err) {
+      Alert.alert('Checkout Launch Error', err.message || 'An error occurred while launching RazorPay.');
+      setResumePaying(false);
+    }
+  };
+
+  const openPaidCareerFeature = async (title, url, price = 499) => {
+    try {
+      const RAZORPAY_KEY = 'rzp_test_TNciL5Zn3FHf5v';
+      const options = {
+        description: `${title} Access`,
+        image: 'https://www.studifysuccess.com/images/logo.png',
+        currency: 'INR',
+        key: RAZORPAY_KEY,
+        amount: price * 100,
+        name: 'StudifySuccess',
+        prefill: {
+          email: user?.email || '',
+          contact: user?.phone ? String(user.phone) : '',
+          name: `${user?.fname || ''} ${user?.lname || ''}`.trim() || 'User',
+        },
+        theme: { color: '#3F51B5' },
+      };
+
+      const data = await RazorpayCheckout.open(options);
+      await post('/payment/unlock-item', {
+        item_key: `career_${title.toLowerCase().replace(/\s+/g, '_')}`,
+        title: title,
+        amount: price,
+        payment_id: data.razorpay_payment_id,
+      });
+
+      Alert.alert('Payment Successful! 🎉', `Successfully unlocked ${title}!`);
+      openLink(url, title);
+    } catch (err) {
+      if (err?.code !== 2) {
+        Alert.alert('Payment Cancelled/Failed', err?.description || err?.message || 'The checkout sheet closed.');
+      }
+    }
+  };
 
   // Typing animation phrase cycler
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -271,15 +378,16 @@ const Careers = () => {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() =>
-                    openLink(
-                      'https://careers.studifysuccess.com/resume-builder',
-                      'Resume Builder',
-                    )
-                  }
+                  onPress={() => {
+                    if (resumeUnlocked) {
+                      openLink('https://careers.studifysuccess.com/resume-builder', 'Resume Builder');
+                    } else {
+                      setShowResumePaywall(true);
+                    }
+                  }}
                   style={[styles.heroPillBtn, {backgroundColor: '#3b82f6'}]}>
                   <Text size="small" style={styles.heroBtnText}>
-                    Resume ❯
+                    {resumeUnlocked ? 'Resume ❯' : '🔒 Resume ₹149'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -302,9 +410,10 @@ const Careers = () => {
           <View style={styles.bannerBottomLinks}>
             <TouchableOpacity
               onPress={() =>
-                openLink(
-                  'https://careers.studifysuccess.com/placement-guidance',
+                openPaidCareerFeature(
                   'Placement Guidance',
+                  'https://careers.studifysuccess.com/placement-guidance',
+                  499,
                 )
               }
               style={styles.bottomLinkItem}>
@@ -316,14 +425,15 @@ const Careers = () => {
               <Text
                 size="small"
                 style={[styles.bottomLinkText, {color: colors.onSurface}]}>
-                Placement
+                Placement (₹499)
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() =>
-                openLink(
+                openPaidCareerFeature(
+                  'Mock Interviews',
                   'https://careers.studifysuccess.com/mock-interview',
-                  'Mock Interview',
+                  499,
                 )
               }
               style={styles.bottomLinkItem}>
@@ -331,7 +441,7 @@ const Careers = () => {
               <Text
                 size="small"
                 style={[styles.bottomLinkText, {color: colors.onSurface}]}>
-                Mock Interviews
+                Mock Interviews (₹499)
               </Text>
             </TouchableOpacity>
           </View>
@@ -579,11 +689,77 @@ const Careers = () => {
             </TouchableOpacity>
           </Card>
 
+          {/* 5.5 FAMOUS JOB CAREER ROADMAPS (PRE-STORED) */}
+          <Card style={[styles.salesCard, {backgroundColor: colors.surface, marginVertical: 14}]}>
+            <Text size="medium" style={[styles.salesTitle, {color: colors.onSurface}]}>
+              🗺️ Famous Job Career Roadmaps
+            </Text>
+            <Text size="small" style={{color: colors.outline, fontSize: 11.5, marginBottom: 12}}>
+              Step-by-step pre-stored learning pathways for top industry roles
+            </Text>
+
+            {[
+              {
+                role: '💻 Software Engineer (Full Stack)',
+                duration: '6 Months Pathway',
+                steps: ['1. HTML/CSS & Modern JavaScript', '2. React Native & Node.js APIs', '3. SQL & MongoDB Database Design', '4. Git, CI/CD & Production Deployment'],
+                badge: 'High Demand 🔥',
+                badgeBg: '#E8F5E9',
+                badgeText: '#2E7D32',
+              },
+              {
+                role: '📊 Data Scientist & Analyst',
+                duration: '5 Months Pathway',
+                steps: ['1. Python, SQL & Data Wrangling', '2. PowerBI, Tableau & Visualizations', '3. Machine Learning Algorithms (Scikit-Learn)', '4. Capstone Portfolio & Real Datasets'],
+                badge: 'Trending ⚡',
+                badgeBg: '#E3F2FD',
+                badgeText: '#1565C0',
+              },
+              {
+                role: '🎨 UI/UX Product Designer',
+                duration: '4 Months Pathway',
+                steps: ['1. Design Systems & Visual Principles', '2. Figma Wireframing & Prototyping', '3. User Research & Usability Testing', '4. Complete UX Case Study Portfolio'],
+                badge: 'Creative ✨',
+                badgeBg: '#F3E5F5',
+                badgeText: '#7B1FA2',
+              },
+              {
+                role: '📣 Digital Marketing Specialist',
+                duration: '3 Months Pathway',
+                steps: ['1. SEO, Content Marketing & Copywriting', '2. Meta Ads & Google Ads Mastery', '3. Google Analytics & Conversion Funnels', '4. Live Client Marketing Campaigns'],
+                badge: 'Popular 🎯',
+                badgeBg: '#FFF3E0',
+                badgeText: '#E65100',
+              },
+            ].map((rm, idx) => (
+              <View key={idx} style={{backgroundColor: colors.elevation?.level1 || '#F8F9FA', padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: colors.outlineVariant || '#E0E0E0'}}>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6}}>
+                  <Text size="small" style={{fontWeight: 'bold', color: colors.onSurface, fontSize: 13, flex: 1}}>
+                    {rm.role}
+                  </Text>
+                  <View style={{backgroundColor: rm.badgeBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6}}>
+                    <Text size="small" style={{color: rm.badgeText, fontSize: 10, fontWeight: 'bold'}}>
+                      {rm.badge}
+                    </Text>
+                  </View>
+                </View>
+                <Text size="small" style={{color: colors.primary, fontSize: 11, fontWeight: 'bold', marginBottom: 6}}>
+                  ⏱️ {rm.duration}
+                </Text>
+                {rm.steps.map((st, sIdx) => (
+                  <Text key={sIdx} size="small" style={{color: colors.onSurfaceVariant, fontSize: 11, marginVertical: 1, paddingLeft: 4}}>
+                    • {st}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </Card>
+
           {/* 6. PLACEMENT GUIDANCE */}
           <Card
             style={[styles.placementCard, {backgroundColor: colors.surface}]}>
             <Image
-              source={{uri: 'https://www.studifysuccess.com/images/pg.webp'}}
+              source={require('../../Assets/Images/placement_guidance.jpg')}
               style={styles.placementImage}
               resizeMode="contain"
             />
@@ -599,14 +775,15 @@ const Careers = () => {
             </Text>
             <TouchableOpacity
               onPress={() =>
-                openLink(
-                  'https://careers.studifysuccess.com/placement-guidance',
+                openPaidCareerFeature(
                   'Placement Guidance',
+                  'https://careers.studifysuccess.com/placement-guidance',
+                  499,
                 )
               }
               style={[styles.placementBtn, {backgroundColor: colors.primary}]}>
               <Text size="small" style={styles.placementBtnText}>
-                Register Now
+                Register Now (₹499)
               </Text>
             </TouchableOpacity>
           </Card>
@@ -635,6 +812,39 @@ const Careers = () => {
         </View>
         <View style={{height: 35}} />
       </ScrollView>
+
+      {/* Resume Paywall Modal */}
+      <Modal
+        visible={showResumePaywall}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowResumePaywall(false)}>
+        <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end'}}>
+          <View style={{backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, alignItems: 'center', paddingBottom: 40}}>
+            <TouchableOpacity style={{position: 'absolute', top: 16, right: 20, padding: 6}} onPress={() => setShowResumePaywall(false)}>
+              <Icon name="close" size={22} color="#555" />
+            </TouchableOpacity>
+            <View style={{width: 72, height: 72, borderRadius: 36, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 16, marginTop: 8}}>
+              <Icon name="file-account-outline" size={36} color="#3b82f6" />
+            </View>
+            <Text style={{fontSize: 13, color: '#3b82f6', fontWeight: 'bold', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase'}}>Premium Access</Text>
+            <Text style={{fontSize: 20, fontWeight: 'bold', color: '#1a1d1d', marginBottom: 10, textAlign: 'center'}}>Resume Builder</Text>
+            <Text style={{fontSize: 13, color: '#546e7a', textAlign: 'center', lineHeight: 20, marginBottom: 20}}>Build a professional resume that stands out. Unlock lifetime access with a one-time payment.</Text>
+            <View style={{flexDirection: 'row', alignItems: 'baseline', marginBottom: 22}}>
+              <Text style={{fontSize: 36, fontWeight: 'bold', color: '#1a1d1d'}}>₹149</Text>
+              <Text style={{fontSize: 14, color: '#546e7a'}}>  One-time</Text>
+            </View>
+            <TouchableOpacity
+              style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#3b82f6', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 30, elevation: 3, marginBottom: 16, opacity: resumePaying ? 0.6 : 1}}
+              onPress={openResumeRazorPay}
+              disabled={resumePaying}>
+              <Icon name="credit-card-outline" size={18} color="#fff" style={{marginRight: 8}} />
+              <Text style={{color: '#fff', fontSize: 16, fontWeight: 'bold'}}>{resumePaying ? 'Processing...' : 'Pay ₹149 & Unlock'}</Text>
+            </TouchableOpacity>
+            <Text style={{fontSize: 11, color: '#90a4ae', textAlign: 'center'}}>🔒 Secured by RazorPay · GPay · UPI · Cards</Text>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };

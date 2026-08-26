@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useRef, useEffect} from 'react';
+import React, {useState, useCallback, useRef, useEffect, useMemo} from 'react';
 import {
   Screen,
   BouncyButton,
@@ -13,7 +13,13 @@ import {
   Image,
   Animated,
   PanResponder,
+  Modal,
+  FlatList,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import useApi from '../../Components/Api/Api';
 import {Text} from '../../Components/Input';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -22,6 +28,32 @@ import {useTheme} from 'react-native-paper';
 import {useSelector, useDispatch} from 'react-redux';
 import {checkStreak} from '../../Redux/Slices/GamificationSlice';
 import {syncGamificationToFirebase} from '../../Utils/GamificationSync';
+import {getRecentNote, getTopEngagedSubjects, openRecentItem} from '../../Utils/EngagementTracker';
+import {formatSubjectForBoard} from '../../Utils/CurriculumConfig';
+import Notifee, { TriggerType, RepeatFrequency } from '@notifee/react-native';
+import {CopilotProvider, CopilotStep, walkthroughable, useCopilot} from 'react-native-copilot';
+import AIChatbot from '../../Components/AIChatbot';
+
+const CopilotView = walkthroughable(View);
+const copilotStartRef = {current: null};
+const TourStarter = () => {
+  const {start} = useCopilot();
+  copilotStartRef.current = start;
+  return null;
+};
+
+// Defined OUTSIDE component — static constant, never recreated on re-renders
+const STATIC_PHRASES = [
+  'Generate Notes 📚',
+  'Chapter Summary 🔍',
+  'NCERT Solutions 💡',
+  'Generate Questions ❓',
+  'Generate Quizzes 📝',
+  'Create Test ⚡',
+  'Create Assignment 📋',
+  'Doubts Solve 💬',
+  'Mind Maps 🧠',
+];
 
 const Home = () => {
   const navigation = useNavigation();
@@ -30,11 +62,25 @@ const Home = () => {
   const dispatch = useDispatch();
   const gamificationState = useSelector(state => state.gamification);
 
+  // Debounced Firebase sync ref to avoid firing on every small gamification state change
+  const syncDebounceRef = useRef(null);
   useEffect(() => {
     if (user && user.email && gamificationState) {
-      syncGamificationToFirebase(user, gamificationState);
+      // Debounce: only sync if no new changes arrive within 3 seconds
+      if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
+      syncDebounceRef.current = setTimeout(() => {
+        syncGamificationToFirebase(user, gamificationState);
+      }, 3000);
     }
-  }, [gamificationState, user]);
+    return () => {
+      if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
+    };
+  }, [
+    gamificationState && gamificationState.xp,
+    gamificationState && gamificationState.streak,
+    gamificationState && gamificationState.badges && gamificationState.badges.length,
+    user && user.email
+  ]);
 
   // Animations for AI Bot
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -50,17 +96,46 @@ const Home = () => {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const textOpacity = useRef(new Animated.Value(1)).current;
 
-  const phrases = [
-    'Generate Notes 📚',
-    'Chapter Summary 🔍',
-    'NCERT Solutions 💡',
-    'Generate Questions ❓',
-    'Generate Quizzes 📝',
-    'Create Test ⚡',
-    'Create Assignment 📋',
-    'Doubts Solve 💬',
-    'Mind Maps 🧠',
-  ];
+  const [personalPhrases, setPersonalPhrases] = useState(STATIC_PHRASES);
+  const [recentNote, setRecentNoteState] = useState(null);
+
+  // Dynamic Mascot phrases based on top subject and time
+  const loadMascotPhrases = async () => {
+    try {
+      const top = await getTopEngagedSubjects(1);
+      const hours = new Date().getHours();
+      let timeGreet = 'Study time!';
+      if (hours >= 5 && hours < 12) timeGreet = 'Morning focus!';
+      else if (hours >= 12 && hours < 17) timeGreet = 'Afternoon study!';
+      else if (hours >= 17 && hours < 22) timeGreet = 'Evening review!';
+      else timeGreet = 'Night quiz!';
+
+      let subName = '';
+      if (top && top.length > 0) {
+        subName = top[0].charAt(0).toUpperCase() + top[0].slice(1);
+      }
+
+      const defaultPhrases = [
+        'Generate Notes 📚',
+        'Chapter Summary 🔍',
+        'NCERT Solutions 💡',
+        'Generate Questions ❓',
+        'Create Test ⚡',
+      ];
+
+      const newPhrases = [...defaultPhrases];
+      if (subName) {
+        newPhrases.unshift(`Revise ${subName}! 🧠`);
+        newPhrases.unshift(`Let's study ${subName}! 📖`);
+      }
+      newPhrases.unshift(`${timeGreet} 🕒`);
+
+      setPersonalPhrases(newPhrases);
+    } catch (e) {
+      console.log('Error loading mascot phrases', e);
+    }
+  };
+
 
   // Dizzy & Expression animation refs and state
   const dizzyAnim = useRef(new Animated.Value(0)).current;
@@ -71,6 +146,221 @@ const Home = () => {
 
   const [isDizzy, setIsDizzy] = useState(false);
   const isAnimating = useRef(false);
+
+  // Mascot visibility toggle — persisted in AsyncStorage (ON by default)
+  const [showMascot, setShowMascot] = useState(true);
+  const [showChatModal, setShowChatModal] = useState(false);
+
+  // Native Chatbot State & Messaging API Integration
+  const { post: chatPost } = useApi();
+  const flatListRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 'welcome_1',
+      sender: 'ai',
+      text: '👋 Hello! Welcome to StudifySuccess. How can I help you today?',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatDebugLogs, setChatDebugLogs] = useState([]);
+  const [showChatDebug, setShowChatDebug] = useState(false);
+
+  const logChatDebug = (type, msg, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = { id: `${Date.now()}_${Math.random()}`, time: timestamp, type, message: msg, data: data ? JSON.stringify(data) : null };
+    setChatDebugLogs(prev => [logEntry, ...prev].slice(0, 30));
+    console.log(`[CHATBOT_DEBUG] [${type}] ${msg}`, data || '');
+  };
+
+  const handleSendNativeMessage = async () => {
+    const userText = inputMessage.trim();
+    if (!userText || chatLoading) return;
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg = {
+      id: `user_${Date.now()}`,
+      sender: 'user',
+      text: userText,
+      time: timestamp,
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    setInputMessage('');
+    setChatLoading(true);
+
+    logChatDebug('INFO', 'Sending message to /chatbot/chat', { text: userText, role: (user && user.role) || 'student', email: (user && user.email) || 'guest' });
+
+    // Retrieve local AsyncStorage data for student personalization
+    let recentNote = null;
+    let subjectEngagement = null;
+    let featureUsage = null;
+    let pinnedSubject = null;
+    let notebooks = null;
+    let savedNotes = null;
+    let testHistory = null;
+    let studyPlannerSlots = null;
+    let savedLectures = null;
+    let studySessionsHistory = null;
+    let notesReadHistory = null;
+    let examTarget = null;
+    let totalNotesPages = 0;
+    let weakTopic = null;
+    let weeklyGoals = null;
+    try {
+      const rawNote = await AsyncStorage.getItem('@studify_recent_note');
+      recentNote = rawNote ? JSON.parse(rawNote) : null;
+      
+      const rawEngage = await AsyncStorage.getItem('@studify_subject_engagement');
+      subjectEngagement = rawEngage ? JSON.parse(rawEngage) : null;
+
+      const rawFeature = await AsyncStorage.getItem('@studify_feature_usage');
+      featureUsage = rawFeature ? JSON.parse(rawFeature) : null;
+
+      pinnedSubject = await AsyncStorage.getItem('@studify_pinned_subject');
+
+      const rawNotebooks = await AsyncStorage.getItem('@voice_notebooks');
+      notebooks = rawNotebooks ? JSON.parse(rawNotebooks) : null;
+
+      if (notebooks && Array.isArray(notebooks)) {
+        for (const notebook of notebooks) {
+          const pagesData = await AsyncStorage.getItem(`@voice_notebook_pages_${notebook.id}`);
+          if (pagesData) {
+            totalNotesPages += JSON.parse(pagesData).length;
+          }
+        }
+      }
+
+      const rawSavedNotes = await AsyncStorage.getItem('@studify_saved_notes');
+      savedNotes = rawSavedNotes ? JSON.parse(rawSavedNotes) : null;
+
+      const rawTestHistory = await AsyncStorage.getItem('@studify_test_history');
+      testHistory = rawTestHistory ? JSON.parse(rawTestHistory) : null;
+
+      const rawSlots = await AsyncStorage.getItem('studify_slots');
+      studyPlannerSlots = rawSlots ? JSON.parse(rawSlots) : null;
+
+      const rawLectures = await AsyncStorage.getItem('@studify_saved_lectures');
+      savedLectures = rawLectures ? JSON.parse(rawLectures) : null;
+
+      const rawSessions = await AsyncStorage.getItem('@studify_study_sessions_history');
+      studySessionsHistory = rawSessions ? JSON.parse(rawSessions) : null;
+
+      const rawNotesRead = await AsyncStorage.getItem('@studify_notes_read_history');
+      notesReadHistory = rawNotesRead ? JSON.parse(rawNotesRead) : null;
+
+      const rawTarget = await AsyncStorage.getItem('@studify_exam_target');
+      examTarget = rawTarget ? JSON.parse(rawTarget) : null;
+
+      const rawFailed = await AsyncStorage.getItem('@studify_last_failed_topic');
+      weakTopic = rawFailed ? JSON.parse(rawFailed) : null;
+
+      const rawGoals = await AsyncStorage.getItem('@studify_intern_weekly_goals');
+      weeklyGoals = rawGoals ? JSON.parse(rawGoals) : null;
+    } catch (err) {
+      logChatDebug('WARN', 'Failed to read AsyncStorage: ' + err.message);
+    }
+
+    try {
+      const payload = {
+        message: userText,
+        sessionId: (user && user.email) ? `session_${user.email}` : 'guest_session',
+        role: (user && user.role) || 'student',
+        email: (user && user.email) || '',
+        recentNote,
+        subjectEngagement,
+        featureUsage,
+        pinnedSubject,
+        notebooks,
+        savedNotes,
+        testHistory,
+        studyPlannerSlots,
+        savedLectures,
+        studySessionsHistory,
+        notesReadHistory,
+        examTarget,
+        totalNotesPages,
+        weakTopic,
+        weeklyGoals,
+      };
+
+      let resData = null;
+      const endpoints = [
+        'https://www.api.studifysuccess.com/chat',
+      ];
+
+      let lastErr = null;
+
+      for (const url of endpoints) {
+        try {
+          logChatDebug('INFO', `Attempting endpoint: ${url}`);
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            resData = data;
+            logChatDebug('SUCCESS', `Response received from ${url}`, resData);
+            break;
+          } else {
+            logChatDebug('WARN', `Endpoint ${url} returned HTTP ${response.status}`);
+          }
+        } catch (e) {
+          lastErr = e;
+          logChatDebug('WARN', `Endpoint ${url} error: ${e.message}`);
+        }
+      }
+
+      if (!resData) {
+        throw lastErr || new Error('All chatbot API endpoints failed');
+      }
+
+      const aiReplyText = (resData && resData.reply) || (resData && resData.data && resData.data.reply) || "I'm here to assist you! Please ask any question regarding courses, fees, or attendance.";
+
+      const aiMsg = {
+        id: `ai_${Date.now()}`,
+        sender: 'ai',
+        text: aiReplyText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setChatMessages(prev => [...prev, aiMsg]);
+    } catch (err) {
+      logChatDebug('ERROR', 'Chatbot API request failed', (err && err.message) || err);
+      const fallbackMsg = {
+        id: `ai_err_${Date.now()}`,
+        sender: 'ai',
+        text: '⚠️ Unable to connect to assistant backend. Please check network connection.',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isError: true,
+      };
+      setChatMessages(prev => [...prev, fallbackMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    AsyncStorage.getItem('@studify_show_mascot').then(val => {
+      if (val !== null) {
+        setShowMascot(val === 'true');
+      } else {
+        setShowMascot(true);
+      }
+    });
+  }, []);
+
+  const handleToggleMascot = async (val) => {
+    setShowMascot(val);
+    await AsyncStorage.setItem('@studify_show_mascot', val ? 'true' : 'false');
+  };
 
   const spinCount = useRef(0);
 
@@ -108,10 +398,7 @@ const Home = () => {
     ).start();
   }, [cloudFloatAnim]);
 
-  useEffect(() => {
-    startFloat();
-    startCloudFloat();
-  }, [startFloat, startCloudFloat]);
+
 
   const startStreakPulse = useCallback(() => {
     Animated.loop(
@@ -145,7 +432,7 @@ const Home = () => {
         useNativeDriver: true,
       }).start(() => {
         // Change phrase and fade in
-        setPhraseIndex(prev => (prev + 1) % phrases.length);
+        setPhraseIndex(prev => (prev + 1) % personalPhrases.length);
         Animated.timing(textOpacity, {
           toValue: 1,
           duration: 350,
@@ -155,7 +442,8 @@ const Home = () => {
     }, 4000); // changes every 4 seconds
 
     return () => clearInterval(interval);
-  }, [textOpacity, phrases.length]);
+  }, [textOpacity, personalPhrases.length]);
+
 
   const triggerSpin = () => {
     if (isAnimating.current || isDizzy) {
@@ -355,10 +643,31 @@ const Home = () => {
     });
   };
 
+  const chatPan = useRef(new Animated.ValueXY()).current;
+  const chatPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        chatPan.setOffset({
+          x: chatPan.x._value,
+          y: chatPan.y._value,
+        });
+        chatPan.setValue({x: 0, y: 0});
+      },
+      onPanResponderMove: Animated.event(
+        [null, {dx: chatPan.x, dy: chatPan.y}],
+        {useNativeDriver: false}
+      ),
+      onPanResponderRelease: () => {
+        chatPan.flattenOffset();
+      },
+    })
+  ).current;
+
   const handleCloudPress = () => {
-    navigation.navigate('WebView', {
-      url: 'https://ai.studifysuccess.com/',
-    });
+    chatPan.setValue({x: 0, y: 0});
+    setShowChatModal(true);
   };
 
   // Pan responder to support drag-to-toss and spring back
@@ -488,9 +797,11 @@ const Home = () => {
     outputRange: [0.85, 0.25],
   });
 
-  // Tasks state
+  // Tasks & Notebook state
   const [tasks, setTasks] = useState([]);
   const [plannerCount, setPlannerCount] = useState(0);
+  const [notebooksCount, setNotebooksCount] = useState(1);
+  const [weakTopic, setWeakTopic] = useState(null);
 
   const formatDateKey = date => {
     const yyyy = date.getFullYear();
@@ -502,7 +813,14 @@ const Home = () => {
   const loadDashboardData = useCallback(async () => {
     try {
       const todayKey = formatDateKey(new Date());
-      const storedSlots = await AsyncStorage.getItem('studify_slots');
+      // Run all AsyncStorage reads in parallel — 60-80% faster than sequential awaits
+      const [storedSlots, savedNotebooks, failedTop, note] = await Promise.all([
+        AsyncStorage.getItem('studify_slots'),
+        AsyncStorage.getItem('@voice_notebooks'),
+        AsyncStorage.getItem('@studify_last_failed_topic'),
+        getRecentNote(),
+      ]);
+
       if (storedSlots) {
         const parsed = JSON.parse(storedSlots);
         const todaySlots = parsed.filter(
@@ -514,9 +832,63 @@ const Home = () => {
         setTasks([]);
         setPlannerCount(0);
       }
+
+      // Load notebooks count
+      if (savedNotebooks) {
+        setNotebooksCount(JSON.parse(savedNotebooks).length);
+      } else {
+        setNotebooksCount(1); // default Manual notebook
+      }
+
+      // Load weak topic
+      if (failedTop) {
+        setWeakTopic(JSON.parse(failedTop));
+      } else {
+        setWeakTopic(null);
+      }
+
+      // Set recent note & personalize mascot phrases (non-blocking)
+      setRecentNoteState(note);
+      loadMascotPhrases();
     } catch (e) {
-      console.log('Failed to load dashboard data', e);
+      console.warn('Error loading dashboard data:', e);
     }
+  }, []);
+
+  // Schedule Daily Trivia Notification
+  useEffect(() => {
+    const scheduleTrivia = async () => {
+      try {
+        const top = await getTopEngagedSubjects(1);
+        let subjName = top && top.length > 0 ? top[0] : 'your subjects';
+
+        const trigger = {
+          type: TriggerType.TIMESTAMP,
+          timestamp: new Date().setHours(18, 0, 0, 0), // 6:00 PM today
+          repeatFrequency: RepeatFrequency.DAILY,
+        };
+        
+        if (trigger.timestamp < Date.now()) {
+          trigger.timestamp += 86400000;
+        }
+
+        await Notifee.createTriggerNotification(
+          {
+            id: 'daily_trivia',
+            title: `🧠 Daily Trivia Time!`,
+            body: `Can you answer today's question in ${subjName}? Tap to test your knowledge!`,
+            android: {
+              channelId: 'default',
+              smallIcon: 'ic_launcher',
+            },
+          },
+          trigger
+        );
+      } catch (e) {
+        console.log('Failed to schedule trivia', e);
+      }
+    };
+    scheduleTrivia();
   }, []);
 
   useFocusEffect(
@@ -526,33 +898,75 @@ const Home = () => {
     }, [loadDashboardData, dispatch]),
   );
 
-  // Stats Calculations
+  // Stats Calculations — memoized so they don't re-run on every unrelated render
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.completed).length;
+  const completedTasks = useMemo(() => tasks.filter(t => t.completed).length, [tasks]);
 
   return (
-    <View style={[styles.mainContainer, {backgroundColor: colors.background}]}>
+    <CopilotProvider overlay="view" tooltipStyle={{borderRadius: 17}}>
+      <TourStarter />
+      <View style={[styles.mainContainer, {backgroundColor: colors.background}]}>
       <Screen NoHeader style={styles.screenContainer}>
-        {/* 1. Header component */}
-        <HomeHeader />
+        {/* 1. Header component with integrated Help/Tour button */}
+        <HomeHeader onHelpPress={() => copilotStartRef.current && copilotStartRef.current()} />
+
+        {/* Dynamic Weakness Targeting Widget */}
+        {weakTopic && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AiNotesGenerator', { 
+              subject: weakTopic.subject, 
+              topic: weakTopic.topic,
+              studentClass: weakTopic.studentClass,
+              board: weakTopic.board,
+              stream: weakTopic.stream
+            })}
+            style={{
+              marginHorizontal: 15,
+              marginTop: 10,
+              marginBottom: 14,
+              backgroundColor: dark ? 'rgba(255, 152, 0, 0.15)' : '#fff3e0',
+              borderLeftWidth: 4,
+              borderLeftColor: '#ff9800',
+              padding: 14,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+            <Icon name="target-account" size={28} color="#ff9800" style={{marginRight: 14}} />
+            <View style={{flex: 1}}>
+              <Text style={{fontWeight: 'bold', fontSize: 14, color: '#ff9800', marginBottom: 2}}>Focus Area Identified</Text>
+              <Text style={{fontSize: 12, color: colors.onSurface, lineHeight: 18}}>
+                Improve your score in <Text style={{fontWeight: 'bold'}}>{weakTopic.topic}</Text>. Generate a custom AI study guide now!
+              </Text>
+            </View>
+            <Icon name="chevron-right" size={20} color="#ff9800" />
+          </TouchableOpacity>
+        )}
 
         {/* 2. Interactive Quick Stats Dashboard */}
-        <View style={styles.statsRow}>
+        <CopilotStep text="🔥 Your progress lives here. Keep that streak alive!" order={3} name="statsRow">
+        <CopilotView style={styles.statsRow}>
           <BouncyButton
             onPress={() => navigation.navigate('PersonalizedLearning')}
             style={[
               styles.statBox,
-              { backgroundColor: '#e0f7fa', borderColor: '#b2ebf2' },
+              {backgroundColor: '#e0f7fa', borderColor: '#b2ebf2'},
               dark && {
                 backgroundColor: 'rgba(0,188,212,0.1)',
                 borderColor: 'rgba(0,188,212,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#b2ebf2'}]}>
+            <View
+              style={[styles.statIconWrapper, {backgroundColor: '#b2ebf2'}]}>
               <Icon name="clipboard-check" size={15} color="#00838f" />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#006064'}, dark && {color: colors.onSurface}]}>
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#006064'},
+                  dark && {color: colors.onSurface},
+                ]}>
                 {completedTasks}/{totalTasks}
               </Text>
               <Text
@@ -567,21 +981,43 @@ const Home = () => {
           </BouncyButton>
 
           <BouncyButton
-            onPress={() => navigation.navigate('StudyPlanner')}
+            onPress={() => navigation.navigate('VoiceNotebook')}
             style={[
               styles.statBox,
-              { backgroundColor: '#ede7f6', borderColor: '#d1c4e9' },
+              {backgroundColor: '#ede7f6', borderColor: '#d1c4e9'},
               dark && {
                 backgroundColor: 'rgba(103,58,183,0.1)',
                 borderColor: 'rgba(103,58,183,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#d1c4e9'}]}>
-              <Icon name="calendar-multiselect" size={15} color="#512da8" />
+            <View
+              style={[
+                styles.statIconWrapper,
+                {backgroundColor: '#d1c4e9', position: 'relative'},
+              ]}>
+              <Icon name="notebook-outline" size={16} color="#512da8" />
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: -3,
+                  right: -3,
+                  backgroundColor: dark ? '#201630' : '#ede7f6',
+                  borderRadius: 6,
+                  padding: 1,
+                  borderWidth: 1,
+                  borderColor: '#d1c4e9',
+                }}>
+                <Icon name="microphone" size={9} color="#512da8" />
+              </View>
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#311b92'}, dark && {color: colors.onSurface}]}>
-                {plannerCount}
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#311b92'},
+                  dark && {color: colors.onSurface},
+                ]}>
+                {notebooksCount}
               </Text>
               <Text
                 style={[
@@ -589,7 +1025,7 @@ const Home = () => {
                   {color: '#512da8'},
                   dark && {color: colors.onSurfaceVariant},
                 ]}>
-                Schedule
+                Notebooks
               </Text>
             </View>
           </BouncyButton>
@@ -598,21 +1034,24 @@ const Home = () => {
             onPress={() => navigation.navigate('GamificationDashboard')}
             style={[
               styles.statBox,
-              { backgroundColor: '#fff3e0', borderColor: '#ffe0b2' },
+              {backgroundColor: '#fff3e0', borderColor: '#ffe0b2'},
               dark && {
                 backgroundColor: 'rgba(255,152,0,0.1)',
                 borderColor: 'rgba(255,152,0,0.3)',
               },
             ]}>
-            <View style={[styles.statIconWrapper, {backgroundColor: '#ffe0b2'}]}>
+            <View
+              style={[styles.statIconWrapper, {backgroundColor: '#ffe0b2'}]}>
               <Icon name="fire" size={15} color="#e65100" />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statVal, {color: '#e65100'}, dark && {color: colors.onSurface}]}>
-                {(() => {
-                  const count = gamificationState?.streak || 1;
-                  return `${count}d`;
-                })()}
+              <Text
+                style={[
+                  styles.statVal,
+                  {color: '#e65100'},
+                  dark && {color: colors.onSurface},
+                ]}>
+                {`${(gamificationState && gamificationState.streak) || 1}d`}
               </Text>
               <Text
                 style={[
@@ -624,12 +1063,41 @@ const Home = () => {
               </Text>
             </View>
           </BouncyButton>
-        </View>
+        </CopilotView>
+        </CopilotStep>
 
-        {/* 3. Promo Banner Slides */}
-        <Banner />
+        {recentNote && (
+          <BouncyButton
+            onPress={() => openRecentItem(navigation, recentNote)}
+            style={[
+              styles.recentCard,
+              { backgroundColor: colors.surface, borderColor: colors.outlineVariant }
+            ]}
+          >
+            <View style={styles.recentRow}>
+              <View style={styles.recentIconBox}>
+                <Icon name={recentNote.type === 'note' ? 'file-pdf-box' : 'play-circle'} size={24} color="#e53935" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.primary, textTransform: 'uppercase' }}>
+                  Jump Back In
+                </Text>
+                <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: 'bold', color: colors.onSurface }}>
+                  {recentNote.name}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.outline, textTransform: 'capitalize' }}>
+                  Subject: {formatSubjectForBoard(recentNote.subject, recentNote.board)} • {recentNote.type}
+                </Text>
+              </View>
+              <Icon name="arrow-right-circle" size={24} color={colors.primary} />
+            </View>
+          </BouncyButton>
+        )}
+
+
 
         {/* Personalized Learning Banner Card */}
+        <CopilotStep text="🎯 For all your study planner & targets." order={4} name="studyHub">
         <BouncyButton
           onPress={() => navigation.navigate('PersonalizedLearning')}
           style={[
@@ -676,6 +1144,26 @@ const Home = () => {
             source={require('../../Assets/Images/personalized_learning.png')}
             style={styles.personalImage}
           />
+        </BouncyButton>
+        </CopilotStep>
+
+        {/* AI Flashcards Banner Card */}
+        <BouncyButton
+          onPress={() => navigation.navigate('AiFlashcards', { subject: weakTopic ? weakTopic.subject : ((recentNote && recentNote.subject) || 'Physics'), topic: weakTopic ? weakTopic.topic : 'General Revision' })}
+          style={[
+            styles.personalBanner,
+            { backgroundColor: '#e8eaf6', borderColor: '#c5cae9' },
+            dark && { backgroundColor: 'rgba(63, 81, 181, 0.1)', borderColor: 'rgba(63, 81, 181, 0.3)' }
+          ]}>
+          <View style={styles.personalTextContainer}>
+            <Text style={[styles.personalSubtitle, { color: '#3f51b5' }]}>Spaced Repetition</Text>
+            <Text style={[styles.personalTitle, dark && {color: colors.onSurface}]}>AI Flashcards</Text>
+            <View style={[styles.personalBtn, { backgroundColor: '#3f51b5' }]}>
+              <Text style={styles.personalBtnText}>Start Review</Text>
+              <Icon name="chevron-right" size={13} color="#ffffff" style={styles.chevronIcon} />
+            </View>
+          </View>
+          <Icon name="cards-playing-outline" size={80} color="#3f51b5" style={{ opacity: 0.2, position: 'absolute', right: -10, bottom: -10 }} />
         </BouncyButton>
 
         {/* Offline Coaching Banner Card */}
@@ -735,54 +1223,7 @@ const Home = () => {
           />
         </BouncyButton>
 
-        {/* Study Notes Banner Card */}
-        <BouncyButton
-          onPress={() => navigation.navigate('ClassNotesSelector')}
-          style={[
-            styles.notesBanner,
-            dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
-            },
-          ]}>
-          <View style={styles.notesTextContainer}>
-            <Text
-              style={[
-                styles.notesSubtitle,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
-              <Text
-                style={[
-                  styles.subtitleBoldNotes,
-                  dark && {color: colors.primary},
-                ]}>
-                Free
-              </Text>{' '}
-              study materials!
-            </Text>
-            <Text
-              style={[styles.notesTitle, dark && {color: colors.onSurface}]}>
-              Download Notes
-            </Text>
-            <View
-              style={[
-                styles.notesBtn,
-                dark && {backgroundColor: colors.primary},
-              ]}>
-              <Text style={styles.notesBtnText}>Select Class</Text>
-              <Icon
-                name="chevron-right"
-                size={13}
-                color="#ffffff"
-                style={styles.chevronIcon}
-              />
-            </View>
-          </View>
-          <Image
-            source={require('../../Assets/Images/study_notes.png')}
-            style={styles.notesImage}
-          />
-        </BouncyButton>
+
 
         {/* Careers Banner Card */}
         <BouncyButton
@@ -882,60 +1323,6 @@ const Home = () => {
           <Image
             source={require('../../Assets/Images/activities.jpg')}
             style={styles.activitiesImage}
-          />
-        </BouncyButton>
-
-        {/* Counseling System Banner */}
-        <BouncyButton
-          onPress={() => navigation.navigate('Counselling')}
-          style={[
-            styles.counselingBanner,
-            dark && {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
-            },
-          ]}>
-          <View style={styles.counselingTextContainer}>
-            <Text
-              style={[
-                styles.counselingSubtitle,
-                dark && {color: colors.onSurfaceVariant},
-              ]}>
-              <Text
-                style={[
-                  styles.subtitleBoldCounseling,
-                  dark && {color: colors.primary},
-                ]}>
-                Guided
-              </Text>{' '}
-              academic & career path
-            </Text>
-            <Text
-              style={[
-                styles.counselingTitle,
-                dark && {color: colors.onSurface},
-              ]}>
-              Counseling System
-            </Text>
-            <View
-              style={[
-                styles.counselingBtn,
-                dark && {backgroundColor: colors.primary},
-              ]}>
-              <Text style={styles.counselingBtnText}>Book Session</Text>
-              <Icon
-                name="chevron-right"
-                size={13}
-                color="#ffffff"
-                style={styles.chevronIcon}
-              />
-            </View>
-          </View>
-          <Icon
-            name="account-voice"
-            size={48}
-            color={colors.primary}
-            style={styles.counselingIcon}
           />
         </BouncyButton>
 
@@ -1043,122 +1430,190 @@ const Home = () => {
             </BouncyButton>
           </View>
         </View>
+
+        {/* ✨ Mascot Toggle Card — at the very bottom */}
+        <View style={styles.mascotToggleCard}>
+          {/* Gradient-like layered background */}
+          <View style={[
+            styles.mascotToggleBg,
+            dark && {backgroundColor: '#1a1a2e', borderColor: '#7c3aed44'}
+          ]}>
+            {/* Styled Toggle — LEFT side so mascot doesn't cover it */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleToggleMascot(!showMascot)}
+              style={[
+                styles.mascotToggleTrack,
+                showMascot
+                  ? {backgroundColor: colors.primary}
+                  : {backgroundColor: dark ? '#3a3a50' : '#d1d5db'},
+                {marginRight: 14},
+              ]}>
+              <Animated.View
+                style={[
+                  styles.mascotToggleThumb,
+                  {
+                    transform: [{
+                      translateX: showMascot ? 24 : 2,
+                    }],
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.mascotToggleLeft}>
+              <Text style={styles.mascotToggleEmoji}>🤖</Text>
+              <View style={{flex: 1, marginLeft: 12}}>
+                <Text style={[
+                  styles.mascotToggleTitle,
+                  dark && {color: '#e0d7ff'}
+                ]}>
+                  Studify AI Assistant
+                </Text>
+                <Text style={[
+                  styles.mascotToggleSubtitle,
+                  dark && {color: '#a78bfa'}
+                ]}>
+                  {showMascot
+                    ? '✨ Buddy is here! Drag me around 🎉'
+                    : '💤 Call your buddy to play!'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Tagline below */}
+          <Text style={[
+            styles.mascotToggleTagline,
+            dark && {color: '#a78bfa'}
+          ]}>
+            {showMascot
+              ? '🌟 Your buddy is watching you study — keep going!'
+              : '👋 Toggle on to summon your mascot companion!'}
+          </Text>
+        </View>
+
       </Screen>
 
-      {/* Floating AI Bot Assistant */}
-      <View style={styles.botContainer} pointerEvents="box-none">
-        {/* Cloud/Bubble for Chat with AI */}
-        <Animated.View
-          style={[
-            styles.cloudBubble,
-            dark && styles.cloudBubbleDark,
-            {
-              transform: [{translateY: cloudFloatAnim}],
-            },
-          ]}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleCloudPress}
-            style={styles.cloudButton}>
-            <Animated.Text
-              style={[
-                styles.cloudText,
-                dark && styles.cloudTextDark,
-                {opacity: textOpacity},
-              ]}>
-              {phrases[phraseIndex]}
-            </Animated.Text>
-          </TouchableOpacity>
-
-          {/* Thought bubble pointers */}
-          <View
-            style={[styles.thoughtDotLarge, dark && styles.thoughtDotDark]}
-          />
-          <View
-            style={[styles.thoughtDotSmall, dark && styles.thoughtDotDark]}
-          />
-        </Animated.View>
-
-        {/* Impact Ring */}
-        <Animated.View
-          style={[
-            styles.impactRing,
-            dark && styles.impactRingDark,
-            {
-              transform: [{scale: impactScale}],
-              opacity: impactOpacity,
-            },
-          ]}
-        />
-
-        {/* Sparkle Particles Trail */}
-        <MascotParticleTrail pan={pan} rotateYAnim={rotateYAnim} />
-
-        {/* Robot Button */}
-        <Animated.View
-          style={[
-            styles.botImageContainer,
-            {
-              transform: [
-                {translateX: pan.x},
-                {
-                  translateY: Animated.add(
-                    Animated.add(floatAnim, jumpAnim),
-                    pan.y,
-                  ),
-                },
-                {scale: scaleAnim},
-                {rotate: rotateInterpolate},
-                {rotateY: rotateYInterpolate},
-              ],
-            },
-          ]}
-          {...panResponder.panHandlers}>
-          {/* Normal Happy Robot */}
-          <Animated.Image
-            source={require('../../Assets/Images/silver_robot.png')}
-            style={[
-              styles.botImage,
-              {
-                opacity: normalImageOpacity,
-              },
-            ]}
-          />
-
-          {/* Dizzy Robot */}
-          <Animated.Image
-            source={require('../../Assets/Images/silver_robot_dizzy.png')}
-            style={[
-              styles.botImage,
-              {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                opacity: dizzyImageOpacity,
-              },
-            ]}
-          />
-
-          {/* Dizzy Stars overlay */}
-          <Animated.View
-            style={[
-              styles.starsContainer,
-              {
-                opacity: starsAnim,
-                transform: [{rotate: starsRotate}],
-              },
-            ]}>
-            <Text style={styles.starText}>💫</Text>
-          </Animated.View>
-        </Animated.View>
-      </View>
+      <AIChatbot role="student" visible={showMascot} />
     </View>
+    </CopilotProvider>
   );
 };
 
 const styles = StyleSheet.create({
+  mascotToggleCard: {
+    marginHorizontal: 15,
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  mascotToggleBg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1.5,
+    borderColor: '#D8B4FE',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    elevation: 2,
+    shadowColor: '#7C3AED',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  mascotToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 10,
+  },
+  mascotToggleEmoji: {
+    fontSize: 28,
+  },
+  mascotToggleTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#581C87',
+  },
+  mascotToggleSubtitle: {
+    fontSize: 12,
+    color: '#7E22CE',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  mascotToggleTrack: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  mascotToggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  mascotToggleTagline: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 8,
+    color: '#6B21A8',
+    fontWeight: '600',
+  },
+  recentCard: {
+    marginHorizontal: 15,
+    marginTop: 0,
+    marginBottom: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recentIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffebee',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   mainContainer: {
     flex: 1,
+  },
+  helpButton: {
+    position: 'absolute',
+    top: 55,
+    right: 60,
+    zIndex: 99999,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   screenContainer: {
     marginBottom: 80,
@@ -1166,8 +1621,8 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 15,
+    marginBottom: 14,
     gap: 10,
   },
   statBox: {
@@ -1737,6 +2192,121 @@ const styles = StyleSheet.create({
   },
   subtitleBoldCounseling: {
     fontWeight: 'bold',
+  },
+  focusBanner: {
+    marginHorizontal: 15,
+    marginVertical: 10,
+    backgroundColor: '#ede7f6',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d1c4e9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  focusTextContainer: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  focusSubtitle: {
+    fontSize: 12,
+    color: '#37474f',
+    marginBottom: 4,
+  },
+  focusTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#263238',
+    marginBottom: 10,
+  },
+  focusBtn: {
+    backgroundColor: '#673ab8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 1,
+  },
+  focusBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  focusIcon: {
+    marginRight: 10,
+  },
+  subtitleBoldFocus: {
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: 16,
+    paddingBottom: 110,
+  },
+  floatingChatBox: {
+    position: 'absolute',
+    bottom: 110,
+    right: 16,
+    width: 320,
+    height: 500,
+    backgroundColor: '#fff8fa',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 225, 235, 0.9)',
+    elevation: 20,
+    shadowColor: '#ab2346',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 225, 235, 0.9)',
+  },
+  modalMascotIcon: {
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a2e2e',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: '#007171',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 225, 235, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(171, 35, 70, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
