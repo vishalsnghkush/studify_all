@@ -677,6 +677,89 @@ const TLMyTeam = () => {
                     Promote to TL
                   </Button>
 
+                  {/* Team Leader Governance Actions: Remove & Block */}
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10}}>
+                    {/* Remove Intern Button */}
+                    <Button
+                      mode="contained"
+                      buttonColor="#E65100"
+                      textColor="#fff"
+                      icon="account-remove"
+                      style={{flex: 1, marginRight: 6, borderRadius: 8}}
+                      labelStyle={{fontSize: 12, fontWeight: 'bold'}}
+                      onPress={() => {
+                        if (!selectedIntern) return;
+                        Alert.alert(
+                          'Remove Intern',
+                          `Are you sure you want to remove ${selectedIntern.name} from the internship? They will be demoted to Student status.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Remove',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  const targetId = selectedIntern.id;
+                                  const targetName = selectedIntern.name;
+                                  setSelectedIntern(null);
+                                  await post('/interns/team/action', {
+                                    internId: targetId,
+                                    action: 'Remove',
+                                  });
+                                  Alert.alert('Intern Removed', `${targetName} has been removed from the team.`);
+                                  loadData();
+                                } catch (err) {
+                                  Alert.alert('Error', 'Failed to remove intern.');
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}>
+                      Remove Intern
+                    </Button>
+
+                    {/* Block Intern Button */}
+                    <Button
+                      mode="contained"
+                      buttonColor="#C62828"
+                      textColor="#fff"
+                      icon="account-cancel"
+                      style={{flex: 1, marginLeft: 6, borderRadius: 8}}
+                      labelStyle={{fontSize: 12, fontWeight: 'bold'}}
+                      onPress={() => {
+                        if (!selectedIntern) return;
+                        Alert.alert(
+                          'Block Intern 🚫',
+                          `Are you sure you want to BLOCK ${selectedIntern.name}? Their login and internship access will be revoked immediately.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Block Intern',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  const targetId = selectedIntern.id;
+                                  const targetName = selectedIntern.name;
+                                  setSelectedIntern(null);
+                                  await post('/interns/team/action', {
+                                    internId: targetId,
+                                    action: 'Block',
+                                  });
+                                  Alert.alert('Intern Blocked 🚫', `${targetName} has been blocked successfully.`);
+                                  loadData();
+                                } catch (err) {
+                                  Alert.alert('Error', 'Failed to block intern.');
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}>
+                      Block Intern
+                    </Button>
+                  </View>
+
                   {/* Pure RN Line Graph (Productivity Trend) */}
                   <View style={{ marginTop: 20 }}>
                     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 15 }}>Weekly Productivity Trend 📈</Text>
