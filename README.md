@@ -433,16 +433,16 @@ MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/chatbotDB"
 - **Request Body**:
   ```json
   {
-    "fname": "Aditi",
-    "lname": "Malviya",
-    "email": "aditi@example.com",
+    "fname": "Test",
+    "lname": "Test",
+    "email": "Test@example.com",
     "phone": "9876543210",
     "password": "Password@123",
     "dob": "2000-05-15",
     "gender": "Female",
     "is_tl": 1,
     "department": "Tech",
-    "tlAccessCode": "TL@STUDIFY2026"
+    "tlAccessCode": ".."
   }
   ```
 - **Success Response (`200 OK`)**:
